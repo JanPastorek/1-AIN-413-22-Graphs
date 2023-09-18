@@ -1,0 +1,5 @@
+# Build and Release Folders
+*.ini
+.history/
+/.history
+*.md

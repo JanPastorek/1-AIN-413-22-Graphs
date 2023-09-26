@@ -2,4 +2,12 @@
 *.ini
 .history/
 /.history
-*.md
+exercises and projects.md
+practice.md
+data.md
+
+# Ignore all .md files in data folder and its subfolders
+data/**/*.md
+
+# Do not ignore any README.md files in data folder and its subfolders
+!data/**/README.md

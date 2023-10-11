@@ -51,7 +51,7 @@ Why graphs?
 
 ---
 
-![[08ff6c49c7a765800df620e40f462b7e_MD5.png|1000x500]]
+![[files/images/08ff6c49c7a765800df620e40f462b7e_MD5.png|1000x500]]
 <grid drag="100 6" drop="bottom" bg="#00466e" style="font-size:30px">
 ######  Graphs, graph algorithms and optimalization - Basics 1, Ján Pastorek, <a style="color: white">jan.pastorek@fmph.uniba.sk</a>
 <!-- element style="font-weight:300; color: white" -->
@@ -69,7 +69,7 @@ Graph representations
 
 ---
 
-![[4d196a620f9c3f0753ed7638ebcbfb67_MD5.png]]
+![[files/images/4d196a620f9c3f0753ed7638ebcbfb67_MD5.png]]
 <grid drag="100 6" drop="bottom" bg="#00466e" style="font-size:30px">
 ######  Graphs, graph algorithms and optimalization - Basics 1, Ján Pastorek, <a style="color: white">jan.pastorek@fmph.uniba.sk</a>
 <!-- element style="font-weight:300; color: white" -->
@@ -87,7 +87,7 @@ A **walk** (sled) is an alternating list ${} v_{0}, e_{1}, v_{1}, e_{2}, . .. , 
 
 ---
 
-![[473717e90e6d373ad3ebca3c82f86f1b_MD5.png]]
+![[files/images/473717e90e6d373ad3ebca3c82f86f1b_MD5.png]]
 
 
 ---

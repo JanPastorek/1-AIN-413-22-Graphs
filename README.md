@@ -4,11 +4,6 @@
 
 **Teaching Assistant:** Ján Pastorek, e-mail: [jan.pastorek@fmph.uniba.sk](mailto:jan.pastorek@fmph.uniba.sk)
 
-**Course Coordinates:**
-
-**Lecture:** Wednesday (14:50 - 16:20) in I-23.
-**Exercises:** Wednesday (18:10 - 19:40) in M-I
-
 **Consultations:** by agreement
 
 **Textbooks:**

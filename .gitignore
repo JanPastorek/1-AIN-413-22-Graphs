@@ -10,6 +10,10 @@ Exercise 1.md
 Exercise 2.md
 Exercise 3.md
 Exercise [0-9]*.md
+Problem set [0-9]*.pdf
+hw2.dvi.pdf
+*.md
+*.svg
 
 # Ignore all .md files in data folder and its subfolders
 data/**/*.md

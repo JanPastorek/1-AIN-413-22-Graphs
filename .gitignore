@@ -15,6 +15,11 @@ hw2.dvi.pdf
 *.md
 *.svg
 
+media/
+__pycache__/
+pip.log
+exercise 4.py
+
 /home projects/Exercises Home project [2-9]*.***
 
 # Ignore all .md files in data folder and its subfolders

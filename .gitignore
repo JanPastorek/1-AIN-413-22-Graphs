@@ -27,3 +27,4 @@ data/**/*.md
 
 # Do not ignore any README.md files in data folder and its subfolders
 !data/**/README.md
+.vscode/settings.json

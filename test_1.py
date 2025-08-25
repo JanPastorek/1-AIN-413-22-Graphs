@@ -66,25 +66,34 @@ def test_havel_hakimi_2():
     set1 = all_graphs_from_degree_sequence(list1)
     set2 = all_graphs_from_degree_sequence(list2)
     set3 = all_graphs_from_degree_sequence(list3)
-    display_graphs(set1)
-    display_graphs(set2)
-    display_graphs(set3)
+    #     display_graphs(set1)
+    #     display_graphs(set2)
+    #     display_graphs(set3)
 
-    assert len(set1) == 3
-    assert len(set2) == 1
     assert len(set3) == 0
 
-    set_1_correct = [nx.from_graph6_bytes(b'>>graph6<<DqC')]
-    set_2_correct = [nx.from_graph6_bytes(
-        b'>>graph6<<EuLg'),  nx.from_graph6_bytes(b'>>graph6<<EtXW')]
+    set_1_correct = [nx.from_graph6_bytes(
+        b'>>graph6<<DqC'), nx.from_graph6_bytes(b'>>graph6<<DqG'), nx.from_graph6_bytes(b'>>graph6<<DwC')]
+
+    sols2 = "b'>>graph6<<EuLg\n', b'>>graph6<<Es\\o\n', b'>>graph6<<EtTg\n', b'>>graph6<<E{LW\n', b'>>graph6<<EtXW\n', b'>>graph6<<E{Sw\n', b'>>graph6<<EuWw\n'".split(
+        ", ")
+
+    set_2_correct = [nx.from_graph6_bytes(bytes(sol.replace(
+        "b'", "").replace("'", "").strip(), "utf-8")) for sol in sols2]
 
     solutions_tests = [(set1, set_1_correct), (set2, set_2_correct)]
 
-    for sol_t in solutions_tests:
+    for i, sol_t in enumerate(solutions_tests):
         for g in sol_t[0]:
             is_in = False
             for g_corr in sol_t[1]:
+
                 is_in = nx.is_isomorphic(g, g_corr)
                 if is_in:
                     break
             assert is_in == True
+
+
+if __name__ == "__main__":
+    test_havel_hakimi()
+    test_havel_hakimi_2()

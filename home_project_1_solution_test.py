@@ -1,7 +1,7 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 from typing import List
-from solution_1 import havel_hakimi, all_graphs_from_degree_sequence
+from home_project_1_solution import havel_hakimi, all_graphs_from_degree_sequence
 
 
 def test_havel_hakimi():

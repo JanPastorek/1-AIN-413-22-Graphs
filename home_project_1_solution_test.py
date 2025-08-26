@@ -1,5 +1,4 @@
 import networkx as nx
-import matplotlib.pyplot as plt
 from typing import List
 from home_project_1_solution import havel_hakimi, all_graphs_from_degree_sequence
 
@@ -66,9 +65,6 @@ def test_havel_hakimi_2():
     set1 = all_graphs_from_degree_sequence(list1)
     set2 = all_graphs_from_degree_sequence(list2)
     set3 = all_graphs_from_degree_sequence(list3)
-    #     display_graphs(set1)
-    #     display_graphs(set2)
-    #     display_graphs(set3)
 
     assert len(set3) == 0
 

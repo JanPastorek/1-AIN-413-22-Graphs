@@ -22,6 +22,8 @@ Graphs, Graph Algorithms, and Optimization is a course where we will cover basic
 
 **Projects:** The most crucial part of the evaluation will be the home projects. I will assign three in total (each for 50 points). The submission deadline will always be clearly stated in the assignment. Along with standard routine problems, the project will include some more challenging questions that may require additional independent reading, self-study, and possibly a longer time for discussion and resolution. However, they should be fun. I will expect you to also write proofs. You must argue your solutions in detail. Expect that you will need more than the last night before the submission deadline for the homework. I dont mind if you discuss the problems from the homework with your colleagues, but please, write the solutions independently; dont write anything you dont fully understand. We will provide enough comments and feedback on your projects. We may ask you to discuss some of your solutions with us individually and possibly redo them for some partial points.
 
+For the exercises, you are advised to bring both pen, paper and notebook with you.
+
 **From the exercises, you can earn a total of 50 points for the semester.** 
 - Your activity will be evaluated, 
 - you will write smaller tests during the exercises, 

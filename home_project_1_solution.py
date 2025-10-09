@@ -7,9 +7,11 @@ from typing import List
 
 def havel_hakimi(sequence: List[int]) -> bool:
     # TODO: implement the Havel-Hakimi algorithm on your own
-    # return true or false if the sequence is graphical or not
 
-    return True
+    deg_sequence = []
+
+    # return true or false if the sequence is graphical or not
+    return False
 
 
 def all_graphs_from_degree_sequence(sequence: List[int]) -> List[nx.Graph]:

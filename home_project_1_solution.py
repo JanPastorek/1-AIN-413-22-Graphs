@@ -2,14 +2,12 @@
 import networkx as nx
 from typing import List
 
-# you are forbidden to use any built-in functions for this exercise
+# you can use nx.Graph() to create a graph and add edges to it
+# you are forbidden to use any built-in functions for this exercise except nx.is_isomorphic
 
 
 def havel_hakimi(sequence: List[int]) -> bool:
     # TODO: implement the Havel-Hakimi algorithm on your own
-
-    deg_sequence = []
-
     # return true or false if the sequence is graphical or not
     return False
 

@@ -1,0 +1,9 @@
+{
+  "bfs": {"directed": false, "vertices": ["A", "B", "C", "D", "E", "F"], "edges": [["A", "B", 1], ["A", "C", 1], ["B", "D", 1], ["C", "D", 1], ["D", "E", 1], ["C", "F", 1]]},
+  "fiber": {"directed": false, "vertices": ["A", "B", "C", "D", "E", "F"], "edges": [["A", "B", 4], ["A", "C", 2], ["B", "C", 1], ["B", "D", 5], ["C", "D", 8], ["C", "E", 10], ["D", "E", 2], ["D", "F", 6], ["E", "F", 3]]},
+  "transit": {"directed": true, "vertices": ["S", "A", "B", "C", "T"], "edges": [["S", "A", 2], ["S", "B", 6], ["A", "B", 1], ["A", "C", 4], ["B", "C", 1], ["B", "T", 7], ["C", "T", 2]]},
+  "flow": {"directed": true, "vertices": ["S", "A", "B", "T"], "edges": [["S", "A", 3], ["S", "B", 2], ["A", "B", 2], ["A", "T", 2], ["B", "T", 3]]},
+  "placements": {"directed": false, "vertices": ["a", "b", "c", "x", "y", "z"], "edges": [["a", "x", 1], ["a", "y", 1], ["b", "x", 1], ["c", "y", 1], ["c", "z", 1]]},
+  "sensor": {"directed": false, "vertices": ["A", "B", "C", "D", "E", "F"], "edges": [["A", "B", 1], ["B", "C", 1], ["C", "D", 1], ["D", "E", 1], ["E", "F", 1], ["F", "A", 1]]},
+  "coloring": {"directed": false, "vertices": ["A", "B", "C", "D", "E"], "edges": [["A", "B", 1], ["B", "C", 1], ["C", "D", 1], ["D", "E", 1], ["E", "A", 1]]}
+}

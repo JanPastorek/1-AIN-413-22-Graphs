@@ -1,0 +1,9 @@
+# Override the historical repository's blanket Markdown ignore for this pack.
+!*.md
+__pycache__/
+*.pyc
+.venv/
+instructor/
+instructor-pack/
+*INSTRUCTOR*
+*private*

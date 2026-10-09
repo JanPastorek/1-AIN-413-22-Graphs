@@ -24,6 +24,8 @@ Graphs, Graph Algorithms, and Optimization is a course where we will cover basic
 
 **For the exercises**, you are advised to bring both pen, paper and notebook with you.
 
+Also, have a look at https://janpastorek.com/1-AIN-413-22-Graphs/seminars-2026/lab/ which contains some nice and hopefully helpful visualizations for the content we will cover this semester.
+
 **From the exercises, you can earn a total of 50 points for the semester.** 
 - Your activity will be evaluated (max 20 pts), 
 - you will write smaller tests during the exercises (max 30 pts),

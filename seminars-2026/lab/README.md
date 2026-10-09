@@ -2,7 +2,7 @@
 
 An in-browser lab for the twelve seminar studios: every session has motivated definitions with animations, step-through algorithms that end in a checkable certificate, and four modes of use. It is one self-contained page (`index.html`); no installation, account or server is needed.
 
-**Open it:** download the folder and open `index.html`, or enable GitHub Pages for this repository (Settings → Pages → deploy from the `main` branch) and visit `…/seminars-2026/lab/`. The page needs network access only for its two web fonts; everything else, including the data, is inside the file. The videos in `media/` must sit next to the page.
+**Open it:** download the folder and open `index.html`, or enable GitHub Pages for this repository (Settings → Pages → deploy from the `main` branch) and visit `…/seminars-2026/lab/`. The page needs network access only for its two web fonts; everything else, including the data, is inside the file. The videos in `videos/` must sit next to the page.
 
 Companion exercises: [Lab and database explorations](../practice/lab-and-database-explorations.md). Database recipes and the evidence card: [platform guide](../syllabus/platforms.md).
 
@@ -58,6 +58,6 @@ All 37 Python exports were run against networkx 3.6, SciPy 1.18 and the lab’s 
 
 The page is assembled from `src/` by `python3 build.py`, which writes `index.html` (public, keys hidden) and `graph-studio-lab.html` (teacher copy, keys shown). Session content (presets, tasks, readings) is in `src/modules.js`, definitions in `src/defs.js`, the motivating problems in `src/motivation.js`, certificate checks in `src/certs.js`, ticket generators in `src/tickets.js` and pseudocode and Python export in `src/pseudo.js`.
 
-The videos are rendered from `manim/graph_concepts.py` with Manim Community 0.22: `manim -qm -a graph_concepts.py`, then copy the MP4 files to `media/` under the names used in `src/app.js` and add WebM copies (`ffmpeg -i x.mp4 -c:v libvpx-vp9 -crf 38 -b:v 0 x.webm`) for browsers without H.264. The scenes use Unicode text instead of LaTeX.
+The videos are rendered from `manim/graph_concepts.py` with Manim Community 0.22: `manim -qm -a graph_concepts.py`, then copy the MP4 files to `videos/` under the names used in `src/app.js` and add WebM copies (`ffmpeg -i x.mp4 -c:v libvpx-vp9 -crf 38 -b:v 0 x.webm`) for browsers without H.264. The scenes use Unicode text instead of LaTeX.
 
 Sources for platform features: [PHOEG web interface paper](https://arxiv.org/html/2603.27242v1), [House of Graphs 2.0](https://arxiv.org/abs/2210.17253). Textbook section references appear under “Reading” in each session.

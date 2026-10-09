@@ -29,6 +29,8 @@ Each sheet has **A: Foundation** (ungraded preparation), **B: Core Studio** (the
 
 The [small-data trap](practice/small-data-trap.md) is a complete alternative coloring studio, not an additional required session. The [challenge menu](practice/challenges.md) adds radius/diameter, Brooks, Mantel, and symmetry explorations.
 
+The [Graph Studio Lab](lab/index.html) is an optional in-browser companion: for every studio it opens with a motivating real-world problem, gives animated definitions, steps through the algorithms with pseudocode and networkx code, and offers prediction, certificate-checking and exit-ticket modes. The [lab and database explorations](practice/lab-and-database-explorations.md) are matching exercises, each session starting with its motivating problem. See the [lab README](lab/README.md).
+
 ## Start here
 
 - [Assessment and AI-use policy](syllabus/assessment-and-ai.md)
@@ -37,6 +39,7 @@ The [small-data trap](practice/small-data-trap.md) is a complete alternative col
 - [Platform guide and evidence card](syllabus/platforms.md)
 - [Rubrics](rubrics/README.md)
 - [Python setup](environment/README.md) and [graph data catalog](data/README.md)
+- [Graph Studio Lab](lab/README.md) and [lab and database explorations](practice/lab-and-database-explorations.md)
 - [Live-practical format](assessed-live/README.md)
 - [Implementation status and adoption checklist](IMPLEMENTATION.md)
 - [Teaching sources and reuse notes](SOURCES.md)

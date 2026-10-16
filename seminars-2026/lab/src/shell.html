@@ -220,6 +220,18 @@ svg.mini { width: 100%; height: auto; display: block; margin: 4px 0 8px; }
 .tt p { margin: 0; max-width: 72ch; }
 .setup { margin-top: 8px; font-size: 12.5px; padding: 4px 10px; }
 #refs { margin: 0; padding-left: 18px; color: var(--ink2); font-size: 13.5px; }
+.msheets { margin: 6px 0 0; font-size: 13.5px; color: var(--ink2); }
+.msheets a, .dpractice a, .sheet a, .sheetref a, #refs a { color: var(--accent); text-underline-offset: 2px; }
+.linkbtn { border: 0; background: none; padding: 0 0 0 6px; color: var(--accent); font: inherit; font-size: 12.5px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.sheetsec { margin-top: 18px; }
+.sheet h4 { margin: 14px 0 6px; font-size: 14px; }
+.sheet .tasks li { padding: 9px 0; }
+.sheet .tag { text-transform: none; letter-spacing: 0.02em; font-size: 12px; }
+.sheet .tt .note { margin: 4px 0 0; max-width: 72ch; }
+.runs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.runs .setup { margin-top: 0; }
+.dpractice { margin: 0; font-size: 12.5px; color: var(--muted); }
+.sheetref { display: block; margin-top: 6px; font-size: 13px; color: var(--ink2); }
 #netstats { margin-top: 6px; }
 footer { font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; max-width: 980px; }
 footer p { margin: 0 0 6px; }
@@ -344,7 +356,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
   <main>
     <header class="mhead">
       <div class="num" id="mnum" aria-hidden="true">01</div>
-      <div><p class="eyebrow" id="mstudio"></p><h1 id="mtitle"></h1><p id="manchor"></p></div>
+      <div><p class="eyebrow" id="mstudio"></p><h1 id="mtitle"></h1><p id="manchor"></p><p id="msheets" class="msheets" hidden></p></div>
     </header>
 
     <section id="defs" class="defs" aria-label="Definitions">
@@ -431,6 +443,11 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
       <h2>Lab tasks</h2>
       <ol id="tasks" class="tasks"></ol>
       <div id="netstats" hidden></div>
+      <section id="sheetsec" class="sheetsec" aria-labelledby="sheetsh" hidden>
+        <h3 id="sheetsh">Problem sets for this session</h3>
+        <p class="note">The seminar’s problem sets, with the problems this session supports. Buttons load the graph drawn on the sheet, in the sheet’s layout, so you can check your paper work. Solve on paper first.</p>
+        <div id="sheets"></div>
+      </section>
       <h3>Reading</h3>
       <ul id="refs"></ul>
     </section>

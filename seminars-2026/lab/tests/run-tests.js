@@ -4,7 +4,7 @@
    module, pseudocode line, prediction question, certificate, ticket and definition is consistent. */
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const SRC = path.join(__dirname, '..', 'src');
-const ORDER = ['data', 'core', 'algos1', 'algos2', 'algos3', 'algos4', 'algos5', 'algos6', 'modules', 'pseudo', 'certs', 'tickets', 'anim', 'defs', 'motivation'];
+const ORDER = ['data', 'core', 'algos1', 'algos2', 'algos3', 'algos4', 'algos5', 'algos6', 'modules', 'pseudo', 'certs', 'tickets', 'anim', 'defs', 'motivation', 'sheets'];
 vm.runInThisContext(ORDER.map(f => fs.readFileSync(path.join(SRC, f + '.js'), 'utf8')).join('\n'));
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('FAIL', m); } };
@@ -76,6 +76,60 @@ for (const m of MODULES) { ok((DEFS[m.key] || []).length === 5, `five definition
 
 /* --- every concept is motivated: a real problem on each definition, a motivating first task per session --- */
 for (const m of MODULES) { ok(m.tasks[0] && m.tasks[0].tag === 'Motivation', `${m.key} opens with a motivating problem`); if (m.tasks[0].setup && m.tasks[0].setup.algo) ok(m.algos.some(a => a.key === m.tasks[0].setup.algo), `${m.key} motivation setup`); for (const d of DEFS[m.key]) ok(typeof d.why === 'string' && d.why.length > 40, `${m.key}: ${d.term} has a motivation`); }
+
+
+/* --- the teacher's problem sets: links, presets transcribed from the PDFs, and every "load in the lab" button --- */
+{
+  const REPO = path.join(__dirname, '..', '..', '..');
+  for (let n = 1; n <= 11; n++) {
+    ok(fs.existsSync(path.join(REPO, 'exercises and projects', SHEET_FILE(n))), `problem set ${n} PDF exists in the repository`);
+    ok(decodeURIComponent(sheetURL(n)).endsWith('/blob/main/exercises and projects/' + SHEET_FILE(n)), `problem set ${n} URL points at that file`);
+  }
+  const used = new Set();
+  for (const [key, blocks] of Object.entries(SHEETS)) {
+    const m = MODULES.find(x => x.key === key); ok(!!m, `SHEETS.${key} is a session`); if (!m) continue;
+    for (const b of blocks) { ok(b.ps >= 1 && b.ps <= 11, `${key}: problem set ${b.ps}`); used.add(b.ps);
+      for (const it of b.items) { ok(it.p && it.title && it.page, `${key} PS ${b.ps} ${it.p} has number, title, page`);
+        for (const [label, su] of it.runs || []) {
+          const where = `${key} PS ${b.ps} ${it.p} “${label}”`;
+          const a = m.algos.find(x => x.key === (su.algo || m.algos[0].key)); ok(!!a, `${where}: algorithm ${su.algo} is in the session`); if (!a) continue;
+          if (su.preset) ok(!!PRESETS[su.preset], `${where}: preset ${su.preset}`);
+          const g = su.preset && PRESETS[su.preset] ? parseGraph(PRESETS[su.preset].text) : null; if (g && m.weighted) g.weighted = true;
+          const P = {};
+          for (const spec of a.params) { const v = (su.params || {})[spec.id] ?? spec.def;
+            if (spec.type === 'vertex') { const i = g ? g.nodes.findIndex(x => x.label === String(v)) : -1; ok(!g || a.own || i >= 0, `${where}: vertex ${spec.id} = ${v} exists`); P[spec.id] = i < 0 ? 0 : i; }
+            else P[spec.id] = spec.type === 'int' || spec.type === 'num' ? +v : v; }
+          let r = null; try { r = a.run(a.own ? null : g, P); } catch (e) { console.log(e); }
+          ok(r && r.frames && r.frames.length > 0, `${where}: runs to a result`);
+        } } }
+  }
+  for (let n = 1; n <= 11; n++) ok(used.has(n), `problem set ${n} is linked from some session`);
+  for (const [k, p] of Object.entries(SHEET_PRESETS)) {
+    const g = parseGraph(p.text); ok(g.nodes.length > 0 && g.edges.length > 0, `${k} parses`);
+    if (p.pos) { ok(g.nodes.every(v => p.pos[v.id] || p.pos[v.label]), `${k}: every vertex has a sheet position`); ok(Object.values(p.pos).every(([x, y]) => x >= 12 && x <= W - 12 && y >= 12 && y <= H - 12), `${k}: positions on the board`); }
+  }
+  for (const [key, D] of Object.entries(SHEET_DEFS)) for (const term of Object.keys(D)) ok((DEFS[key] || []).some(d => d.term === term && d.practice), `${key}: practice link on “${term}”`);
+  for (const key of Object.keys(SHEET_MOTIV)) ok(/sheetref/.test(MODULES.find(m => m.key === key).tasks[0].text), `${key}: motivating task points to its problem set`);
+  /* structural checks on the transcriptions (counts read off the drawings) */
+  const deg = (g, part) => g.nodes.map((v, i) => [v, i]).filter(([v]) => part === undefined || v.part === part).map(([, i]) => g.edges.filter(e => e.u === i || e.v === i).length);
+  const shape = (k, part) => { const g = parseGraph(SHEET_PRESETS[k].text); const d = deg(g, part); return [d.length, d.reduce((a, b) => a + b, 0) / 2, Math.min(...d), Math.max(...d)].join(','); };
+  for (const k of ['ps2_2a', 'ps2_2b', 'ps2_2c']) ok(shape(k) === '10,15,3,3', `${k}: cubic on 10 vertices`);
+  for (const q of [0, 1, 2]) ok(shape('ps3_2f', q) === '8,12,3,3', `PS 3 (f) graph ${q + 1}: cubic on 8 vertices`);
+  for (const q of [0, 1, 2, 3]) ok(shape('ps3_2g', q) === '7,14,4,4', `PS 3 (g) graph ${q + 1}: 4-regular on 7 vertices`);
+  for (const q of [0, 1, 2, 3]) ok(shape('ps3_2i', q) === '8,12,3,3', `PS 3 (i) graph ${q + 1}: cubic on 8 vertices`);
+  ok(shape('ps3_2b', 0).startsWith('8,7,') && shape('ps3_2b', 1).startsWith('7,6,'), 'PS 3 (b): trees of orders 8 and 7');
+  ok(shape('ps3_2c', 0).startsWith('8,7,') && shape('ps3_2c', 1).startsWith('8,7,'), 'PS 3 (c): two trees of order 8');
+  for (const k of ['ps5_1b1', 'ps5_1b2', 'ps9_3']) { const g = parseGraph(SHEET_PRESETS[k].text); ok(g.nodes.length === 11 && g.edges.length === 20 && triangleCount(g) === 0, `${k}: 11 vertices, 20 edges, triangle-free`); ok(/χ = 4/.test(txt(last(algExactColor(g, {})).panel)), `${k}: χ = 4`); }
+  ok(SHEETS.degrees[1].items[1].runs.map(r => r[1].params.seq).join('|') === '2 2 2 1 1|2 2|2 2 2 2|3 3 5 1 7 9 1|3 3 3 3 3 3 3 3|6 5 5 4 3 3 3 2 2|3 3 2 2 1 1|7 6 4 3 3 2|3 3 1 1|5 4 3 3 2 2 2 1 1 1', 'PS 2 P3: the ten sequences as printed');
+  { const g = parseGraph(SHEET_PRESETS.ps7_n1323.text); ok(g.directed && g.edges.length === 28, 'Fig. 13.23: 16 arcs + 6 two-way lines as 12 arcs'); }
+  { const g = parseGraph(SHEET_PRESETS.ps3_2j.text); ok(g.directed && g.parts === 2, 'PS 3 (j) is a pair of digraphs'); }
+  /* digraph refinement and automorphisms respect direction */
+  { const g = parseGraph('directed\na b\nb c\n---\nx y\nz y'); ok(/Not isomorphic/.test(txt(last(algWL(g, {})).panel)), 'WL separates a directed path from an in-star'); }
+  { const g = parseGraph('directed\na b\nb c\nc a'); ok(autSearch(g, Array(3).fill(0)).count === 3, '|Aut| of a directed 3-cycle is 3'); }
+}
+
+/* --- the assembled page compiles: no clashing top-level names between source files --- */
+{ const order = ORDER.concat(['app']); let err = null; try { new vm.Script(order.map(f => fs.readFileSync(path.join(SRC, f + '.js'), 'utf8')).join('\n')); } catch (e) { err = e.message; } ok(!err, 'all sources compile together' + (err ? ': ' + err : '')); }
 
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

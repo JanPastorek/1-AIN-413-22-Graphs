@@ -196,9 +196,12 @@ function algSwaps(g0, P) {
 /* ---------- isomorphism ---------- */
 function wlRefine(g, init) {
   const n = g.nodes.length, A = adjUnd(g); let col = init ? init.slice() : Array(n).fill(0); const hist = [col.slice()];
+  // digraphs: refine by the multisets of out-neighbour and in-neighbour colours separately
+  const O = g.nodes.map(() => []), I = g.nodes.map(() => []); if (g.directed) g.edges.forEach(e => { O[e.u].push(e.v); I[e.v].push(e.u); });
+  const ms = L => L.map(x => col[x]).sort((a, b) => a - b).join(',');
   let classes = new Set(col).size;
   for (let it = 0; it < n + 1; it++) {
-    const sig = col.map((c, i) => c + '|' + A[i].map(x => col[x.to]).sort((a, b) => a - b).join(','));
+    const sig = col.map((c, i) => g.directed ? c + '|' + ms(O[i]) + '|' + ms(I[i]) : c + '|' + A[i].map(x => col[x.to]).sort((a, b) => a - b).join(','));
     const keys = [...new Set(sig)].sort(); const id = new Map(keys.map((k, i) => [k, i]));
     const nc = sig.map(s => id.get(s)); const k2 = new Set(nc).size;
     if (k2 === classes) break; col = nc; classes = k2; hist.push(col.slice());
@@ -232,7 +235,7 @@ function algWL(g, P) {
 }
 
 function autSearch(g, colInit, cap = 40000) {
-  const n = g.nodes.length, M = adjMatrix(g, true), col = colInit;
+  const n = g.nodes.length, M = adjMatrix(g, !g.directed), col = colInit; // digraphs: arcs must map to arcs
   // BFS order so adjacency constraints bite early
   const A = adjUnd(g), seen = Array(n).fill(false), order = [];
   const starts = g.nodes.map((v, i) => i).sort((a, b) => A[b].length - A[a].length);
@@ -246,7 +249,7 @@ function autSearch(g, colInit, cap = 40000) {
     const v = order[i];
     for (let w = 0; w < n; w++) {
       if (used[w] || col[w] !== col[v]) continue;
-      let ok = true; for (let j = 0; j < i; j++) { const u = order[j]; if (M[v][u] !== M[w][map[u]]) { ok = false; break; } }
+      let ok = true; for (let j = 0; j < i; j++) { const u = order[j]; if (M[v][u] !== M[w][map[u]] || M[u][v] !== M[map[u]][w]) { ok = false; break; } }
       if (!ok) continue; map[v] = w; used[w] = true; rec(i + 1); used[w] = false; map[v] = -1; if (stop) return;
     }
   }

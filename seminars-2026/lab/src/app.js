@@ -3,7 +3,7 @@
    pseudocode + Python tabs, definitions strip, editor
    ============================================================ */
 const $ = (s, r = document) => r.querySelector(s);
-const ST = { mod: null, mods: {}, playing: null, residual: false, edit: false, editSel: -1, speed: 1, mode: 'watch', asking: null, feedback: null, tab: 'state', certRes: null };
+const ST = { mod: null, mods: {}, playing: null, residual: false, edit: false, editSel: -1, speed: 1, mode: 'watch', asking: null, feedback: null, tab: 'both', certRes: null };
 const MANIM = { 'iso:Isomorphism': 'isomorphism', 'mst:Cut property': 'cut_property', 'match:Augmenting path': 'augmenting_path', 'flow:Residual network': 'residual_network', 'iso:Colour refinement (1-WL)': 'wl_refinement', 'match:Hall’s condition': 'hall_condition', 'color:Euler’s formula': 'euler_formula', 'color:Dual graph': 'planar_dual' };
 
 function loadStore() { try { return JSON.parse(localStorage.getItem('graphlab') || '{}'); } catch (e) { return {}; } }
@@ -159,11 +159,19 @@ function renderTabs(F) {
   const m = ST.mod, s = modState(m), a = currentAlgo();
   document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === ST.tab));
   const box = $('#state');
-  if (ST.tab === 'state') { box.innerHTML = ST.mode === 'cert' ? (ST.certRes ? cert(ST.certRes.ok ? 'yes' : 'no', ST.certRes.ok ? 'Certificate accepted' : 'Not accepted', ST.certRes.msg) : '<p class="note">Select, then press Check.</p>') : (F.panel || '<p class="note">Nothing to show for this step.</p>'); return; }
-  if (ST.tab === 'code') {
-    const lines = PSEUDO[m.key + '.' + a.key]; if (!lines) { box.innerHTML = '<p class="note">This view compares algorithms or runs a search; it has no single pseudocode.</p>'; return; }
+  $('#stage').classList.toggle('both', ST.tab === 'both');
+  const stateHTML = () => ST.mode === 'cert' ? (ST.certRes ? cert(ST.certRes.ok ? 'yes' : 'no', ST.certRes.ok ? 'Certificate accepted' : 'Not accepted', ST.certRes.msg) : '<p class="note">Select, then press Check.</p>') : (F.panel || '<p class="note">Nothing to show for this step.</p>');
+  const codeHTML = () => {
+    const lines = PSEUDO[m.key + '.' + a.key]; if (!lines) return '<p class="note">This view compares algorithms or runs a search; it has no single pseudocode.</p>';
     const cur = ST.mode === 'cert' ? -1 : F.line;
-    box.innerHTML = `<ol class="pseudo" start="0">${lines.map((l, i) => `<li class="${i === cur ? 'on' : ''}"><code>${esc(l)}</code></li>`).join('')}</ol><p class="note">${cur !== undefined && cur >= 0 ? 'The highlighted line produced this step.' : 'Step through the run to follow the highlighted line.'}</p>`;
+    return `<ol class="pseudo" start="0">${lines.map((l, i) => `<li class="${i === cur ? 'on' : ''}"><code>${esc(l)}</code></li>`).join('')}</ol><p class="note">${cur !== undefined && cur >= 0 ? 'The highlighted line produced this step.' : 'Step through the run to follow the highlighted line.'}</p>`;
+  };
+  if (ST.tab === 'state') { box.innerHTML = stateHTML(); return; }
+  if (ST.tab === 'code') { box.innerHTML = codeHTML(); return; }
+  if (ST.tab === 'both') {
+    // pseudocode and the data structures it changes, visible together (two columns when the panel is wide enough)
+    box.innerHTML = `<div class="both2"><section class="pane pcode" aria-label="Pseudocode"><p class="paneh">Pseudocode</p>${codeHTML()}</section><section class="pane pstate" aria-label="State"><p class="paneh">State</p>${stateHTML()}</section></div>`;
+    const on = box.querySelector('.pseudo li.on'), pc = box.querySelector('.pcode'); if (on && pc && pc.scrollHeight > pc.clientHeight) pc.scrollTop = Math.max(0, on.offsetTop - pc.clientHeight / 3);
     return;
   }
   let code; try { code = pythonSnippet(m.key, a.key, s.ownGraph || s.graph, currentParams()); } catch (e) { code = '# ' + e.message; }
@@ -207,7 +215,7 @@ function renderCertBar() {
   if (!list.length) { bar.innerHTML = '<p class="note">This session has no certificate checks. Try another session.</p>'; return; }
   bar.innerHTML = `<label class="field"><span>Certificate</span><select id="certkind">${list.map((c, k) => `<option value="${k}" ${k === s.cert.k ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>${spec.sel === 'text' ? `<label class="field grow"><span>Your answer</span><input id="certtext" type="text" spellcheck="false" autocomplete="off" value="${esc(s.cert.text)}"></label>` : ''}<button type="button" id="certcheck" class="primary">Check</button><button type="button" id="certclear">Clear</button>`;
   $('#certkind').onchange = e => { s.cert.k = +e.target.value; s.cert.sel = new Set(); s.cert.col = {}; ST.certRes = null; draw(); };
-  $('#certcheck').onclick = () => { const sp = certSpec(); const t = $('#certtext'); if (t) s.cert.text = t.value; const val = sp.sel === 'text' ? s.cert.text : sp.sel === 'col' ? s.cert.col : s.cert.sel; try { ST.certRes = sp.check(s.graph, val, { P: currentParams() }); } catch (e) { ST.certRes = { ok: false, msg: esc(e.message) }; } ST.tab = 'state'; draw(); };
+  $('#certcheck').onclick = () => { const sp = certSpec(); const t = $('#certtext'); if (t) s.cert.text = t.value; const val = sp.sel === 'text' ? s.cert.text : sp.sel === 'col' ? s.cert.col : s.cert.sel; try { ST.certRes = sp.check(s.graph, val, { P: currentParams() }); } catch (e) { ST.certRes = { ok: false, msg: esc(e.message) }; } if (ST.tab !== 'both') ST.tab = 'state'; draw(); };
   $('#certclear').onclick = () => { s.cert.sel = new Set(); s.cert.col = {}; s.cert.text = ''; ST.certRes = null; draw(); };
   const t = $('#certtext'); if (t) t.onkeydown = e => { if (e.key === 'Enter') $('#certcheck').click(); };
 }

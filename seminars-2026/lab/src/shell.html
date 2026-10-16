@@ -279,10 +279,22 @@ footer p { margin: 0 0 6px; }
 .seg button:disabled { opacity: .4; cursor: not-allowed; }
 .score { font-family: var(--f-mono); font-size: 13px; color: var(--ink2); font-variant-numeric: tabular-nums; }
 .controls.dim { opacity: .45; pointer-events: none; }
-.tabs { display: flex; gap: 2px; border-bottom: 1.5px solid var(--line); margin: -4px 0 12px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1.5px solid var(--line); margin: -4px 0 12px; }
 .tabs button { border: 0; background: none; padding: 6px 10px; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .pseudo { margin: 0; padding-left: 28px; font-size: 12.5px; }
+/* State + pseudocode together: the panel widens on large screens and splits into two columns once it is wide enough */
+.statepanel { container-type: inline-size; }
+.stage.both { grid-template-columns: minmax(0, 1fr) clamp(300px, calc(44vw - 120px), 660px); }
+.both2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.pane { min-width: 0; }
+.paneh { margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.pcode { border-bottom: 1px solid var(--line); padding-bottom: 10px; max-height: 42vh; overflow-y: auto; }
+.pcode .pseudo { padding-left: 24px; }
+@container (min-width: 430px) {
+  .both2 { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; }
+  .pcode { border-bottom: 0; border-right: 1px solid var(--line); padding: 0 14px 0 0; max-height: none; overflow: visible; }
+}
 .pseudo li { padding: 2px 6px; border-radius: 4px; white-space: pre-wrap; }
 .pseudo li::marker { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
 .pseudo li.on { background: var(--amber-soft); box-shadow: inset 3px 0 0 var(--amber); }
@@ -328,7 +340,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
 .rv { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
 @media (max-width: 820px) { .tbody { grid-template-columns: 1fr; } .defcards { grid-auto-columns: minmax(260px, 86vw); } }
 
-@media (max-width: 1100px) { .stage { grid-template-columns: 1fr; } .statepanel { position: static; max-height: none; } }
+@media (max-width: 1100px) { .stage, .stage.both { grid-template-columns: 1fr; } .statepanel { position: static; max-height: none; } }
 @media (max-width: 820px) {
   .app { grid-template-columns: 1fr; }
   .side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 14px 16px 10px; gap: 10px; }
@@ -410,7 +422,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
         </div>
       </div>
       <aside class="statepanel" aria-label="Data structures, pseudocode and code">
-        <div id="tabs" class="tabs" role="tablist"><button type="button" role="tab" data-tab="state" aria-selected="true">State</button><button type="button" role="tab" data-tab="code" aria-selected="false">Pseudocode</button><button type="button" role="tab" data-tab="py" aria-selected="false">Python</button></div>
+        <div id="tabs" class="tabs" role="tablist"><button type="button" role="tab" data-tab="both" aria-selected="true">State + pseudocode</button><button type="button" role="tab" data-tab="state" aria-selected="false">State</button><button type="button" role="tab" data-tab="code" aria-selected="false">Pseudocode</button><button type="button" role="tab" data-tab="py" aria-selected="false">Python</button></div>
         <div id="state" role="tabpanel"></div>
       </aside>
     </section>

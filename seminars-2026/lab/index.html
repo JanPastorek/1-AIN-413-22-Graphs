@@ -288,10 +288,22 @@ footer p { margin: 0 0 6px; }
 .seg button:disabled { opacity: .4; cursor: not-allowed; }
 .score { font-family: var(--f-mono); font-size: 13px; color: var(--ink2); font-variant-numeric: tabular-nums; }
 .controls.dim { opacity: .45; pointer-events: none; }
-.tabs { display: flex; gap: 2px; border-bottom: 1.5px solid var(--line); margin: -4px 0 12px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1.5px solid var(--line); margin: -4px 0 12px; }
 .tabs button { border: 0; background: none; padding: 6px 10px; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .pseudo { margin: 0; padding-left: 28px; font-size: 12.5px; }
+/* State + pseudocode together: the panel widens on large screens and splits into two columns once it is wide enough */
+.statepanel { container-type: inline-size; }
+.stage.both { grid-template-columns: minmax(0, 1fr) clamp(300px, calc(44vw - 120px), 660px); }
+.both2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.pane { min-width: 0; }
+.paneh { margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.pcode { border-bottom: 1px solid var(--line); padding-bottom: 10px; max-height: 42vh; overflow-y: auto; }
+.pcode .pseudo { padding-left: 24px; }
+@container (min-width: 430px) {
+  .both2 { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; }
+  .pcode { border-bottom: 0; border-right: 1px solid var(--line); padding: 0 14px 0 0; max-height: none; overflow: visible; }
+}
 .pseudo li { padding: 2px 6px; border-radius: 4px; white-space: pre-wrap; }
 .pseudo li::marker { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
 .pseudo li.on { background: var(--amber-soft); box-shadow: inset 3px 0 0 var(--amber); }
@@ -337,7 +349,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
 .rv { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
 @media (max-width: 820px) { .tbody { grid-template-columns: 1fr; } .defcards { grid-auto-columns: minmax(260px, 86vw); } }
 
-@media (max-width: 1100px) { .stage { grid-template-columns: 1fr; } .statepanel { position: static; max-height: none; } }
+@media (max-width: 1100px) { .stage, .stage.both { grid-template-columns: 1fr; } .statepanel { position: static; max-height: none; } }
 @media (max-width: 820px) {
   .app { grid-template-columns: 1fr; }
   .side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 14px 16px 10px; gap: 10px; }
@@ -419,7 +431,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
         </div>
       </div>
       <aside class="statepanel" aria-label="Data structures, pseudocode and code">
-        <div id="tabs" class="tabs" role="tablist"><button type="button" role="tab" data-tab="state" aria-selected="true">State</button><button type="button" role="tab" data-tab="code" aria-selected="false">Pseudocode</button><button type="button" role="tab" data-tab="py" aria-selected="false">Python</button></div>
+        <div id="tabs" class="tabs" role="tablist"><button type="button" role="tab" data-tab="both" aria-selected="true">State + pseudocode</button><button type="button" role="tab" data-tab="state" aria-selected="false">State</button><button type="button" role="tab" data-tab="code" aria-selected="false">Pseudocode</button><button type="button" role="tab" data-tab="py" aria-selected="false">Python</button></div>
         <div id="state" role="tabpanel"></div>
       </aside>
     </section>
@@ -3403,7 +3415,7 @@ for (const m of MODULES) {
    pseudocode + Python tabs, definitions strip, editor
    ============================================================ */
 const $ = (s, r = document) => r.querySelector(s);
-const ST = { mod: null, mods: {}, playing: null, residual: false, edit: false, editSel: -1, speed: 1, mode: 'watch', asking: null, feedback: null, tab: 'state', certRes: null };
+const ST = { mod: null, mods: {}, playing: null, residual: false, edit: false, editSel: -1, speed: 1, mode: 'watch', asking: null, feedback: null, tab: 'both', certRes: null };
 const MANIM = { 'iso:Isomorphism': 'isomorphism', 'mst:Cut property': 'cut_property', 'match:Augmenting path': 'augmenting_path', 'flow:Residual network': 'residual_network', 'iso:Colour refinement (1-WL)': 'wl_refinement', 'match:Hall’s condition': 'hall_condition', 'color:Euler’s formula': 'euler_formula', 'color:Dual graph': 'planar_dual' };
 
 function loadStore() { try { return JSON.parse(localStorage.getItem('graphlab') || '{}'); } catch (e) { return {}; } }
@@ -3559,11 +3571,19 @@ function renderTabs(F) {
   const m = ST.mod, s = modState(m), a = currentAlgo();
   document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === ST.tab));
   const box = $('#state');
-  if (ST.tab === 'state') { box.innerHTML = ST.mode === 'cert' ? (ST.certRes ? cert(ST.certRes.ok ? 'yes' : 'no', ST.certRes.ok ? 'Certificate accepted' : 'Not accepted', ST.certRes.msg) : '<p class="note">Select, then press Check.</p>') : (F.panel || '<p class="note">Nothing to show for this step.</p>'); return; }
-  if (ST.tab === 'code') {
-    const lines = PSEUDO[m.key + '.' + a.key]; if (!lines) { box.innerHTML = '<p class="note">This view compares algorithms or runs a search; it has no single pseudocode.</p>'; return; }
+  $('#stage').classList.toggle('both', ST.tab === 'both');
+  const stateHTML = () => ST.mode === 'cert' ? (ST.certRes ? cert(ST.certRes.ok ? 'yes' : 'no', ST.certRes.ok ? 'Certificate accepted' : 'Not accepted', ST.certRes.msg) : '<p class="note">Select, then press Check.</p>') : (F.panel || '<p class="note">Nothing to show for this step.</p>');
+  const codeHTML = () => {
+    const lines = PSEUDO[m.key + '.' + a.key]; if (!lines) return '<p class="note">This view compares algorithms or runs a search; it has no single pseudocode.</p>';
     const cur = ST.mode === 'cert' ? -1 : F.line;
-    box.innerHTML = `<ol class="pseudo" start="0">${lines.map((l, i) => `<li class="${i === cur ? 'on' : ''}"><code>${esc(l)}</code></li>`).join('')}</ol><p class="note">${cur !== undefined && cur >= 0 ? 'The highlighted line produced this step.' : 'Step through the run to follow the highlighted line.'}</p>`;
+    return `<ol class="pseudo" start="0">${lines.map((l, i) => `<li class="${i === cur ? 'on' : ''}"><code>${esc(l)}</code></li>`).join('')}</ol><p class="note">${cur !== undefined && cur >= 0 ? 'The highlighted line produced this step.' : 'Step through the run to follow the highlighted line.'}</p>`;
+  };
+  if (ST.tab === 'state') { box.innerHTML = stateHTML(); return; }
+  if (ST.tab === 'code') { box.innerHTML = codeHTML(); return; }
+  if (ST.tab === 'both') {
+    // pseudocode and the data structures it changes, visible together (two columns when the panel is wide enough)
+    box.innerHTML = `<div class="both2"><section class="pane pcode" aria-label="Pseudocode"><p class="paneh">Pseudocode</p>${codeHTML()}</section><section class="pane pstate" aria-label="State"><p class="paneh">State</p>${stateHTML()}</section></div>`;
+    const on = box.querySelector('.pseudo li.on'), pc = box.querySelector('.pcode'); if (on && pc && pc.scrollHeight > pc.clientHeight) pc.scrollTop = Math.max(0, on.offsetTop - pc.clientHeight / 3);
     return;
   }
   let code; try { code = pythonSnippet(m.key, a.key, s.ownGraph || s.graph, currentParams()); } catch (e) { code = '# ' + e.message; }
@@ -3607,7 +3627,7 @@ function renderCertBar() {
   if (!list.length) { bar.innerHTML = '<p class="note">This session has no certificate checks. Try another session.</p>'; return; }
   bar.innerHTML = `<label class="field"><span>Certificate</span><select id="certkind">${list.map((c, k) => `<option value="${k}" ${k === s.cert.k ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>${spec.sel === 'text' ? `<label class="field grow"><span>Your answer</span><input id="certtext" type="text" spellcheck="false" autocomplete="off" value="${esc(s.cert.text)}"></label>` : ''}<button type="button" id="certcheck" class="primary">Check</button><button type="button" id="certclear">Clear</button>`;
   $('#certkind').onchange = e => { s.cert.k = +e.target.value; s.cert.sel = new Set(); s.cert.col = {}; ST.certRes = null; draw(); };
-  $('#certcheck').onclick = () => { const sp = certSpec(); const t = $('#certtext'); if (t) s.cert.text = t.value; const val = sp.sel === 'text' ? s.cert.text : sp.sel === 'col' ? s.cert.col : s.cert.sel; try { ST.certRes = sp.check(s.graph, val, { P: currentParams() }); } catch (e) { ST.certRes = { ok: false, msg: esc(e.message) }; } ST.tab = 'state'; draw(); };
+  $('#certcheck').onclick = () => { const sp = certSpec(); const t = $('#certtext'); if (t) s.cert.text = t.value; const val = sp.sel === 'text' ? s.cert.text : sp.sel === 'col' ? s.cert.col : s.cert.sel; try { ST.certRes = sp.check(s.graph, val, { P: currentParams() }); } catch (e) { ST.certRes = { ok: false, msg: esc(e.message) }; } if (ST.tab !== 'both') ST.tab = 'state'; draw(); };
   $('#certclear').onclick = () => { s.cert.sel = new Set(); s.cert.col = {}; s.cert.text = ''; ST.certRes = null; draw(); };
   const t = $('#certtext'); if (t) t.onkeydown = e => { if (e.key === 'Enter') $('#certcheck').click(); };
 }

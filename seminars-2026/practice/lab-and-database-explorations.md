@@ -6,6 +6,8 @@
 
 **Four ways to use a session.** The mode bar above the board switches between *Watch* (step freely), *Predict* (the lab stops before each decisive step and asks you which vertex, edge or number comes next, and keeps score), *Check a certificate* (you click a cut, cover, cycle, colouring, packing, Kuratowski subgraph or type a bijection; the lab checks only your submission), and *Exit ticket* (a fresh small instance per seed, with an answer key for the teacher). The right-hand column has three tabs: the algorithm's data structures, CLRS-style pseudocode with the current line highlighted, and networkx code for the graph on the board. Above the board, five animated definition cards per session; eight of them also have a Manim video.
 
+**Problem sets.** Under each session heading below you find the seminar problem sets (in [exercises and projects](https://github.com/JanPastorek/1-AIN-413-22-Graphs/tree/main/exercises%20and%20projects)) that the session supports, with the problem numbers. In the lab, the same list appears under the session title and in the *Problem sets* panel, with buttons that load the graphs drawn on the sheets in the sheet’s own layout. Solve on paper first, then check in the lab.
+
 **Every session opens with a motivating problem.** Exercise 1 of each session is a real problem that cannot be solved reliably without that session’s concepts. Attempt it before the session, keep your attempt, and return to it at the end to solve it properly with a certificate. The same problem is the first task in the lab, with a button that loads its data.
 
 **Tags.** *Motivation*: a real problem that needs the session’s concepts. *Predict*: write the answer before running anything. *Lab*: use the lab. *Proof*: no tools. *PHOEG* / *HoG*: database work with an evidence card. *Model*: translate a real situation into a graph.
@@ -20,6 +22,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 
 ## 1 · Modelling and traversal
 
+**Problem sets:** [Problem set 1](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%201%20Problem%20Set.pdf) P2 · [Problem set 2](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%202%20Problem%20Set.pdf) P2(a), P4 · [Problem set 3](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%203%20Problem%20Set.pdf) P1, P2. The lab’s *Problem sets* panel loads the graphs drawn on these sheets.
+
 1. **Motivation — the outbreak problem.** An infection starts at Karlsplatz and spreads one U-Bahn stop per hour. After how many hours does it reach each station, and which station is reached last? The city also wants two staff rotas so that neighbouring stations never share a rota: is that possible? Attempt both by hand before the session. To answer reliably you will need *distance* in a graph, an algorithm that computes it for every station at once (BFS), and *bipartite* graphs. Return at the end of the session and solve both parts with a certificate.
 2. **Predict / Lab.** Load the Vienna U-Bahn (from `data/Vienna_subway.csv`). Before running BFS from Karlsplatz, write the station you expect to be farthest in stops. Run it. Then find a station of minimum eccentricity by trying several starts. Is it also the station that minimises the *sum* of distances? Give a witness if not.
 3. **Proof.** Show that in an undirected BFS every non-tree edge joins layers i and i or i and i+1. Deduce that an edge inside one layer gives an odd cycle, and that otherwise colouring layers by parity is proper. This is exactly the certificate the lab prints.
@@ -28,6 +32,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 
 ## 2 · Degree sequences and resilience
 
+**Problem sets:** [Problem set 1](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%201%20Problem%20Set.pdf) P1 · [Problem set 2](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%202%20Problem%20Set.pdf) P2(b–c), P3 · [Problem set 3](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%203%20Problem%20Set.pdf) P3(c). The lab’s *Problem sets* panel loads the graphs drawn on these sheets.
+
 1. **Motivation — the suspicious network report.** A provider claims its 7 routers have 4, 4, 4, 1, 1, 1 and 1 links and that no single failure can disconnect a customer. Decide whether such a network can exist at all, and, for the Vienna U-Bahn, list the single closures that would cut passengers off. This needs *degree sequences* (when are they graphical?) and *cut vertices* and *bridges*.
 2. **Predict / Lab.** Is (4, 4, 4, 1, 1, 1, 1) graphical? Decide on paper, then run Havel–Hakimi and read the failing Erdős–Gallai row. Turn that row into one sentence about hubs and leaves.
 3. **Lab.** Realise (3, 3, 2, 2, 2, 1, 1), then run degree-preserving swaps with different seeds until two realisations differ in triangle count or diameter. That invariant is your non-isomorphism certificate.
@@ -35,6 +41,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 5. **HoG / Lab.** Whitney’s inequality κ ≤ λ ≤ δ can be strict twice. Search *Connected*, *Vertex Connectivity* = 1, *Edge Connectivity* = 2, *Minimum Degree* = 3. Take the smallest result, paste its graph6 into the lab, and confirm with “Bridges and cut vertices” that a cut vertex exists and no bridge does.
 
 ## 3 · Isomorphism, invariants and symmetry
+
+**Problem sets:** [Problem set 3](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%203%20Problem%20Set.pdf) P2(x), P2(a–l). The lab’s *Problem sets* panel loads the graphs drawn on these sheets.
 
 1. **Motivation — same molecule or not?** Two notebooks draw a 6-carbon compound: one as a ring, one as two triangles. Two more draw 8-atom cages in which every atom has 3 bonds. Same compound in each case? And how many chemically different atom positions does each have (the number of NMR signals)? This needs *isomorphism*, *invariants*, and *automorphisms* with their *orbits*.
 2. **Lab.** Run colour refinement on *C₆ versus two triangles*. The histograms agree. Write precisely what has and has not been shown, then name the invariant that separates them.
@@ -46,6 +54,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 
 ## 4 · Trees, MST and union–find
 
+**Problem sets:** [Problem set 3](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%203%20Problem%20Set.pdf) P3, P4(a), P4(b), P4(c) · [Problem set 4](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%204%20Problem%20Set.pdf) P1, P2. The lab’s *Problem sets* panel loads the graphs drawn on these sheets.
+
 1. **Motivation — the campus fibre auction.** Six buildings must be connected; contractors bid a price for each possible trench (the studio fiber graph). Any building can relay traffic. Choose trenches to connect everything as cheaply as possible, and write two sentences that convince the finance office nothing cheaper exists. This needs *spanning trees*, the *cut* and *cycle properties*, and a fast connectivity test (*union–find*).
 2. **Lab.** Kruskal and Prim on the campus fiber bids give the same weight. Edit one bid so that two minimum spanning trees exist and the two algorithms return different ones.
 3. **Proof.** Use the lab’s cycle-property table to write the exchange argument: a non-tree edge lighter than an edge on its tree cycle gives a lighter tree. Prove the converse, that a tree passing every row is minimum.
@@ -54,6 +64,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 6. **Predict.** Does the MST contain, for every pair of vertices, a path minimising the heaviest edge used? Decide, then try to break your claim with an edited instance.
 
 ## 5 · Shortest paths: choosing the algorithm
+
+**Problem sets:** [Problem set 4](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%204%20Problem%20Set.pdf) P4 · [Problem set 6](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%206%20Problem%20Set.pdf) P1, P2 · [Problem set 3](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%203%20Problem%20Set.pdf) P4(b)+. The lab’s *Problem sets* panel loads the graphs drawn on these sheets.
 
 1. **Motivation — the transit control room.** Find the fastest S → T trip on the transit network and compare it with the fewest-stops trip. Then add a fare rebate that makes one connection negative and ask whether your method still works. Finally, describe how you would automatically detect a loop of currency exchanges that makes money. This needs *weighted distance*, *relaxation*, and the effect of *negative cycles*.
 2. **Lab.** *Transit with a rebate*: Dijkstra prints a warning and the cross-check with Bellman–Ford lists wrong labels. Find the exact step where a settled vertex could have improved.
@@ -66,6 +78,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 
 ## 6 · Euler versus Hamilton, postman and TSP
 
+**Problem sets:** [Problem set 5](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%205%20Problem%20Set.pdf) P1(a), P1(b), P1.1–1.8, P2(a), P2(b) · [Problem set 6](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%206%20Problem%20Set.pdf) P−1 · [Problem set 1](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%201%20Problem%20Set.pdf) P3. The lab’s *Problem sets* panel loads the graphs drawn on these sheets.
+
 1. **Motivation — snowplough versus courier.** On the street map, a snowplough must clear every street and return; a courier must visit every corner once and return. Plan both routes as short as you can. Why can one question be settled by a quick count and the other apparently not? This needs *Euler circuits*, the *Chinese postman* problem, *Hamilton cycles* and the *travelling salesman problem*.
 2. **Lab.** *Snowplough streets*: which corners are odd, which pairing does the postman choose, and what is the extra cost? List the other two pairings and their costs by hand.
 3. **Proof.** Prove the postman lower bound: the set J of repeated edges makes every degree even, so J contains a family of paths pairing the odd vertices.
@@ -75,6 +89,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 7. **HoG / Lab.** Search *Hypohamiltonian* = true and take the smallest *Number of Vertices*. Delete any vertex in the lab and show a Hamilton cycle appears. Then search *Eulerian* = true with *Hamiltonian* = false, and verify one result both ways in the lab.
 
 ## 7 · Flows, cuts and residual networks
+
+**Problem sets:** [Problem set 7](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%207%20Problem%20Set.pdf) Flows, Cuts, FF / EK. The lab’s *Problem sets* panel loads the graphs drawn on these sheets.
 
 1. **Motivation — evacuation control.** People leave a stadium (s) through corridors to an exit (t); each corridor carries a limited number of people per minute (the CLRS network). What is the largest evacuation rate? Which corridors should be widened first, and how would you prove to the city that no routing plan beats yours? This needs *flows*, *residual networks* and *cuts*.
 2. **Lab.** CLRS Fig. 26.1 network: step through and switch to the residual view whenever the path uses a backward arc. Explain in plain words what cancelling flow on that arc does.
@@ -86,6 +102,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 
 ## 8 · Matchings, Hall witnesses and stable marriage
 
+**Problem sets:** [Problem set 8](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%208%20Problem%20Set.pdf) P1, P2.1–2.2, P2.3, P2.4, P2.6–2.7, P3. The lab’s *Problem sets* panel loads the graphs drawn on these sheets.
+
 1. **Motivation — the placement office.** Five students list the firms they would accept (the placement-shortfall graph). Place as many as possible. If someone stays unplaced, write the dean a short proof that no assignment does better. With preferences on both sides, how do you stop a student and a firm from secretly abandoning their assignments for each other? This needs *matchings*, *augmenting paths*, *Hall’s condition* and *stable matchings*.
 2. **Lab.** *Placement shortfall*: the lab returns a maximum matching, a cover of equal size, and a Hall violator S. Check |N(S)| < |S| by hand. Which single new edge makes everyone placeable?
 3. **Proof.** From the lab’s construction (Z = vertices reachable by alternating paths from unmatched left vertices) prove that (L ∖ Z) ∪ (R ∩ Z) is a vertex cover of size |M|.
@@ -94,6 +112,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 6. **HoG — Petersen’s theorem.** Every bridgeless cubic graph has a perfect matching. Search *Regular* = true, *Maximum Degree* = 3 and *Matching Number* below half the order. Find the smallest such graph, paste it into the lab, and show it has a bridge (session 2 tool). Explain why it must.
 
 ## 9 · Planarity, duality and colouring
+
+**Problem sets:** [Problem set 9](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%209%20Problem%20Set.pdf) P1.1–1.2, P1.3, P1.4, P2, P3. The lab’s *Problem sets* panel loads the graphs drawn on these sheets.
 
 1. **Motivation — exams and circuit boards.** Eight courses; two courses that share a student need different exam slots (the crown graph). How few slots suffice, and how do you prove you cannot do with fewer? A circuit with the connections of the Petersen graph must be printed on one layer: possible? This needs *colourings* and the *chromatic number*, *planarity*, *faces* and *Euler’s formula*.
 2. **Lab.** The crown graph in the listed order makes greedy use 4 colours on a bipartite graph. Generalise to n colours on Kₙ,ₙ minus a perfect matching. Then prove that every graph has *some* order on which greedy is optimal.
@@ -105,6 +125,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 
 ## 10 · Random graphs and real networks
 
+**Problem sets:** [Problem set 10](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%2010%20Problem%20Set.pdf) P1.1, P1.2.
+
 1. **Motivation — is the airline network special?** The US airport network in the course data has 546 airports and 2 781 routes. Would a randomly wired network of the same size also have huge hubs, many triangles of routes, short connections, and one cluster connecting almost everyone? Write your guesses first. This needs a *random graph model*, the *giant component*, *clustering*, and expected counts via *indicator variables*.
 2. **Lab.** Step c = (n − 1)p from 0 to 6. When does the largest component pass 10% of the vertices? Repeat with n = 40 and n = 300 and three seeds each. Describe how the transition sharpens.
 3. **Proof.** With indicator variables, E[#triangles] = C(n, 3)p³ and E[#isolated vertices] = n(1 − p)ⁿ⁻¹. With c fixed, what do these tend to? Compare with the lab’s table at several steps.
@@ -114,6 +136,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 
 ## 11 · Domination, ILP and approximation
 
+**Problem sets:** [Problem set 11](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%2011%20Problem%20Set.pdf) P1.1–1.2, P1.3–1.4, Tutorial 2. The lab’s *Problem sets* panel loads the graphs drawn on these sheets.
+
 1. **Motivation — the sensor budget.** A gallery has 16 rooms in a 4 × 4 grid; a sensor watches its own room and the rooms sharing a wall with it. How few sensors cover everything, and how do you convince an insurer that fewer is impossible? This needs *dominating sets*, *lower bounds* (counting and packings) and the *integer programming* formulation.
 2. **Lab.** *Gallery floor 4×4*: greedy places 6 sensors, the optimum is 4. Find the first greedy pick that belongs to no optimal solution.
 3. **ILP and duality.** Write the domination ILP for the 4×4 grid and its LP relaxation. Write the dual LP and interpret it as a fractional *packing* (weights on vertices, every closed neighbourhood carrying total weight at most 1). Find 4 vertices with pairwise disjoint closed neighbourhoods and conclude that even the LP cannot go below 4. Why is ⌈n/(Δ + 1)⌉ a weaker form of the same argument, and on which graphs does the LP bound stay strictly below γ?
@@ -121,6 +145,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 5. **Proof.** Greedy domination is a ln(Δ + 1)-approximation (it is greedy set cover). Build a family where it uses about twice the optimum.
 
 ## 12 · Computer-assisted graph theory (Graphathon)
+
+**Problem sets:** [Problem set 2](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%202%20Problem%20Set.pdf) P1.
 
 1. **Motivation — test before you prove.** A colleague claims every connected graph can be properly coloured with Δ colours. Before spending a week on a proof, check it on every connected graph with up to 8 vertices and study the counterexamples. Then ask how dense a network can be with no three mutually interfering nodes. This needs *isomorphism classes*, *exhaustive generation*, the difference between *evidence* and *proof*, and *extremal graphs*.
 2. **Lab — Brooks.** In “Test a conjecture on all small graphs” check `chi <= dmax` on connected graphs for n = 4, …, 8. List the counterexamples and state Brooks’ theorem with exactly those exceptions. Mark your conclusion as finite evidence for n ≤ 8.
@@ -145,4 +171,4 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 
 ### Sources and scope
 
-PHOEG teaching examples: [PHOEG web interface paper](https://arxiv.org/html/2603.27242v1). House of Graphs invariant names: [House of Graphs 2.0](https://arxiv.org/abs/2210.17253). Interface labels can change; check names on the live sites before class. Readings: West, *Introduction to Graph Theory*; Cormen et al., *Introduction to Algorithms* (3rd ed.); Grimaldi, *Discrete and Combinatorial Mathematics*; Stanoyevitch, *Discrete Structures with Contemporary Applications*. Section references for each session appear in the lab under “Reading”.
+PHOEG teaching examples: [PHOEG web interface paper](https://arxiv.org/html/2603.27242v1). House of Graphs invariant names: [House of Graphs 2.0](https://arxiv.org/abs/2210.17253). Interface labels can change; check names on the live sites before class. Readings: West, *Introduction to Graph Theory*; Cormen et al., *Introduction to Algorithms* (3rd ed.); Grimaldi, *Discrete and Combinatorial Mathematics*; Stanoyevitch, *Discrete Structures with Contemporary Applications*. Section references for each session appear in the lab under “Reading”. Seminar problem sets 1–11: [exercises and projects](https://github.com/JanPastorek/1-AIN-413-22-Graphs/tree/main/exercises%20and%20projects) (W 24/25); the lab’s problem-set presets were transcribed from their figures and cite problem numbers only.

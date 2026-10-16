@@ -11,6 +11,7 @@ Companion exercises: [Lab and database explorations](../practice/lab-and-databas
 - **A motivating problem first.** The first task of every session is a real problem (an outbreak on the U-Bahn, a fibre auction, a stadium evacuation, an exam timetable…) that cannot be solved reliably without the session’s concepts. A button loads its data into the lab.
 - **Five definition cards.** Each card states the real problem that needs the concept (“Why we need it”), a precise definition in West’s notation, and a short animation that can be stepped through. Five cards can replay on whatever graph is on the board; eight concepts also have a Manim video.
 - **Step-through algorithms** with the data structures (queue, union–find, labels, residual capacities, potentials) and, at the end, a certificate: an odd cycle, a minimum cut, a König cover and Hall violator, a Kuratowski subgraph, a dual LP solution, an exhaustive-search count.
+- **The seminar problem sets, linked where they are used.** Under the session title, in a *Problem sets* panel below the lab tasks, on the definition cards (“Practice: PS 2, P3”), in the motivating problem and in the reading list. The panel lists the problems the session supports with their page, and 88 buttons load the graphs drawn on the sheets (64 drawings in 42 presets, each in the sheet’s own layout, plus cycles and paths for PS 11) with the right algorithm, so students can check paper work: the ten degree sequences of PS 2 P3, the twelve isomorphism sets of PS 3 P2, Grimaldi’s networks in PS 7, the marriage problems and preference tables of PS 8, and so on.
 - **Three tabs** beside the board: the algorithm’s state; CLRS-style pseudocode with the line that produced the current step highlighted; and networkx code (with SciPy for the ILP) for the graph on the board.
 
 | Mode | What it does |
@@ -22,33 +23,34 @@ Companion exercises: [Lab and database explorations](../practice/lab-and-databas
 
 ## Algorithms by session
 
-| Session | Algorithms and views |
-|---|---|
-| 1 Modelling and traversal | BFS with layers and odd-cycle certificate; DFS with times and topological order |
-| 2 Degree sequences and resilience | Havel–Hakimi with Erdős–Gallai check; degree-preserving swaps; bridges and cut vertices |
-| 3 Isomorphism and symmetry | 1-WL colour refinement on two graphs; automorphism group, orbits and a greedy fixing set |
-| 4 Trees, MST and union–find | Kruskal with union–find; Prim; cycle-property certificate; race |
-| 5 Shortest paths | Dijkstra (cross-checked by Bellman–Ford), Bellman–Ford with negative cycles, BFS, A*, Floyd–Warshall; race |
-| 6 Euler, Hamilton, postman, TSP | Hierholzer and Chinese postman; Hamilton backtracking; nearest neighbour, double tree, Christofides and Held–Karp with the DFJ integer program |
-| 7 Flows and cuts | Edmonds–Karp with a residual view and min-cut certificate; race of path rules (2 vs 2000 augmentations) |
-| 8 Matchings | Augmenting paths with König cover and Hall violator; Hopcroft–Karp; Hungarian method with dual certificate; Gale–Shapley; race |
-| 9 Planarity, duality, colouring | Planarity test (Demoucron–Malgrange–Pertuiset) with plane drawing, faces, Euler’s formula, dual graph or Kuratowski subgraph; greedy, DSatur, exact χ |
-| 10 Random graphs | Erdős–Rényi process with giant-component theory; US airports vs G(n, m) |
-| 11 Domination | Greedy; exact branch and bound; counting bound; ILP and LP relaxation |
-| 12 Computer-assisted graph theory | Conjecture tester over all graphs up to 8 vertices with a PHOEG-style scatter and hull; the vertex-augmentation generator step by step; simulated annealing for extremal graphs |
+| Session | Algorithms and views | Problem sets |
+|---|---|---|
+| 1 Modelling and traversal | BFS with layers and odd-cycle certificate; DFS with times and topological order | PS 1 P2; PS 2 P2(a), P4; PS 3 P1–P2 |
+| 2 Degree sequences and resilience | Havel–Hakimi with Erdős–Gallai check; degree-preserving swaps; bridges and cut vertices | PS 1 P1; PS 2 P2(b–c), P3; PS 3 P3(c) |
+| 3 Isomorphism and symmetry | 1-WL colour refinement on two graphs; automorphism group, orbits and a greedy fixing set | PS 3 P2 |
+| 4 Trees, MST and union–find | Kruskal with union–find; Prim; cycle-property certificate; race | PS 3 P3–P4; PS 4 P1–P2 |
+| 5 Shortest paths | Dijkstra (cross-checked by Bellman–Ford), Bellman–Ford with negative cycles, BFS, A*, Floyd–Warshall; race | PS 4 P4; PS 6 P1–P2 |
+| 6 Euler, Hamilton, postman, TSP | Hierholzer and Chinese postman; Hamilton backtracking; nearest neighbour, double tree, Christofides and Held–Karp with the DFJ integer program | PS 5; PS 6 P−1; PS 1 P3 |
+| 7 Flows and cuts | Edmonds–Karp with a residual view and min-cut certificate; race of path rules (2 vs 2000 augmentations) | PS 7 |
+| 8 Matchings | Augmenting paths with König cover and Hall violator; Hopcroft–Karp; Hungarian method with dual certificate; Gale–Shapley; race | PS 8 |
+| 9 Planarity, duality, colouring | Planarity test (Demoucron–Malgrange–Pertuiset) with plane drawing, faces, Euler’s formula, dual graph or Kuratowski subgraph; greedy, DSatur, exact χ | PS 9 |
+| 10 Random graphs | Erdős–Rényi process with giant-component theory; US airports vs G(n, m) | PS 10 |
+| 11 Domination | Greedy; exact branch and bound; counting bound; ILP and LP relaxation | PS 11 |
+| 12 Computer-assisted graph theory | Conjecture tester over all graphs up to 8 vertices with a PHOEG-style scatter and hull; the vertex-augmentation generator step by step; simulated annealing for extremal graphs | PS 2 P1 |
 
 ## Data from this repository
 
-The studio graphs (`data/studio_graphs.json`), the karate club, the Vienna U-Bahn (also as a transfer-time model: 2 minutes per hop, 4 per change of line), the US airport network and the network statistics from `data/summary_statistics.csv` are embedded in the page. `src/data.js` is generated from those files.
+The problem-set links and the instances transcribed from the sheets’ figures are in `src/sheets.js`; the PDFs themselves stay in [exercises and projects](https://github.com/JanPastorek/1-AIN-413-22-Graphs/tree/main/exercises%20and%20projects). The studio graphs (`data/studio_graphs.json`), the karate club, the Vienna U-Bahn (also as a transfer-time model: 2 minutes per hop, 4 per change of line), the US airport network and the network statistics from `data/summary_statistics.csv` are embedded in the page. `src/data.js` is generated from those files.
 
 ## Checks behind the page
 
-`node tests/run-tests.js` runs 2 768 checks without dependencies, among them:
+`node tests/run-tests.js` runs 3 382 checks without dependencies, among them:
 
 - graph counts 1, 2, 4, 11, 34, 156, 1044 from the generator (12 346 for n = 8 in the browser);
 - the planarity test agrees with the known numbers of planar graphs (33, 142, 822 for n = 5, 6, 7), Euler’s formula holds on every embedding, and every 2-connected planar graph on up to 7 vertices is drawn without crossings;
 - Hungarian results against brute force on 40 random matrices, Hopcroft–Karp against the simple algorithm on 30 random graphs;
-- every pseudocode line reference, prediction question, certificate verifier, exit ticket and definition animation is consistent.
+- every pseudocode line reference, prediction question, certificate verifier, exit ticket and definition animation is consistent;
+- every problem-set link points at a PDF in the repository, every problem-set button loads an existing graph and runs, and the transcribed instances have the counts read off the drawings (for example, the three PS 2 graphs are cubic on 10 vertices, and the maximum flows and spanning-tree weights agree with networkx).
 
 All 37 Python exports were run against networkx 3.6, SciPy 1.18 and the lab’s own answers.
 
@@ -56,7 +58,7 @@ All 37 Python exports were run against networkx 3.6, SciPy 1.18 and the lab’s 
 
 ## Building and editing
 
-The page is assembled from `src/` by `python3 build.py`, which writes `index.html` (public, keys hidden) and `graph-studio-lab.html` (teacher copy, keys shown). Session content (presets, tasks, readings) is in `src/modules.js`, definitions in `src/defs.js`, the motivating problems in `src/motivation.js`, certificate checks in `src/certs.js`, ticket generators in `src/tickets.js` and pseudocode and Python export in `src/pseudo.js`.
+The page is assembled from `src/` by `python3 build.py`, which writes `index.html` (public, keys hidden) and `graph-studio-lab.html` (teacher copy, keys shown). Session content (presets, tasks, readings) is in `src/modules.js`, definitions in `src/defs.js`, the motivating problems in `src/motivation.js`, the problem-set links and transcribed instances in `src/sheets.js`, certificate checks in `src/certs.js`, ticket generators in `src/tickets.js` and pseudocode and Python export in `src/pseudo.js`.
 
 The videos are rendered from `manim/graph_concepts.py` with Manim Community 0.22: `manim -qm -a graph_concepts.py`, then copy the MP4 files to `videos/` under the names used in `src/app.js` and add WebM copies (`ffmpeg -i x.mp4 -c:v libvpx-vp9 -crf 38 -b:v 0 x.webm`) for browsers without H.264. The scenes use Unicode text instead of LaTeX.
 

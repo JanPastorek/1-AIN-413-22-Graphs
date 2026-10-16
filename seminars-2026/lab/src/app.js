@@ -11,7 +11,7 @@ function saveStore(o) { try { localStorage.setItem('graphlab', JSON.stringify(Ob
 
 /* ---------- layouts by preset ---------- */
 function applyLayout(g, kind, preset) {
-  if (kind === 'pos' && preset && preset.pos) { g.nodes.forEach(v => { const p = preset.pos[v.label]; if (p) { v.x = p[0]; v.y = p[1]; } }); if (g.nodes.every(v => preset.pos[v.label])) return; }
+  if (kind === 'pos' && preset && preset.pos) { const at = v => preset.pos[v.id] || preset.pos[v.label]; g.nodes.forEach(v => { const p = at(v); if (p) { v.x = p[0]; v.y = p[1]; } }); if (g.nodes.every(at)) return; }
   if (kind === 'petersen') { g.nodes.forEach(v => { const k = +v.label, a = -Math.PI / 2 + 2 * Math.PI * (k % 5) / 5, r = k < 5 ? 205 : 100; v.x = W / 2 + r * Math.cos(a); v.y = H / 2 + 10 + r * Math.sin(a); }); return; }
   if (kind === 'cube') { const P = { '000': [220, 400], '001': [580, 400], '010': [220, 120], '011': [580, 120], '100': [320, 330], '101': [480, 330], '110': [320, 190], '111': [480, 190] }; g.nodes.forEach(v => { const p = P[v.label]; if (p) [v.x, v.y] = p; }); if (g.nodes.some(v => !P[v.label])) forceLayout(g); return; }
   if (kind === 'grid') { const rows = Math.max(...g.nodes.map(v => v.label.charCodeAt(0) - 65)) + 1, cols = Math.max(...g.nodes.map(v => +v.label.slice(1))); const sx = Math.min(130, (W - 2 * PAD) / Math.max(1, cols - 1)), sy = Math.min(130, (H - 2 * PAD) / Math.max(1, rows - 1)); g.nodes.forEach(v => { const r = v.label.charCodeAt(0) - 65, c = +v.label.slice(1) - 1; v.x = W / 2 + (c - (cols - 1) / 2) * sx; v.y = H / 2 + (r - (rows - 1) / 2) * sy; }); return; }
@@ -287,7 +287,7 @@ const ANIMS = [];
 function renderDefs(m) {
   ANIMS.forEach(a => a.stop()); ANIMS.length = 0;
   const defs = DEFS[m.key] || []; const box = $('#defcards');
-  box.innerHTML = defs.map((d, k) => { const vid = MANIM[m.key + ':' + d.term]; return `<article class="dcard" data-k="${k}"><h3>${esc(d.term)}</h3>${d.why ? `<p class="dwhy"><b>Why we need it.</b> ${d.why}</p>` : ''}<p class="dtext">${d.text}</p><div class="dfig"><svg class="defsvg" viewBox="0 0 300 190" role="img" aria-label="Animation: ${esc(d.term)}"></svg>${vid ? `<video class="dvideo" hidden controls playsinline preload="none" aria-label="Manim animation: ${esc(d.term)}"><source src="videos/${vid}.webm" type="video/webm"><source src="videos/${vid}.mp4" type="video/mp4"></video>` : ''}</div><p class="dcap" aria-live="polite"></p><div class="dctl"><button type="button" class="dplay">Play</button><span class="ddots"></span>${d.gen ? '<button type="button" class="dboard">Use the board’s graph</button>' : ''}${vid ? '<button type="button" class="dvid">Manim version</button>' : ''}</div><p class="dmsg note" hidden></p></article>`; }).join('');
+  box.innerHTML = defs.map((d, k) => { const vid = MANIM[m.key + ':' + d.term]; return `<article class="dcard" data-k="${k}"><h3>${esc(d.term)}</h3>${d.why ? `<p class="dwhy"><b>Why we need it.</b> ${d.why}</p>` : ''}<p class="dtext">${d.text}</p>${d.practice ? `<p class="dpractice">Practice: ${sheetRefs(d.practice)}</p>` : ''}<div class="dfig"><svg class="defsvg" viewBox="0 0 300 190" role="img" aria-label="Animation: ${esc(d.term)}"></svg>${vid ? `<video class="dvideo" hidden controls playsinline preload="none" aria-label="Manim animation: ${esc(d.term)}"><source src="videos/${vid}.webm" type="video/webm"><source src="videos/${vid}.mp4" type="video/mp4"></video>` : ''}</div><p class="dcap" aria-live="polite"></p><div class="dctl"><button type="button" class="dplay">Play</button><span class="ddots"></span>${d.gen ? '<button type="button" class="dboard">Use the board’s graph</button>' : ''}${vid ? '<button type="button" class="dvid">Manim version</button>' : ''}</div><p class="dmsg note" hidden></p></article>`; }).join('');
   box.querySelectorAll('.dcard').forEach(card => {
     const d = defs[+card.dataset.k]; let A;
     try { A = new DefAnim(card, d); } catch (e) { card.querySelector('.dcap').textContent = 'Animation failed: ' + e.message; return; }
@@ -318,10 +318,21 @@ function openModule(key) {
 }
 function renderTasks(m) {
   $('#tasks').innerHTML = m.tasks.map((t, i) => `<li><span class="tag">${t.tag}</span><div class="tt"><p>${t.text}</p>${t.setup ? `<button type="button" class="setup" data-t="${i}">Set up in the lab</button>` : ''}</div></li>`).join('');
-  $('#refs').innerHTML = m.refs.map(([b, s]) => `<li>${BOOKS[b]}: ${s}</li>`).join('');
+  const SH = SHEETS[m.key] || [];
+  $('#refs').innerHTML = m.refs.map(([b, s]) => `<li>${BOOKS[b]}: ${s}</li>`).join('') + SH.map(b => `<li>${sheetLink(b.ps)} (PDF): ${b.items.map(it => `${it.p} ${esc(it.title.replace(/ \(.*\)$/, ''))}`).join('; ')}</li>`).join('');
+  renderSheets(m);
   $('#netstats').hidden = m.key !== 'random';
   if (m.key === 'random') $('#netstats').innerHTML = `<h3>Real networks from the course data folder</h3><div class="tw"><table class="compact num"><thead><tr><th>network</th><th>n</th><th>m</th><th>avg deg</th><th>clustering C</th><th>density p</th><th>C / p</th><th>avg path</th></tr></thead><tbody>${NETSTATS.map(r => `<tr><td>${esc(r.name)}${r.type ? ` <span class="note">(${r.type.includes('D') ? 'directed' : ''}${r.type.includes('D') && r.type.includes('W') ? ', ' : ''}${r.type.includes('W') ? 'weighted' : ''})</span>` : ''}</td><td>${r.n.toLocaleString()}</td><td>${r.m.toLocaleString()}</td><td>${r.k.toFixed(1)}</td><td>${r.C.toFixed(3)}</td><td>${r.p.toExponential(1)}</td><td>${Math.round(r.C / r.p).toLocaleString()}</td><td>${r.L.toFixed(1)}</td></tr>`).join('')}</tbody></table></div><p class="note">From <code>data/summary_statistics.csv</code>. G(n, p) with the same n and m has C ≈ p, so C/p ≈ 1, and average path length ≈ ln n / ln(avg deg).</p>`;
   document.querySelectorAll('#tasks .setup').forEach(b => b.onclick = () => applySetup(m.tasks[+b.dataset.t].setup));
+}
+function renderSheets(m) {
+  const SH = SHEETS[m.key] || [];
+  $('#sheetsec').hidden = !SH.length;
+  $('#msheets').innerHTML = SH.length ? `Problem sets: ${SH.map(b => sheetLink(b.ps, `PS ${b.ps}`)).join(' · ')} — <button type="button" class="linkbtn" id="tosheets">what to try in the lab</button>` : '';
+  $('#msheets').hidden = !SH.length;
+  $('#sheets').innerHTML = SH.map((b, bi) => `<div class="sheet"><h4>${sheetLink(b.ps, `Problem set ${b.ps}`)} <span class="note">PDF</span></h4><ol class="tasks">${b.items.map((it, ii) => `<li><span class="tag">${esc(it.p)}</span><div class="tt"><p>${esc(it.title)} <span class="note">(${pagesText(it.page)})</span></p>${it.note ? `<p class="note">${it.note}</p>` : ''}${it.runs ? `<div class="runs">${it.runs.map(([lab0], ri) => `<button type="button" class="setup" data-r="${bi}.${ii}.${ri}">${esc(lab0)}</button>`).join('')}</div>` : ''}</div></li>`).join('')}</ol></div>`).join('');
+  document.querySelectorAll('#sheets .setup').forEach(btn => btn.onclick = () => { const [bi, ii, ri] = btn.dataset.r.split('.').map(Number); applySetup(SH[bi].items[ii].runs[ri][1]); });
+  const tb = $('#tosheets'); if (tb) tb.onclick = () => $('#sheetsec').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
 }
 function applySetup(su) {
   const m = ST.mod, s = modState(m); if (ST.mode === 'ticket' || ST.mode === 'cert') setMode('watch');

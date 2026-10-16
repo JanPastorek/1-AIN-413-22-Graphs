@@ -36,8 +36,8 @@ function parseMap(text, g, fromPart, toPart) {
 function checkBijection(g, map, dom, cod) {
   if (map.size !== dom.length) return { ok: false, msg: `Map all ${dom.length} vertices; ${map.size} are mapped.` };
   const img = new Set(map.values()); if (img.size !== map.size) return { ok: false, msg: 'Two vertices have the same image, so this is not a bijection.' };
-  const M = adjMatrix(g, true);
-  for (const a of dom) for (const b of dom) if (a < b && M[a][b] !== M[map.get(a)][map.get(b)]) return { ok: false, msg: `${lab(g, a)}–${lab(g, b)} is ${M[a][b] ? 'an edge' : 'not an edge'}, but ${lab(g, map.get(a))}–${lab(g, map.get(b))} is ${M[map.get(a)][map.get(b)] ? 'an edge' : 'not an edge'}.`, nc: { [a]: 'cut', [b]: 'cut', [map.get(a)]: 'front', [map.get(b)]: 'front' } };
+  const M = adjMatrix(g, !g.directed), D = g.directed, sep = D ? '→' : '–', what = D ? 'an arc' : 'an edge';
+  for (const a of dom) for (const b of dom) if ((D ? a !== b : a < b) && M[a][b] !== M[map.get(a)][map.get(b)]) return { ok: false, msg: `${lab(g, a)}${sep}${lab(g, b)} is ${M[a][b] ? what : 'not ' + what}, but ${lab(g, map.get(a))}${sep}${lab(g, map.get(b))} is ${M[map.get(a)][map.get(b)] ? what : 'not ' + what}.`, nc: { [a]: 'cut', [b]: 'cut', [map.get(a)]: 'front', [map.get(b)]: 'front' } };
   return { ok: true };
 }
 

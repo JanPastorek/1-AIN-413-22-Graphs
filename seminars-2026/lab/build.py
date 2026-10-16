@@ -1,7 +1,7 @@
 """Assemble the lab from src/ into index.html.  python3 build.py [--teacher]"""
 import pathlib
 S=pathlib.Path('src')
-ORDER=['data.js','core.js','algos1.js','algos2.js','algos3.js','algos4.js','algos5.js','algos6.js','modules.js','pseudo.js','certs.js','tickets.js','anim.js','defs.js','motivation.js','app.js']
+ORDER=['data.js','core.js','algos1.js','algos2.js','algos3.js','algos4.js','algos5.js','algos6.js','modules.js','pseudo.js','certs.js','tickets.js','anim.js','defs.js','motivation.js','sheets.js','app.js']
 js='\n'.join((S/f).read_text() for f in ORDER)
 html=(S/'shell.html').read_text()+'\n<script>\n'+js+'\n</script>\n'
 import sys

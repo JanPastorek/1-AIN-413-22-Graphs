@@ -130,6 +130,75 @@ function algFleury(g, P) {
   return { frames: R.frames, truncated: R.truncated, trail, order };
 }
 
+/* Hamilton cycle / TSP as an integer linear program with arc variables x_ij,
+   in/out degree constraints and subtour elimination added lazily (cutting planes).
+   Each ILP is solved exactly by branch and bound over successor choices (small n). */
+function tourILPSolve(n, out, cuts, minimise, budget = 4e6) {
+  // out[i] = [[j, w], ...] sorted by w; cuts = [{ mask, last }]: at least one arc must leave S = mask
+  const succ = Array(n).fill(-1), usedIn = Array(n).fill(false); let best = null, bestCost = Infinity, nodes = 0, aborted = false;
+  const minOut = out.map(L => L.length ? L[0][1] : Infinity), tail = Array(n + 1).fill(0); for (let i = n - 1; i >= 0; i--) tail[i] = tail[i + 1] + (minimise ? minOut[i] : 0);
+  const byLast = Array.from({ length: n }, () => []); cuts.forEach(c => byLast[c.last].push(c.mask));
+  const violates = i => byLast[i].some(mask => { for (let v = 0; v < n; v++) if (mask >> v & 1 && !(mask >> succ[v] & 1)) return false; return true; });
+  function rec(i, cost) {
+    if (aborted || (best && !minimise)) return; if (++nodes > budget) { aborted = true; return; }
+    if (i === n) { if (cost < bestCost) { bestCost = cost; best = succ.slice(); } return; }
+    if (minimise && cost + tail[i] >= bestCost) return;
+    for (const [j, w] of out[i]) { if (usedIn[j]) continue; succ[i] = j; usedIn[j] = true; if (!violates(i)) rec(i + 1, cost + (minimise ? w : 0)); usedIn[j] = false; succ[i] = -1; if (aborted) return; }
+  }
+  rec(0, 0);
+  return { succ: best, cost: bestCost, nodes, aborted };
+}
+const CUTHEAD = '<p class="note">For each set S: Σ x(i,j) over i ∈ S, j ∉ S ≥ 1 (some chosen arc leaves S).</p>';
+function algTourILP(g, P) {
+  const n = g.nodes.length, R = new Rec(), tsp = P.goal !== 'ham', name = i => lab(g, i);
+  const note = g.directed ? ' Arcs keep their direction.' : '';
+  R.ec = {}; g.edges.forEach((e, i) => R.ec[i] = 'faint');
+  // arcs: both directions of every edge (one direction for arcs of a digraph)
+  const arcs = []; g.edges.forEach((e, i) => { if (e.u === e.v) return; arcs.push({ i: e.u, j: e.v, w: e.w, e: i }); if (!g.directed) arcs.push({ i: e.v, j: e.u, w: e.w, e: i }); });
+  const seenA = new Set(), A = arcs.filter(a => { const k = a.i + ',' + a.j; if (seenA.has(k)) return false; seenA.add(k); return true; });
+  const xv = a => `x<sub>${esc(name(a.i))}${esc(name(a.j))}</sub>`;
+  R.line = 0; R.snap(`An <b>integer linear program</b> (ILP) chooses numbers x to minimise a linear objective subject to linear constraints, with every x a whole number. Here each x<sub>ij</sub> ∈ {0, 1} answers one yes/no question: does the ${tsp ? 'tour' : 'cycle'} go from i straight to j?`, { panel: h4('Linear and integer programs') + `<pre class="ilp">minimise   Σ cₖ·xₖ
+subject to Σ aₖ·xₖ ≤ b
+           (also = or ≥)
+ILP:       xₖ ∈ {0, 1}
+LP:        0 ≤ xₖ ≤ 1</pre><p class="note">A linear program (LP) allows fractional values and is solvable in polynomial time; its optimum is a bound for the ILP. Requiring whole numbers makes the problem NP-hard in general, so solvers combine LP bounds with branching (branch and bound) and add constraints only when they are violated (cutting planes).</p>` });
+  if (n < 2) { R.snap('A cycle needs at least two vertices.', { panel: '' }, true); return { frames: R.frames }; }
+  if (n > 14) { R.snap('This browser search is limited to 14 vertices. The Python tab solves the same ILP with SciPy’s MILP solver.', { panel: '' }, true); return { frames: R.frames }; }
+  R.line = 0; R.snap(`Variables: one per arc, ${A.length} in total (${g.directed ? 'one per arc' : 'each edge uv gives x<sub>uv</sub> and x<sub>vu</sub>'}). x = 1 means the arc is used.${note}`, { panel: h4(`${A.length} binary variables`) + `<p class="mono">${A.slice(0, 40).map(xv).join(', ')}${A.length > 40 ? ', …' : ''}</p>` });
+  const outOf = v => A.filter(a => a.i === v), into = v => A.filter(a => a.j === v);
+  const degRows = g.nodes.map((v, i) => `<b>${esc(name(i))}</b>  out: ${outOf(i).map(xv).join(' + ')} = 1<br>${'&nbsp;'.repeat(name(i).length + 2)}in:  ${into(i).map(xv).join(' + ')} = 1`);
+  R.line = 1; R.snap('Degree constraints: the cycle leaves every vertex exactly once (Σ<sub>j</sub> x<sub>ij</sub> = 1) and enters every vertex exactly once (Σ<sub>i</sub> x<sub>ij</sub> = 1).', { panel: h4('Out- and in-degree constraints') + `<p class="mono cuts">${degRows.join('<br>')}</p>` });
+  R.line = 3; R.snap(tsp ? 'Objective: minimise the total weight Σ w<sub>ij</sub> x<sub>ij</sub> of the chosen arcs. Only the roads of the map may be used (no shortcuts through other vertices, unlike the metric TSP view).' : 'Objective: none. For the Hamilton question any 0/1 solution will do (minimise 0); the ILP is feasible exactly when a Hamilton cycle exists, once all subtours are forbidden.', { panel: `<pre class="ilp">${tsp ? 'min  Σ w(i,j)·x(i,j)' : 'min  0   (feasibility)'}
+s.t. Σ_j x(i,j) = 1   each i
+     Σ_i x(i,j) = 1   each j
+     x(i,j) ∈ {0, 1}</pre>` });
+  const out = g.nodes.map((v, i) => A.filter(a => a.i === i).map(a => [a.j, a.w]).sort((p, q) => p[1] - q[1]));
+  const cuts = [], cutText = []; const classes = ['path', 'flow', 'cand', 'match', 'cut', 'back'];
+  for (let it = 1; it <= 40; it++) {
+    const r = tourILPSolve(n, out, cuts, tsp);
+    if (r.aborted) { R.line = 5; R.snap('The branch-and-bound search hit its step limit. Use the Python export (SciPy MILP) for this instance.', { panel: '' }, true); return { frames: R.frames }; }
+    if (!r.succ) {
+      R.nc = {}; R.line = 8;
+      R.snap(`Iteration ${it}: the ILP has <b>no solution</b>${cuts.length ? ` once the ${cuts.length} subtour constraint${cuts.length > 1 ? 's are' : ' is'} added` : ': already the degree constraints cannot be met, so no set of arcs leaves and enters every vertex exactly once'}.`, { panel: cert('no', 'No Hamilton cycle', `Every Hamilton cycle would satisfy all these constraints, and no 0/1 vector does, so none exists. ${cuts.length} subtour constraint${cuts.length === 1 ? '' : 's'} were needed (branch and bound explored ${r.nodes.toLocaleString()} partial solutions in the last round).`) + (cutText.length ? h4('Subtour constraints added') + CUTHEAD + `<p class="mono cuts">${cutText.join('<br>')}</p>` : '') }, true);
+      return { frames: R.frames, cuts: cuts.length, tour: null };
+    }
+    const succ = r.succ, cyc = [], seen = Array(n).fill(false);
+    for (let s0 = 0; s0 < n; s0++) { if (seen[s0]) continue; const c = []; let v = s0; while (!seen[v]) { seen[v] = true; c.push(v); v = succ[v]; } cyc.push(c); }
+    const ov = []; cyc.forEach((c, k) => c.forEach(v => ov.push({ u: v, v: succ[v], cls: classes[k % classes.length], dir: true })));
+    R.nc = {}; cyc.forEach((c, k) => c.forEach(v => R.nc[v] = cyc.length > 1 ? 'k' + (k % 10) : 'done'));
+    const cost = A.filter(a => succ[a.i] === a.j).reduce((x, a) => x + a.w, 0);
+    const sol = h4(`Solution of iteration ${it}${tsp ? `, weight ${fmt(cost)}` : ''}`) + `<p class="mono">${cyc.map(c => c.concat([c[0]]).map(name).join(' → ')).join('<br>')}</p>`;
+    R.line = 5; R.snap(`Iteration ${it}: solve the ILP with the constraints so far. The chosen arcs form ${cyc.length === 1 ? 'one cycle' : cyc.length + ' separate cycles'}${tsp ? `, total weight ${fmt(cost)}` : ''}.`, { overlay: ov, panel: sol, ask: { type: 'number', answer: [cyc.length], prompt: 'Into how many separate cycles (subtours) do the chosen arcs fall?' } });
+    if (cyc.length === 1) {
+      R.line = 6; R.snap(`One cycle through all ${n} vertices: ${cyc[0].concat([cyc[0][0]]).map(name).join(' → ')}.`, { overlay: ov, panel: cert('yes', tsp ? `Optimal tour, weight ${fmt(cost)}` : 'Hamilton cycle found', `${tsp ? 'The ILP solved here has only some of the subtour constraints, so its optimum is a lower bound on every tour; it is itself a tour, hence optimal. ' : ''}${cuts.length} of the 2ⁿ − 2 = ${(2 ** n - 2).toLocaleString()} subtour constraints were needed.`) + sol + (cutText.length ? h4('Subtour constraints added') + CUTHEAD + `<p class="mono cuts">${cutText.join('<br>')}</p>` : '') }, true);
+      return { frames: R.frames, cuts: cuts.length, tour: cyc[0], cost };
+    }
+    const added = cyc.map(c => { const mask = c.reduce((m, v) => m | (1 << v), 0); cuts.push({ mask, last: Math.max(...c) }); const t = 'S = {' + c.map(name).join(', ') + '}'; cutText.push(t); return t; });
+    R.line = 7; R.snap(`Each subtour S breaks the rule “some arc must leave S”. Add that constraint for ${cyc.length === 2 ? 'both' : 'all ' + cyc.length} subtours (subtour elimination) and solve again.`, { overlay: ov, panel: h4('New subtour elimination constraints') + CUTHEAD + `<p class="mono cuts">${added.join('<br>')}</p><p class="note">There is one such constraint for every proper subset S, far too many to write down; adding only the violated ones is the cutting-plane idea used by real TSP solvers.</p>` });
+  }
+  R.snap('Stopped after 40 rounds of constraints.', { panel: '' }, true); return { frames: R.frames };
+}
+
 function algHamilton(g, P) {
   const n = g.nodes.length, R = new Rec(); const S = simpleNbrSets(g); const A = S.map(s => [...s].sort((a, b) => a - b));
   const eid = (a, b) => g.edges.findIndex(e => (e.u === a && e.v === b) || (e.u === b && e.v === a));

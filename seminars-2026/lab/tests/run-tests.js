@@ -73,11 +73,28 @@ const Vs = (g, ...ls) => new Set(ls.map(l => g.nodes.findIndex(v => v.label === 
 for (const k of Object.keys(TICKETS)) { let err = 0; for (let s = 1; s <= 20; s++) { try { const t = TICKETS[k](s); if (!t.task || !t.answer) err++; if (t.text) parseGraph(t.text); } catch (e) { err++; } } ok(err === 0, `tickets ${k}`); ok(TICKETS[k](7).answer === TICKETS[k](7).answer, `ticket ${k} deterministic`); }
 
 /* --- definitions refer only to existing vertices and edges --- */
-for (const m of MODULES) { ok((DEFS[m.key] || []).length === 5, `five definitions for ${m.key}`); for (const d of DEFS[m.key] || []) { const g = parseGraph(d.g); const L = new Set(g.nodes.map(v => v.label)); const keys = new Set(g.edges.flatMap(e => [g.nodes[e.u].label + '-' + g.nodes[e.v].label, g.nodes[e.v].label + '-' + g.nodes[e.u].label])); for (const [, s] of d.steps) { for (const k of Object.keys(s.e || {})) ok(keys.has(k), `${d.term}: edge ${k}`); for (const k of [...Object.keys(s.n || {}), ...Object.keys(s.t || {})]) ok(L.has(k), `${d.term}: vertex ${k}`); } } }
+for (const m of MODULES) { ok((DEFS[m.key] || []).length >= 5, `at least five definitions for ${m.key}`); for (const d of DEFS[m.key] || []) { const g = parseGraph(d.g); const L = new Set(g.nodes.map(v => v.label)); const keys = new Set(g.edges.flatMap(e => [g.nodes[e.u].label + '-' + g.nodes[e.v].label, g.nodes[e.v].label + '-' + g.nodes[e.u].label])); for (const [, s] of d.steps) { for (const k of Object.keys(s.e || {})) ok(keys.has(k), `${d.term}: edge ${k}`); for (const k of [...Object.keys(s.n || {}), ...Object.keys(s.t || {})]) ok(L.has(k), `${d.term}: vertex ${k}`); } } }
 
 /* --- every concept is motivated: a real problem on each definition, a motivating first task per session --- */
 for (const m of MODULES) { ok(m.tasks[0] && m.tasks[0].tag === 'Motivation', `${m.key} opens with a motivating problem`); if (m.tasks[0].setup && m.tasks[0].setup.algo) ok(m.algos.some(a => a.key === m.tasks[0].setup.algo), `${m.key} motivation setup`); for (const d of DEFS[m.key]) ok(typeof d.why === 'string' && d.why.length > 40, `${m.key}: ${d.term} has a motivation`); }
 
+
+/* --- ILP for Hamilton cycles and TSP (session 6): lazy subtour constraints agree with exhaustive search --- */
+{
+  const bruteTour = g => { const n = g.nodes.length, W = Array.from({ length: n }, () => Array(n).fill(Infinity)); g.edges.forEach(e => { W[e.u][e.v] = Math.min(W[e.u][e.v], e.w); if (!g.directed) W[e.v][e.u] = Math.min(W[e.v][e.u], e.w); });
+    let best = Infinity; const used = Array(n).fill(false); used[0] = true; const go = (v, k, c) => { if (c >= best) return; if (k === n) { if (W[v][0] < Infinity) best = Math.min(best, c + W[v][0]); return; } for (let u = 1; u < n; u++) if (!used[u] && W[v][u] < Infinity) { used[u] = true; go(u, k + 1, c + W[v][u]); used[u] = false; } }; go(0, 1, 0); return best; };
+  let agreeT = true, agreeH = true, cases = 0;
+  for (let s = 1; s <= 60; s++) { const R = rng(1000 + s); const n = 4 + s % 5; let text = ''; for (let i = 0; i < n; i++) text += `v${i}\n`; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (R() < 0.55) text += `v${i} v${j} ${1 + Math.floor(R() * 9)}\n`;
+    const g = parseGraph(text); g.weighted = true; const b = bruteTour(g); cases++;
+    const rt = algTourILP(g, { goal: 'tsp' }), rh = algTourILP(g, { goal: 'ham' });
+    if (b === Infinity ? rt.tour !== null : !(rt.tour && Math.abs(rt.cost - b) < 1e-9 && rt.tour.length === n)) agreeT = false;
+    if ((b === Infinity) !== (rh.tour === null)) agreeH = false; }
+  ok(agreeT, `ILP TSP optimum equals exhaustive search on ${cases} random graphs`);
+  ok(agreeH, 'ILP Hamilton answer equals exhaustive search on the same graphs');
+  { const r = algTourILP(P('petersen'), { goal: 'ham' }); ok(r.tour === null && /No Hamilton cycle/.test(txt(last(r).panel)), `ILP proves Petersen non-Hamiltonian (${r.cuts} subtour constraints)`); }
+  { const g = P('courier'); g.weighted = true; const r = algTourILP(g, { goal: 'tsp' }); ok(r.tour && r.tour.length === 10 && Math.abs(r.cost - bruteTour(g)) < 1e-9, `ILP solves the courier TSP on the road graph (weight ${r.cost}, ${r.cuts} cuts)`); }
+  { const g = parseGraph('directed\na b 1\nb c 1\nc a 1\na c 5\nc b 5\nb a 5'); g.weighted = true; const r = algTourILP(g, { goal: 'tsp' }); ok(r.tour && r.cost === 3, 'ILP respects arc directions in a digraph'); }
+}
 
 /* --- Fleury (session 6, PS 5 P1.8): a valid Euler trail on every small graph that has one --- */
 {

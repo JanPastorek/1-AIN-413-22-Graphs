@@ -51,6 +51,7 @@ for (const m of MODULES) for (const a of m.algos) {
   ok(r.frames.length > 0, `${m.key}.${a.key} has frames`);
   const ps = PSEUDO[m.key + '.' + a.key];
   r.frames.forEach((f, i) => { if (ps && f.line !== undefined) ok(f.line >= 0 && f.line < ps.length, `${m.key}.${a.key} frame ${i} line ${f.line}`); if (f.ask) ok(Array.isArray(f.ask.answer) && f.ask.answer.length > 0 && f.ask.answer.every(x => x !== undefined && !Number.isNaN(x)), `${m.key}.${a.key} frame ${i} question`); });
+  ok(typeof IDEAS[m.key + '.' + a.key] === 'string' && IDEAS[m.key + '.' + a.key].length > 60 && /Idea:/.test(IDEAS[m.key + '.' + a.key]), `${m.key}.${a.key} has an intuitive summary`);
   let py = ''; try { py = pythonSnippet(m.key, a.key, r.graph || g, Pm); } catch (e) { } ok(py.length > 20, `${m.key}.${a.key} python export`);
   for (const t of m.tasks) if (t.setup && t.setup.preset) ok(!!PRESETS[t.setup.preset], `task preset ${t.setup.preset} exists`);
   for (const t of m.tasks) if (t.setup && t.setup.algo) ok(m.algos.some(x => x.key === t.setup.algo), `task algo ${m.key}.${t.setup.algo} exists`);

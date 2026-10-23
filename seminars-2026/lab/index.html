@@ -1213,6 +1213,55 @@ function algEuler(g, P) {
   return { frames: R.frames, truncated: R.truncated };
 }
 
+/* Fleury (PS 5 P1.8): walk an Euler trail edge by edge, never crossing a bridge of the
+   unused edges unless it is the only edge left at the current vertex. */
+function algFleury(g, P) {
+  const n = g.nodes.length, m = g.edges.length, R = new Rec(); const deg = Array(n).fill(0); g.edges.forEach(e => { deg[e.u]++; deg[e.v]++; });
+  const note = g.directed ? ' (This lab treats the edges as undirected.)' : '';
+  const odd = g.nodes.map((v, i) => i).filter(i => deg[i] % 2);
+  g.nodes.forEach((v, i) => R.ntag[i] = 'deg ' + deg[i]); odd.forEach(i => R.nc[i] = 'cut');
+  const degTable = () => h4('Degrees') + table(['vertex', 'deg', 'parity'], g.nodes.map((v, i) => [lab(g, i), deg[i], deg[i] % 2 ? 'odd' : 'even']), 'compact');
+  const { comp } = components(g); const live = g.nodes.map((v, i) => i).filter(i => deg[i] > 0);
+  R.line = 1;
+  if (!m) { R.snap('There are no edges to walk.', { panel: '' }, true); return { frames: R.frames }; }
+  if (new Set(live.map(i => comp[i])).size > 1) { R.snap('The edges lie in more than one component, so no single trail can use them all.' + note, { panel: cert('no', 'No Euler trail', 'All edges must lie in one component.') + degTable() }, true); return { frames: R.frames }; }
+  if (odd.length > 2) { R.snap(`${odd.length} vertices have odd degree: ${odd.map(i => lab(g, i)).join(', ')}. A trail passes through inner vertices using two edges each time, so only its two ends can have odd degree.` + note, { panel: cert('no', 'No Euler trail', `More than two odd vertices (${odd.length}). The postman view pairs them up instead.`) + degTable() }, true); return { frames: R.frames }; }
+  let v = P.source ?? live[0]; if (deg[v] === 0) v = live[0];
+  let why = odd.length ? 'There are exactly two odd vertices, so the trail must start at one of them and end at the other.' : 'Every degree is even, so the trail can start anywhere and will close up into a circuit.';
+  if (odd.length === 2 && !odd.includes(v)) { why += ` The chosen start ${lab(g, v)} is even, so we start at ${lab(g, odd[0])} instead.`; v = odd[0]; }
+  const start = v;
+  R.line = 2; R.nc = { ...Object.fromEntries(odd.map(i => [i, 'cut'])), [v]: 'cur' };
+  R.snap(`${odd.length} odd vertices. ${why}` + note, { panel: degTable() });
+  const used = Array(m).fill(false), inc = g.nodes.map(() => []); g.edges.forEach((e, i) => { inc[e.u].push(i); inc[e.v].push(i); });
+  const other = (i, x) => g.edges[i].u === x ? g.edges[i].v : g.edges[i].u;
+  // is edge i (at x) a bridge of the unused edges? = without it, its far end is no longer reachable from x
+  const isBridge = (i, x) => { const w = other(i, x); if (w === x) return false; const seen = new Set([x]), Q = [x];
+    while (Q.length) { const a = Q.pop(); for (const j of inc[a]) if (!used[j] && j !== i) { const b = other(j, a); if (b === w) return false; if (!seen.has(b)) { seen.add(b); Q.push(b); } } }
+    return true; };
+  const trail = [v], order = [];
+  const panel = rows => h4('Trail so far') + `<p class="mono">${trail.map(x => lab(g, x)).join(' → ')}</p>` + (rows ? h4(`Unused edges at ${lab(g, v)}`) + table(['edge', 'bridge of the rest?', 'Fleury allows'], rows, 'compact') : '') + `<p class="note">${m - order.length} of ${m} edges left.</p>`;
+  const paint = () => { R.ec = {}; R.elab = {}; order.forEach((i, k) => { R.ec[i] = 'tree'; R.elab[i] = '#' + (k + 1); }); };
+  while (true) {
+    const cand = inc[v].filter(i => !used[i]); if (!cand.length) break;
+    const br = cand.map(i => isBridge(i, v)); const safe = cand.filter((i, k) => !br[k]);
+    const allowed = safe.length ? safe : cand;          // a bridge only when nothing else is left
+    paint(); cand.forEach((i, k) => R.ec[i] = br[k] && safe.length ? 'cut' : 'cand');
+    R.nc = { [start]: 'front', [v]: 'cur' };
+    const rows = cand.map((i, k) => ({ cls: allowed.includes(i) ? '' : 'bad', cells: [edgeName(g, i), br[k] ? 'yes' : 'no', allowed.includes(i) ? 'yes' : 'no'] }));
+    const msg = cand.length === 1 ? `At ${N(g, v)} only ${edgeName(g, cand[0])} is unused, so it is taken even ${br[0] ? 'though it is a bridge' : 'without a choice'}.`
+      : safe.length < cand.length ? `At ${N(g, v)}: ${cand.filter((i, k) => br[k]).map(i => edgeName(g, i)).join(', ')} would disconnect the unused edges (a bridge of the rest), so Fleury avoids it while another edge is available.`
+      : `At ${N(g, v)}: no unused edge here is a bridge of the rest, so any of ${cand.map(i => edgeName(g, i)).join(', ')} is safe.`;
+    R.line = 4; R.snap(msg, { panel: panel(rows), ask: cand.length > 1 ? { type: 'edge', answer: allowed.slice(), prompt: 'Which edge may Fleury take next? (Any allowed edge counts.)' } : undefined });
+    const e = allowed[0]; used[e] = true; order.push(e); const w = other(e, v); v = w; trail.push(w);
+    paint(); R.nc = { [start]: 'front', [v]: 'cur' };
+    R.line = 5; R.snap(`Take ${edgeName(g, e)} (the first allowed edge in the edge list) and delete it from the graph; continue from ${N(g, v)}.`, { panel: panel(null) });
+  }
+  paint(); R.nc = { [start]: 'front', [v]: 'cur' };
+  const closed = v === start, len = g.edges.reduce((s0, e) => s0 + e.w, 0);
+  R.line = 6; R.snap(`${closed ? 'Euler circuit' : 'Euler trail'}: ${trail.map(x => lab(g, x)).join(' → ')}. Every edge was used exactly once.`, { panel: cert('yes', `${closed ? 'Euler circuit' : `Euler trail from ${lab(g, start)} to ${lab(g, v)}`}, ${m} edges${g.weighted ? `, length ${fmt(len)}` : ''}`, 'Labels on the edges give the order. Check: consecutive edges share a vertex and no edge repeats.') + h4('Trail') + `<p class="mono">${trail.map(x => lab(g, x)).join(' → ')}</p>` + `<p class="note">Each step tests every unused edge at the current vertex for being a bridge, one graph search each, so this simple version takes O(m²) time; Hierholzer needs only O(m).</p>` }, true);
+  return { frames: R.frames, truncated: R.truncated, trail, order };
+}
+
 function algHamilton(g, P) {
   const n = g.nodes.length, R = new Rec(); const S = simpleNbrSets(g); const A = S.map(s => [...s].sort((a, b) => a - b));
   const eid = (a, b) => g.edges.findIndex(e => (e.u === a && e.v === b) || (e.u === b && e.v === a));
@@ -2369,12 +2418,14 @@ const MODULES = [
     key: 'route', num: 6, title: 'Euler, Hamilton, postman and TSP', studio: 'Snowplough versus courier', anchor: 'Parity, pairing odd vertices, backtracking, a first ILP', preset: 'streets', weighted: true,
     algos: [
       { key: 'euler', name: 'Euler circuit / Chinese postman', run: algEuler, params: [{ id: 'goal', type: 'select', label: 'Tour', options: [['closed', 'must return to start'], ['open', 'may end elsewhere']], def: 'closed' }] },
+      { key: 'fleury', name: 'Fleury (edge by edge)', run: algFleury, params: [{ id: 'source', type: 'vertex', label: 'Start' }], legend: [['n', 'cur', 'current vertex'], ['n', 'front', 'start'], ['n', 'cut', 'odd degree'], ['e', 'cand', 'allowed next edge'], ['e', 'cut', 'bridge of the rest: avoid'], ['e', 'tree', 'trail so far (#order)']] },
       { key: 'ham', name: 'Hamilton cycle (backtracking)', run: algHamilton, params: [{ id: 'source', type: 'vertex', label: 'Start' }] },
       { key: 'tsp', name: 'TSP: heuristics vs optimum', run: algTSPCompare, params: [{ id: 'source', type: 'vertex', label: 'Start' }] },
     ],
     legend: [['n', 'cut', 'odd degree'], ['e', 'path', 'pairing path'], ['e', 'dup', 'duplicated'], ['e', 'cand', 'walked'], ['e', 'tree', 'in circuit / tour']],
     tasks: [
       { tag: 'Lab', text: 'Snowplough streets: which corners are odd, which pairing does the lab choose, and what is the extra cost? List the other two pairings and their costs by hand.', setup: { preset: 'streets', algo: 'euler' } },
+      { tag: 'Lab', text: 'Fleury versus Hierholzer on two clusters joined by one link. Walk it yourself from c first: which edge would a careless walker take that leaves edges unreachable? Then run Fleury in <b>Predict</b> mode: it stops before every choice and accepts any edge that is not a bridge of the unused edges. Why does it never get stuck, and why is it slower than Hierholzer?', setup: { preset: 'barbell', algo: 'fleury', params: { source: 'c' } } },
       { tag: 'Proof', text: 'Prove the postman lower bound: the edges walked twice in any closed covering walk form a set J in which odd vertices have odd J-degree and even vertices even J-degree, so J contains paths pairing the odd vertices.' },
       { tag: 'Lab', text: 'Run the Hamilton search on the Petersen graph and note the number of recursive calls. Compare: how long does the Euler parity test take on the same graph? What would a short certificate of “no Hamilton cycle” even look like?', setup: { preset: 'petersen', algo: 'ham' } },
       { tag: 'ILP', text: 'Run TSP on the fiber graph. Write the TSP integer program for it with only the degree constraints. Find a 0/1 solution that is two disjoint triangles, name the subtour constraint it violates, and add it.', setup: { preset: 'studio_fiber', algo: 'tsp' } },
@@ -2510,6 +2561,7 @@ const PSEUDO = {
   'sp.astar': ['A*(G, s, t, h)    ▹ h(v) ≤ true distance to t', '  g[s] ← 0;  open ← {s}', '  u ← vertex in open with least g[u] + h(u);  stop if u = t', '  move u to closed', '  for each v ∈ Adj[u]: if g[u] + w(u, v) < g[v]: g[v] ← g[u] + w(u, v); π[v] ← u', '  return the path s → t along π'],
   'sp.fw': ['D ← W   (0 on the diagonal, ∞ where there is no edge)', 'for k ← 1 to n', '  for i ← 1 to n', '    for j ← 1 to n', '      D[i][j] ← min(D[i][j], D[i][k] + D[k][j])', 'negative cycle ⇔ some D[v][v] < 0'],
   'route.euler': ['if some vertex has odd degree', '  pair the odd vertices with least total distance; duplicate those paths', 'stack ← ⟨start⟩;  circuit ← ⟨⟩', 'while stack ≠ ∅', '  v ← top of stack', '  if v has an unused edge vw: mark it used; push w', '  else: pop v; prepend v to circuit', 'return circuit'],
+  'route.fleury': ['FLEURY(G)', '  if the edges are not connected, or more than two vertices have odd degree: no Euler trail', '  v ← one of the two odd vertices if there are two, else any vertex;  trail ← ⟨v⟩', '  while v has an unused edge', '    choose an unused edge vw that is not a bridge of the unused edges, unless it is the only one at v', '    delete vw;  append w to trail;  v ← w', '  return trail        ▹ O(m) steps × O(m) bridge test = O(m²)'],
   'route.ham': ['EXTEND(path)', '  if |path| = n: success if last(path) ~ first(path)', '  for each neighbour v of last(path) with v ∉ path', '    EXTEND(path + v)', '  backtrack'],
   'route.tsp': ['nearest neighbour: walk to the closest unvisited vertex', 'T ← minimum spanning tree            ▹ OPT ≥ w(T)', 'double tree: preorder walk of T, skip repeats   ▹ ≤ 2·OPT', 'Christofides: M ← min-weight perfect matching on odd vertices of T', '  Euler circuit of T + M, skip repeats   ▹ ≤ 1.5·OPT', 'Held–Karp: C(S, j) = min over i of C(S ∖ {j}, i) + d(i, j)'],
   'flow.ek': ['EDMONDS-KARP(G, s, t)', '  f ← 0', '  while the residual network G_f has an s–t path', '    p ← a shortest such path (BFS);  b ← min residual capacity on p', '    push b along p   (forward arcs +b, backward arcs −b)', '  S ← vertices reachable from s in G_f;  (S, V ∖ S) is a minimum cut'],
@@ -2566,6 +2618,7 @@ function pythonSnippet(modKey, algoKey, g, P) {
     case 'sp.astar': { const pos = g ? `pos = {${g.nodes.map(v => `${pyStr(v.label)}: (${v.x.toFixed(0)}, ${v.y.toFixed(0)})`).join(', ')}}\n` : ''; return head + G + pos + `from math import dist\nalpha = min(w / dist(pos[u], pos[v]) for u, v, w in G.edges(data="weight"))\nh = lambda u, v: alpha * dist(pos[u], pos[v])\nprint(nx.astar_path(G, ${L(P.source)}, ${L(P.target)}, heuristic=h), nx.astar_path_length(G, ${L(P.source)}, ${L(P.target)}, heuristic=h))`; }
     case 'sp.fw': case 'sp.race': return head + G + `D = nx.floyd_warshall_numpy(G)\nprint(list(G.nodes()))\nprint(D)`;
     case 'route.euler': return head + G + `if nx.is_eulerian(G):\n    print(list(nx.eulerian_circuit(G)))\nelse:\n    odd = [v for v, d in G.degree() if d % 2]\n    print("odd vertices:", odd)\n    # nx.eulerize ignores weights; for the weighted postman pair odd vertices by\n    # min_weight_matching on shortest-path distances, as the lab does.\n    D = dict(nx.all_pairs_dijkstra_path_length(G))\n    K = nx.Graph(); K.add_weighted_edges_from((a, b, D[a][b]) for i, a in enumerate(odd) for b in odd[i+1:])\n    print("pairing:", nx.min_weight_matching(K))`;
+    case 'route.fleury': return head + G + `def fleury(G, start):\n    H = nx.MultiGraph(G)          # edges are deleted as they are walked\n    odd = [v for v, d in H.degree() if d % 2]\n    if len(odd) not in (0, 2) or not nx.is_connected(H.subgraph(v for v, d in H.degree() if d)):\n        return None               # no Euler trail\n    v = odd[0] if odd and start not in odd else start\n    trail = [v]\n    while H.degree(v):\n        choices = list(H.edges(v, keys=True))\n        for a, w, k in choices:\n            H.remove_edge(a, w, k)\n            if len(choices) == 1 or nx.has_path(H, v, w):\n                break             # not a bridge of the rest (or the only edge left)\n            H.add_edge(a, w, k)   # a bridge: put it back and try the next edge\n        else:\n            a, w, k = choices[0]; H.remove_edge(a, w, k)\n        trail.append(w)\n        v = w\n    return trail\n\nprint(fleury(G, ${L(P.source)}))`;
     case 'route.ham': return head + G + `def hamilton_cycle(G, s):\n    n, path = G.number_of_nodes(), [s]\n    def extend():\n        if len(path) == n:\n            return G.has_edge(path[-1], s)\n        for v in G[path[-1]]:\n            if v not in path:\n                path.append(v)\n                if extend():\n                    return True\n                path.pop()\n        return False\n    return path if extend() else None\n\nprint(hamilton_cycle(G, ${L(P.source)}))`;
     case 'route.tsp': return head + G + `from networkx.algorithms import approximation as approx\nfor name, method in [("christofides", approx.christofides), ("greedy", approx.greedy_tsp)]:\n    tour = approx.traveling_salesman_problem(G, cycle=True, method=method)\n    length = sum(nx.dijkstra_path_length(G, a, b) for a, b in zip(tour, tour[1:]))\n    print(name, tour, length)`;
     case 'flow.ek': case 'flow.race': return head + G + `from networkx.algorithms.flow import edmonds_karp\nvalue, flow = nx.maximum_flow(G, ${L(P.source)}, ${L(P.sink)}, capacity="weight", flow_func=edmonds_karp)\ncut_value, (S, T) = nx.minimum_cut(G, ${L(P.source)}, ${L(P.sink)}, capacity="weight")\nprint(value, cut_value, sorted(S))`;
@@ -3325,7 +3378,8 @@ const SHEETS = {
     { ps: 5, items: [
       { p: 'P1(a)', title: 'Eulerian? Find an Euler tour or trail', page: 1, note: 'These are the two weighted graphs of PS 3 P4(b).', runs: [sheetRun('Graph 1', { preset: 'ps3_4b1', algo: 'euler', params: { goal: 'closed' } }), sheetRun('Graph 2', { preset: 'ps3_4b2', algo: 'euler', params: { goal: 'closed' } })] },
       { p: 'P1(b)', title: 'Girth and circumference', page: 1, note: 'A Hamilton cycle, if one exists, shows the circumference is n.', runs: [sheetRun('Left graph', { preset: 'ps5_1b1', algo: 'ham', params: { source: '1' } }), sheetRun('Right graph', { preset: 'ps5_1b2', algo: 'ham', params: { source: '1' } })] },
-      { p: 'P1.1–1.8', title: 'Euler trails in Kₙ and Kₘ,ₙ, trail decompositions, Fleury’s algorithm', page: 2 },
+      { p: 'P1.1–1.7', title: 'Euler trails in Kₙ and Kₘ,ₙ, trail decompositions, edge colourings', page: 2 },
+      { p: 'P1.8', title: 'Fleury’s algorithm: why it finds an Euler tour or trail, and its running time', page: 2, note: 'Run it in <b>Predict</b> mode: before every choice the lab asks which edge Fleury may take and marks the bridges of the unused edges. Compare the number of steps with Hierholzer.', runs: [sheetRun('Two clusters joined by one link', { preset: 'barbell', algo: 'fleury', params: { source: 'c' } }), sheetRun('H of PS 3 P4(b)', { preset: 'ps3_4b5', algo: 'fleury', params: { source: 'a' } }), sheetRun('Octahedron (circuit)', { preset: 'planar_oct', algo: 'fleury', params: { source: 'a' } }), sheetRun('K₅ (circuit)', { preset: 'k5', algo: 'fleury', params: { source: '1' } })] },
       { p: 'P2(a)', title: 'Hamiltonian? Find a Hamilton cycle or path', page: 3, runs: [sheetRun('Petersen', { preset: 'petersen', algo: 'ham', params: { source: '0' } }), sheetRun('G', { preset: 'ps5_2g', algo: 'ham', params: { source: 'a' } }), sheetRun('H', { preset: 'ps5_2h', algo: 'ham', params: { source: 'a' } })] },
       { p: 'P2(b)', title: 'Ore’s theorem: more than C(n − 1, 2) + 1 edges', page: 3 }] },
     { ps: 6, items: [{ p: 'P−1', title: 'TSP heuristics far from the optimum (Stanoyevitch 9.2.35, 9.2.10)', page: 1, note: 'Edit a small instance until nearest neighbour is clearly worse than the optimum the lab computes.', runs: [sheetRun('Courier stops', { preset: 'courier', algo: 'tsp', params: { source: 'A' } })] }] },
@@ -3377,7 +3431,7 @@ const SHEET_DEFS = {
   iso: { 'Isomorphism': [[3, 'P2', '1–4']], 'Invariants': [[3, 'P2', '1–4']] },
   mst: { 'Tree': [[3, 'P3', 4]], 'Spanning tree': [[3, 'P4(a–b)', 4]], 'Cut property': [[3, 'P4(c)', 5]], 'Cycle property': [[3, 'P4(c)', 5]] },
   sp: { 'Weighted distance': [[4, 'P4', '2–3']], 'Relaxation': [[6, 'P1', '2–3']], 'Negative cycle': [[6, 'P2', '3–5']] },
-  route: { 'Euler circuit': [[5, 'P1', '1–2']], 'Hamilton cycle': [[5, 'P2', 3]], 'Triangle inequality and shortcuts': [[6, 'P−1', 1]] },
+  route: { 'Euler circuit': [[5, 'P1', '1–2'], [5, 'P1.8 (Fleury)', 2]], 'Hamilton cycle': [[5, 'P2', 3]], 'Triangle inequality and shortcuts': [[6, 'P−1', 1]] },
   flow: { 'Flow network and flow': [[7, 'flows', '1–2']], 'Residual network': [[7, 'FF / EK', '3–4']], 'Augmenting path': [[7, 'FF / EK', '3–4']], 's–t cut': [[7, 'cuts', 2]] },
   match: { 'Matching: maximal vs maximum': [[8, 'P1', 2], [8, 'P2.1', 2]], 'Augmenting path': [[8, 'P2.3', '2–3']], 'Vertex cover and König': [[8, 'P2.4', 3]], 'Hall’s condition': [[8, 'P2.6', 3]], 'Stable matching': [[8, 'P3', '3–4']] },
   color: { 'Proper colouring and χ': [[9, 'P3', '3–4']], 'Planar graph and faces': [[9, 'P1', 2]], 'Euler’s formula': [[9, 'P2', 3]], 'Dual graph': [[9, 'P1.2, P1.4', 2]] },
@@ -3718,6 +3772,12 @@ function renderDefs(m) {
   });
 }
 
+/* legend: the algorithm's own, if it has one, else the session's */
+function renderLegend() {
+  const m = ST.mod, a = currentAlgo(), L = (a && a.legend) || m.legend;
+  $('#legend').innerHTML = L.map(([kind, cls, txt]) => txt ? `<span class="lg"><svg width="${kind === 'n' ? 16 : 26}" height="16" aria-hidden="true">${kind === 'n' ? `<g class="nd ${cls}" transform="translate(8,8)"><circle r="6"/></g>` : `<path class="ed ${cls}" d="M2,8L24,8"/>`}</svg>${txt}</span>` : '').join('');
+}
+
 /* ---------- module switch ---------- */
 function openModule(key) {
   const m = MODULES.find(x => x.key === key) || MODULES[0]; ST.mod = m; ST.edit = false; ST.editSel = -1; ST.residual = false; stopPlay(); setView(null);
@@ -3725,8 +3785,8 @@ function openModule(key) {
   $('#mnum').textContent = String(m.num).padStart(2, '0'); $('#mtitle').textContent = m.title; $('#mstudio').textContent = `Studio: ${m.studio}`; $('#manchor').textContent = m.anchor;
   const s = modState(m);
   const tabs = $('#algos'); tabs.innerHTML = '';
-  m.algos.forEach(a => { const b = document.createElement('button'); b.type = 'button'; b.textContent = a.name; b.setAttribute('aria-pressed', a.key === s.algo); b.onclick = () => { s.algo = a.key; tabs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderParams(); syncEditor(); run(); }; tabs.appendChild(b); });
-  $('#legend').innerHTML = m.legend.map(([kind, cls, txt]) => txt ? `<span class="lg"><svg width="${kind === 'n' ? 16 : 26}" height="16" aria-hidden="true">${kind === 'n' ? `<g class="nd ${cls}" transform="translate(8,8)"><circle r="6"/></g>` : `<path class="ed ${cls}" d="M2,8L24,8"/>`}</svg>${txt}</span>` : '').join('');
+  m.algos.forEach(a => { const b = document.createElement('button'); b.type = 'button'; b.textContent = a.name; b.setAttribute('aria-pressed', a.key === s.algo); b.onclick = () => { s.algo = a.key; tabs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderLegend(); renderParams(); syncEditor(); run(); }; tabs.appendChild(b); });
+  renderLegend();
   $('#modes [data-mode="cert"]').disabled = !(CERTS[m.key] || []).length; $('#modes [data-mode="ticket"]').disabled = !TICKETS[m.key];
   renderTasks(m); renderDefs(m);
   try { ensureGraph(m, s); } catch (e) { }
@@ -3756,7 +3816,7 @@ function renderSheets(m) {
 }
 function applySetup(su) {
   const m = ST.mod, s = modState(m); if (ST.mode === 'ticket' || ST.mode === 'cert') setMode('watch');
-  if (su.algo) { s.algo = su.algo; document.querySelectorAll('#algos button').forEach((b, i) => b.setAttribute('aria-pressed', m.algos[i].key === su.algo)); }
+  if (su.algo) { s.algo = su.algo; document.querySelectorAll('#algos button').forEach((b, i) => b.setAttribute('aria-pressed', m.algos[i].key === su.algo));  renderLegend(); }
   if (su.params) for (const [k, v] of Object.entries(su.params)) s.params[s.algo + '.' + k] = String(v);
   if (su.preset) { const p = PRESETS[su.preset]; s.presetKey = su.preset; s.graph = null; s.text = p.text; s.layout = p.layout || 'force'; ensureGraph(m, s); setView(null); }
   renderParams(); syncEditor(); run();

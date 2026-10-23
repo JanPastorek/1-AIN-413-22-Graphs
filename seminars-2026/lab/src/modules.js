@@ -133,12 +133,14 @@ const MODULES = [
     key: 'route', num: 6, title: 'Euler, Hamilton, postman and TSP', studio: 'Snowplough versus courier', anchor: 'Parity, pairing odd vertices, backtracking, a first ILP', preset: 'streets', weighted: true,
     algos: [
       { key: 'euler', name: 'Euler circuit / Chinese postman', run: algEuler, params: [{ id: 'goal', type: 'select', label: 'Tour', options: [['closed', 'must return to start'], ['open', 'may end elsewhere']], def: 'closed' }] },
+      { key: 'fleury', name: 'Fleury (edge by edge)', run: algFleury, params: [{ id: 'source', type: 'vertex', label: 'Start' }], legend: [['n', 'cur', 'current vertex'], ['n', 'front', 'start'], ['n', 'cut', 'odd degree'], ['e', 'cand', 'allowed next edge'], ['e', 'cut', 'bridge of the rest: avoid'], ['e', 'tree', 'trail so far (#order)']] },
       { key: 'ham', name: 'Hamilton cycle (backtracking)', run: algHamilton, params: [{ id: 'source', type: 'vertex', label: 'Start' }] },
       { key: 'tsp', name: 'TSP: heuristics vs optimum', run: algTSPCompare, params: [{ id: 'source', type: 'vertex', label: 'Start' }] },
     ],
     legend: [['n', 'cut', 'odd degree'], ['e', 'path', 'pairing path'], ['e', 'dup', 'duplicated'], ['e', 'cand', 'walked'], ['e', 'tree', 'in circuit / tour']],
     tasks: [
       { tag: 'Lab', text: 'Snowplough streets: which corners are odd, which pairing does the lab choose, and what is the extra cost? List the other two pairings and their costs by hand.', setup: { preset: 'streets', algo: 'euler' } },
+      { tag: 'Lab', text: 'Fleury versus Hierholzer on two clusters joined by one link. Walk it yourself from c first: which edge would a careless walker take that leaves edges unreachable? Then run Fleury in <b>Predict</b> mode: it stops before every choice and accepts any edge that is not a bridge of the unused edges. Why does it never get stuck, and why is it slower than Hierholzer?', setup: { preset: 'barbell', algo: 'fleury', params: { source: 'c' } } },
       { tag: 'Proof', text: 'Prove the postman lower bound: the edges walked twice in any closed covering walk form a set J in which odd vertices have odd J-degree and even vertices even J-degree, so J contains paths pairing the odd vertices.' },
       { tag: 'Lab', text: 'Run the Hamilton search on the Petersen graph and note the number of recursive calls. Compare: how long does the Euler parity test take on the same graph? What would a short certificate of “no Hamilton cycle” even look like?', setup: { preset: 'petersen', algo: 'ham' } },
       { tag: 'ILP', text: 'Run TSP on the fiber graph. Write the TSP integer program for it with only the degree constraints. Find a 0/1 solution that is two disjoint triangles, name the subtour constraint it violates, and add it.', setup: { preset: 'studio_fiber', algo: 'tsp' } },

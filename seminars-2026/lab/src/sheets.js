@@ -111,7 +111,8 @@ const SHEETS = {
     { ps: 5, items: [
       { p: 'P1(a)', title: 'Eulerian? Find an Euler tour or trail', page: 1, note: 'These are the two weighted graphs of PS 3 P4(b).', runs: [sheetRun('Graph 1', { preset: 'ps3_4b1', algo: 'euler', params: { goal: 'closed' } }), sheetRun('Graph 2', { preset: 'ps3_4b2', algo: 'euler', params: { goal: 'closed' } })] },
       { p: 'P1(b)', title: 'Girth and circumference', page: 1, note: 'A Hamilton cycle, if one exists, shows the circumference is n.', runs: [sheetRun('Left graph', { preset: 'ps5_1b1', algo: 'ham', params: { source: '1' } }), sheetRun('Right graph', { preset: 'ps5_1b2', algo: 'ham', params: { source: '1' } })] },
-      { p: 'P1.1–1.8', title: 'Euler trails in Kₙ and Kₘ,ₙ, trail decompositions, Fleury’s algorithm', page: 2 },
+      { p: 'P1.1–1.7', title: 'Euler trails in Kₙ and Kₘ,ₙ, trail decompositions, edge colourings', page: 2 },
+      { p: 'P1.8', title: 'Fleury’s algorithm: why it finds an Euler tour or trail, and its running time', page: 2, note: 'Run it in <b>Predict</b> mode: before every choice the lab asks which edge Fleury may take and marks the bridges of the unused edges. Compare the number of steps with Hierholzer.', runs: [sheetRun('Two clusters joined by one link', { preset: 'barbell', algo: 'fleury', params: { source: 'c' } }), sheetRun('H of PS 3 P4(b)', { preset: 'ps3_4b5', algo: 'fleury', params: { source: 'a' } }), sheetRun('Octahedron (circuit)', { preset: 'planar_oct', algo: 'fleury', params: { source: 'a' } }), sheetRun('K₅ (circuit)', { preset: 'k5', algo: 'fleury', params: { source: '1' } })] },
       { p: 'P2(a)', title: 'Hamiltonian? Find a Hamilton cycle or path', page: 3, runs: [sheetRun('Petersen', { preset: 'petersen', algo: 'ham', params: { source: '0' } }), sheetRun('G', { preset: 'ps5_2g', algo: 'ham', params: { source: 'a' } }), sheetRun('H', { preset: 'ps5_2h', algo: 'ham', params: { source: 'a' } })] },
       { p: 'P2(b)', title: 'Ore’s theorem: more than C(n − 1, 2) + 1 edges', page: 3 }] },
     { ps: 6, items: [{ p: 'P−1', title: 'TSP heuristics far from the optimum (Stanoyevitch 9.2.35, 9.2.10)', page: 1, note: 'Edit a small instance until nearest neighbour is clearly worse than the optimum the lab computes.', runs: [sheetRun('Courier stops', { preset: 'courier', algo: 'tsp', params: { source: 'A' } })] }] },
@@ -163,7 +164,7 @@ const SHEET_DEFS = {
   iso: { 'Isomorphism': [[3, 'P2', '1–4']], 'Invariants': [[3, 'P2', '1–4']] },
   mst: { 'Tree': [[3, 'P3', 4]], 'Spanning tree': [[3, 'P4(a–b)', 4]], 'Cut property': [[3, 'P4(c)', 5]], 'Cycle property': [[3, 'P4(c)', 5]] },
   sp: { 'Weighted distance': [[4, 'P4', '2–3']], 'Relaxation': [[6, 'P1', '2–3']], 'Negative cycle': [[6, 'P2', '3–5']] },
-  route: { 'Euler circuit': [[5, 'P1', '1–2']], 'Hamilton cycle': [[5, 'P2', 3]], 'Triangle inequality and shortcuts': [[6, 'P−1', 1]] },
+  route: { 'Euler circuit': [[5, 'P1', '1–2'], [5, 'P1.8 (Fleury)', 2]], 'Hamilton cycle': [[5, 'P2', 3]], 'Triangle inequality and shortcuts': [[6, 'P−1', 1]] },
   flow: { 'Flow network and flow': [[7, 'flows', '1–2']], 'Residual network': [[7, 'FF / EK', '3–4']], 'Augmenting path': [[7, 'FF / EK', '3–4']], 's–t cut': [[7, 'cuts', 2]] },
   match: { 'Matching: maximal vs maximum': [[8, 'P1', 2], [8, 'P2.1', 2]], 'Augmenting path': [[8, 'P2.3', '2–3']], 'Vertex cover and König': [[8, 'P2.4', 3]], 'Hall’s condition': [[8, 'P2.6', 3]], 'Stable matching': [[8, 'P3', '3–4']] },
   color: { 'Proper colouring and χ': [[9, 'P3', '3–4']], 'Planar graph and faces': [[9, 'P1', 2]], 'Euler’s formula': [[9, 'P2', 3]], 'Dual graph': [[9, 'P1.2, P1.4', 2]] },

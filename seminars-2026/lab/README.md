@@ -30,7 +30,7 @@ Companion exercises: [Lab and database explorations](../practice/lab-and-databas
 | 3 Isomorphism and symmetry | 1-WL colour refinement on two graphs; automorphism group, orbits and a greedy fixing set | PS 3 P2 |
 | 4 Trees, MST and union–find | Kruskal with union–find; Prim; cycle-property certificate; race | PS 3 P3–P4; PS 4 P1–P2 |
 | 5 Shortest paths | Dijkstra (cross-checked by Bellman–Ford), Bellman–Ford with negative cycles, BFS, A*, Floyd–Warshall; race | PS 4 P4; PS 6 P1–P2 |
-| 6 Euler, Hamilton, postman, TSP | Hierholzer and Chinese postman; Hamilton backtracking; nearest neighbour, double tree, Christofides and Held–Karp with the DFJ integer program | PS 5; PS 6 P−1; PS 1 P3 |
+| 6 Euler, Hamilton, postman, TSP | Hierholzer and Chinese postman; Fleury edge by edge, with the bridges of the unused edges marked; Hamilton backtracking; nearest neighbour, double tree, Christofides and Held–Karp with the DFJ integer program | PS 5; PS 6 P−1; PS 1 P3 |
 | 7 Flows and cuts | Edmonds–Karp with a residual view and min-cut certificate; race of path rules (2 vs 2000 augmentations) | PS 7 |
 | 8 Matchings | Augmenting paths with König cover and Hall violator; Hopcroft–Karp; Hungarian method with dual certificate; Gale–Shapley; race | PS 8 |
 | 9 Planarity, duality, colouring | Planarity test (Demoucron–Malgrange–Pertuiset) with plane drawing, faces, Euler’s formula, dual graph or Kuratowski subgraph; greedy, DSatur, exact χ | PS 9 |
@@ -44,7 +44,7 @@ The problem-set links and the instances transcribed from the sheets’ figures a
 
 ## Checks behind the page
 
-`node tests/run-tests.js` runs 3 382 checks without dependencies, among them:
+`node tests/run-tests.js` runs 3 408 checks without dependencies, among them:
 
 - graph counts 1, 2, 4, 11, 34, 156, 1044 from the generator (12 346 for n = 8 in the browser);
 - the planarity test agrees with the known numbers of planar graphs (33, 142, 822 for n = 5, 6, 7), Euler’s formula holds on every embedding, and every 2-connected planar graph on up to 7 vertices is drawn without crossings;

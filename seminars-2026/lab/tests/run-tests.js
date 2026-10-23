@@ -78,6 +78,30 @@ for (const m of MODULES) { ok((DEFS[m.key] || []).length === 5, `five definition
 for (const m of MODULES) { ok(m.tasks[0] && m.tasks[0].tag === 'Motivation', `${m.key} opens with a motivating problem`); if (m.tasks[0].setup && m.tasks[0].setup.algo) ok(m.algos.some(a => a.key === m.tasks[0].setup.algo), `${m.key} motivation setup`); for (const d of DEFS[m.key]) ok(typeof d.why === 'string' && d.why.length > 40, `${m.key}: ${d.term} has a motivation`); }
 
 
+/* --- Fleury (session 6, PS 5 P1.8): a valid Euler trail on every small graph that has one --- */
+{
+  const checkTrail = (g, r, startSet) => { const t = r.trail, o = r.order; if (!t || o.length !== g.edges.length || new Set(o).size !== o.length) return false;
+    for (let k = 0; k < o.length; k++) { const e = g.edges[o[k]]; if (!((e.u === t[k] && e.v === t[k + 1]) || (e.v === t[k] && e.u === t[k + 1]))) return false; }
+    return !startSet || startSet.includes(t[0]); };
+  let tested = 0, okAll = true, asksOk = true, rejectOk = true;
+  for (let n = 2; n <= 6; n++) for (const a of graphsOfOrder(n)) {
+    let text = ''; for (let i = 0; i < n; i++) { text += `v${i}\n`; for (let j = i + 1; j < n; j++) if (a[i] >> j & 1) text += `v${i} v${j}\n`; }
+    const g = parseGraph(text); if (!g.edges.length) continue;
+    const deg = g.nodes.map((v, i) => g.edges.filter(e => e.u === i || e.v === i).length), odd = deg.map((d, i) => d % 2 ? i : -1).filter(i => i >= 0);
+    const { comp } = components(g); const one = new Set(g.nodes.map((v, i) => i).filter(i => deg[i]).map(i => comp[i])).size === 1;
+    for (const src of [0, n - 1]) { const r = algFleury(g, { source: src });
+      if (one && odd.length <= 2) { tested++; if (!checkTrail(g, r, odd.length ? odd : null)) okAll = false;
+        r.frames.forEach((f, i) => { if (f.ask && r.frames[i + 1]) { const taken = r.order.find(e => r.frames[i + 1].ec[e] === 'tree' && f.ec[e] !== 'tree'); if (!f.ask.answer.includes(taken)) asksOk = false; } }); }
+      else if (!/No Euler trail/.test(txt(last(r).panel))) rejectOk = false; }
+  }
+  ok(tested > 100 && okAll, `Fleury gives a valid Euler trail or circuit on all ${tested} small cases`);
+  ok(asksOk, 'Fleury: every Predict answer set contains the edge actually taken');
+  ok(rejectOk, 'Fleury rejects graphs with more than two odd vertices or disconnected edges');
+  { const g = P('barbell'), c = g.nodes.findIndex(v => v.label === 'c'); const r = algFleury(g, { source: c }); const bridge = g.edges.findIndex(e => [e.u, e.v].map(i => g.nodes[i].label).sort().join() === 'c,d');
+    ok(checkTrail(g, r) && r.order.indexOf(bridge) > 0 && r.order.indexOf(bridge) === 3, 'Fleury on the barbell finishes the triangle before crossing the bridge c–d'); }
+  { const g = parseGraph('a b\na b\nb c\nc a'); const r = algFleury(g, { source: 0 }); ok(checkTrail(g, r), 'Fleury handles parallel edges'); }
+}
+
 /* --- the teacher's problem sets: links, presets transcribed from the PDFs, and every "load in the lab" button --- */
 {
   const REPO = path.join(__dirname, '..', '..', '..');

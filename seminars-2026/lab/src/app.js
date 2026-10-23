@@ -306,6 +306,12 @@ function renderDefs(m) {
   });
 }
 
+/* legend: the algorithm's own, if it has one, else the session's */
+function renderLegend() {
+  const m = ST.mod, a = currentAlgo(), L = (a && a.legend) || m.legend;
+  $('#legend').innerHTML = L.map(([kind, cls, txt]) => txt ? `<span class="lg"><svg width="${kind === 'n' ? 16 : 26}" height="16" aria-hidden="true">${kind === 'n' ? `<g class="nd ${cls}" transform="translate(8,8)"><circle r="6"/></g>` : `<path class="ed ${cls}" d="M2,8L24,8"/>`}</svg>${txt}</span>` : '').join('');
+}
+
 /* ---------- module switch ---------- */
 function openModule(key) {
   const m = MODULES.find(x => x.key === key) || MODULES[0]; ST.mod = m; ST.edit = false; ST.editSel = -1; ST.residual = false; stopPlay(); setView(null);
@@ -313,8 +319,8 @@ function openModule(key) {
   $('#mnum').textContent = String(m.num).padStart(2, '0'); $('#mtitle').textContent = m.title; $('#mstudio').textContent = `Studio: ${m.studio}`; $('#manchor').textContent = m.anchor;
   const s = modState(m);
   const tabs = $('#algos'); tabs.innerHTML = '';
-  m.algos.forEach(a => { const b = document.createElement('button'); b.type = 'button'; b.textContent = a.name; b.setAttribute('aria-pressed', a.key === s.algo); b.onclick = () => { s.algo = a.key; tabs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderParams(); syncEditor(); run(); }; tabs.appendChild(b); });
-  $('#legend').innerHTML = m.legend.map(([kind, cls, txt]) => txt ? `<span class="lg"><svg width="${kind === 'n' ? 16 : 26}" height="16" aria-hidden="true">${kind === 'n' ? `<g class="nd ${cls}" transform="translate(8,8)"><circle r="6"/></g>` : `<path class="ed ${cls}" d="M2,8L24,8"/>`}</svg>${txt}</span>` : '').join('');
+  m.algos.forEach(a => { const b = document.createElement('button'); b.type = 'button'; b.textContent = a.name; b.setAttribute('aria-pressed', a.key === s.algo); b.onclick = () => { s.algo = a.key; tabs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderLegend(); renderParams(); syncEditor(); run(); }; tabs.appendChild(b); });
+  renderLegend();
   $('#modes [data-mode="cert"]').disabled = !(CERTS[m.key] || []).length; $('#modes [data-mode="ticket"]').disabled = !TICKETS[m.key];
   renderTasks(m); renderDefs(m);
   try { ensureGraph(m, s); } catch (e) { }
@@ -344,7 +350,7 @@ function renderSheets(m) {
 }
 function applySetup(su) {
   const m = ST.mod, s = modState(m); if (ST.mode === 'ticket' || ST.mode === 'cert') setMode('watch');
-  if (su.algo) { s.algo = su.algo; document.querySelectorAll('#algos button').forEach((b, i) => b.setAttribute('aria-pressed', m.algos[i].key === su.algo)); }
+  if (su.algo) { s.algo = su.algo; document.querySelectorAll('#algos button').forEach((b, i) => b.setAttribute('aria-pressed', m.algos[i].key === su.algo));  renderLegend(); }
   if (su.params) for (const [k, v] of Object.entries(su.params)) s.params[s.algo + '.' + k] = String(v);
   if (su.preset) { const p = PRESETS[su.preset]; s.presetKey = su.preset; s.graph = null; s.text = p.text; s.layout = p.layout || 'force'; ensureGraph(m, s); setView(null); }
   renderParams(); syncEditor(); run();

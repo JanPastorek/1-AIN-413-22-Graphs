@@ -81,6 +81,55 @@ function algEuler(g, P) {
   return { frames: R.frames, truncated: R.truncated };
 }
 
+/* Fleury (PS 5 P1.8): walk an Euler trail edge by edge, never crossing a bridge of the
+   unused edges unless it is the only edge left at the current vertex. */
+function algFleury(g, P) {
+  const n = g.nodes.length, m = g.edges.length, R = new Rec(); const deg = Array(n).fill(0); g.edges.forEach(e => { deg[e.u]++; deg[e.v]++; });
+  const note = g.directed ? ' (This lab treats the edges as undirected.)' : '';
+  const odd = g.nodes.map((v, i) => i).filter(i => deg[i] % 2);
+  g.nodes.forEach((v, i) => R.ntag[i] = 'deg ' + deg[i]); odd.forEach(i => R.nc[i] = 'cut');
+  const degTable = () => h4('Degrees') + table(['vertex', 'deg', 'parity'], g.nodes.map((v, i) => [lab(g, i), deg[i], deg[i] % 2 ? 'odd' : 'even']), 'compact');
+  const { comp } = components(g); const live = g.nodes.map((v, i) => i).filter(i => deg[i] > 0);
+  R.line = 1;
+  if (!m) { R.snap('There are no edges to walk.', { panel: '' }, true); return { frames: R.frames }; }
+  if (new Set(live.map(i => comp[i])).size > 1) { R.snap('The edges lie in more than one component, so no single trail can use them all.' + note, { panel: cert('no', 'No Euler trail', 'All edges must lie in one component.') + degTable() }, true); return { frames: R.frames }; }
+  if (odd.length > 2) { R.snap(`${odd.length} vertices have odd degree: ${odd.map(i => lab(g, i)).join(', ')}. A trail passes through inner vertices using two edges each time, so only its two ends can have odd degree.` + note, { panel: cert('no', 'No Euler trail', `More than two odd vertices (${odd.length}). The postman view pairs them up instead.`) + degTable() }, true); return { frames: R.frames }; }
+  let v = P.source ?? live[0]; if (deg[v] === 0) v = live[0];
+  let why = odd.length ? 'There are exactly two odd vertices, so the trail must start at one of them and end at the other.' : 'Every degree is even, so the trail can start anywhere and will close up into a circuit.';
+  if (odd.length === 2 && !odd.includes(v)) { why += ` The chosen start ${lab(g, v)} is even, so we start at ${lab(g, odd[0])} instead.`; v = odd[0]; }
+  const start = v;
+  R.line = 2; R.nc = { ...Object.fromEntries(odd.map(i => [i, 'cut'])), [v]: 'cur' };
+  R.snap(`${odd.length} odd vertices. ${why}` + note, { panel: degTable() });
+  const used = Array(m).fill(false), inc = g.nodes.map(() => []); g.edges.forEach((e, i) => { inc[e.u].push(i); inc[e.v].push(i); });
+  const other = (i, x) => g.edges[i].u === x ? g.edges[i].v : g.edges[i].u;
+  // is edge i (at x) a bridge of the unused edges? = without it, its far end is no longer reachable from x
+  const isBridge = (i, x) => { const w = other(i, x); if (w === x) return false; const seen = new Set([x]), Q = [x];
+    while (Q.length) { const a = Q.pop(); for (const j of inc[a]) if (!used[j] && j !== i) { const b = other(j, a); if (b === w) return false; if (!seen.has(b)) { seen.add(b); Q.push(b); } } }
+    return true; };
+  const trail = [v], order = [];
+  const panel = rows => h4('Trail so far') + `<p class="mono">${trail.map(x => lab(g, x)).join(' → ')}</p>` + (rows ? h4(`Unused edges at ${lab(g, v)}`) + table(['edge', 'bridge of the rest?', 'Fleury allows'], rows, 'compact') : '') + `<p class="note">${m - order.length} of ${m} edges left.</p>`;
+  const paint = () => { R.ec = {}; R.elab = {}; order.forEach((i, k) => { R.ec[i] = 'tree'; R.elab[i] = '#' + (k + 1); }); };
+  while (true) {
+    const cand = inc[v].filter(i => !used[i]); if (!cand.length) break;
+    const br = cand.map(i => isBridge(i, v)); const safe = cand.filter((i, k) => !br[k]);
+    const allowed = safe.length ? safe : cand;          // a bridge only when nothing else is left
+    paint(); cand.forEach((i, k) => R.ec[i] = br[k] && safe.length ? 'cut' : 'cand');
+    R.nc = { [start]: 'front', [v]: 'cur' };
+    const rows = cand.map((i, k) => ({ cls: allowed.includes(i) ? '' : 'bad', cells: [edgeName(g, i), br[k] ? 'yes' : 'no', allowed.includes(i) ? 'yes' : 'no'] }));
+    const msg = cand.length === 1 ? `At ${N(g, v)} only ${edgeName(g, cand[0])} is unused, so it is taken even ${br[0] ? 'though it is a bridge' : 'without a choice'}.`
+      : safe.length < cand.length ? `At ${N(g, v)}: ${cand.filter((i, k) => br[k]).map(i => edgeName(g, i)).join(', ')} would disconnect the unused edges (a bridge of the rest), so Fleury avoids it while another edge is available.`
+      : `At ${N(g, v)}: no unused edge here is a bridge of the rest, so any of ${cand.map(i => edgeName(g, i)).join(', ')} is safe.`;
+    R.line = 4; R.snap(msg, { panel: panel(rows), ask: cand.length > 1 ? { type: 'edge', answer: allowed.slice(), prompt: 'Which edge may Fleury take next? (Any allowed edge counts.)' } : undefined });
+    const e = allowed[0]; used[e] = true; order.push(e); const w = other(e, v); v = w; trail.push(w);
+    paint(); R.nc = { [start]: 'front', [v]: 'cur' };
+    R.line = 5; R.snap(`Take ${edgeName(g, e)} (the first allowed edge in the edge list) and delete it from the graph; continue from ${N(g, v)}.`, { panel: panel(null) });
+  }
+  paint(); R.nc = { [start]: 'front', [v]: 'cur' };
+  const closed = v === start, len = g.edges.reduce((s0, e) => s0 + e.w, 0);
+  R.line = 6; R.snap(`${closed ? 'Euler circuit' : 'Euler trail'}: ${trail.map(x => lab(g, x)).join(' → ')}. Every edge was used exactly once.`, { panel: cert('yes', `${closed ? 'Euler circuit' : `Euler trail from ${lab(g, start)} to ${lab(g, v)}`}, ${m} edges${g.weighted ? `, length ${fmt(len)}` : ''}`, 'Labels on the edges give the order. Check: consecutive edges share a vertex and no edge repeats.') + h4('Trail') + `<p class="mono">${trail.map(x => lab(g, x)).join(' → ')}</p>` + `<p class="note">Each step tests every unused edge at the current vertex for being a bridge, one graph search each, so this simple version takes O(m²) time; Hierholzer needs only O(m).</p>` }, true);
+  return { frames: R.frames, truncated: R.truncated, trail, order };
+}
+
 function algHamilton(g, P) {
   const n = g.nodes.length, R = new Rec(); const S = simpleNbrSets(g); const A = S.map(s => [...s].sort((a, b) => a - b));
   const eid = (a, b) => g.edges.findIndex(e => (e.u === a && e.v === b) || (e.u === b && e.v === a));

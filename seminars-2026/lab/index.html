@@ -292,6 +292,10 @@ footer p { margin: 0 0 6px; }
 .tabs button { border: 0; background: none; padding: 6px 10px; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .pseudo { margin: 0; padding-left: 28px; font-size: 12.5px; }
+.idea { margin: 0 0 12px; font-size: 13px; line-height: 1.45; padding: 7px 10px; background: var(--accent-soft); border-radius: 6px; color: var(--ink); max-width: 72ch; }
+.idea b { font-weight: 750; }
+.idea:has(+ .idea2) { margin-bottom: 0; border-radius: 6px 6px 0 0; padding-bottom: 3px; }
+.idea2 { border-radius: 0 0 6px 6px; padding-top: 3px; }
 /* State + pseudocode together: the panel widens on large screens and splits into two columns once it is wide enough */
 .statepanel { container-type: inline-size; }
 .stage.both { grid-template-columns: minmax(0, 1fr) clamp(300px, calc(44vw - 120px), 660px); }
@@ -2590,6 +2594,49 @@ const PSEUDO = {
   'cagt.gen': ['for each graph G′ on n − 1 vertices', '  for each subset S of V(G′)', '    G ← G′ plus a new vertex joined to S', '    if G ≅ a kept graph: discard;  else keep G'],
   'cagt.sa': ['G ← empty graph;  T ← T₀', 'repeat', '  toggle a random pair uv;  ΔE ← change in (−edges + λ·violations)', '  accept if ΔE ≤ 0, else with probability e^(−ΔE/T)', '  T ← T · cooling', 'return the best graph with no violations'],
 };
+/* One- or two-sentence intuition per algorithm, shown above its pseudocode:
+   how it works, and the idea it exploits. */
+const IDEAS = {
+  'traverse.bfs': 'Explore the graph in rings around the start: first every neighbour, then their unseen neighbours, and so on, using a first-in-first-out queue. Idea: the first time a ring reaches a vertex is along a shortest path, so the ring number is the distance.',
+  'traverse.dfs': 'Go as deep as possible along unvisited edges and back up only when stuck (a stack, or recursion), stamping entry and finishing times. Idea: an edge back to an unfinished ancestor closes a cycle, and finishing times in reverse give a topological order.',
+  'degrees.hh': 'Repeatedly take the vertex with the largest remaining degree d, join it to the d vertices with the next largest degrees, and lower their degrees. Idea: if any graph realises the sequence, one realises it with the largest vertex joined to the other largest ones, so each step keeps the answer unchanged.',
+  'degrees.swap': 'Pick two edges ab and cd and rewire them to ad and cb when that creates no loop or double edge. Idea: every vertex keeps its degree, so repeated swaps wander through the graphs with the same degree sequence.',
+  'degrees.bridges': 'Run DFS and record for each vertex low[v], the earliest vertex its subtree can reach by one back edge. Idea: if nothing below an edge can climb above it, removing that edge (or its upper vertex) cuts the subtree off.',
+  'iso.wl': 'Give every vertex a colour, then repeatedly recolour each vertex by its old colour together with the multiset of its neighbours’ colours, until no class splits. Idea: an isomorphism must preserve these colours, so different colour counts prove two graphs different (equal counts prove nothing).',
+  'iso.aut': 'Search for all relabellings that preserve adjacency, only ever mapping a vertex to one of the same refined colour. Idea: refinement prunes the search, and the automorphisms found show which vertices are equivalent (orbits) and which few vertices, once fixed, break every symmetry.',
+  'mst.kruskal': 'Sort the edges by weight and accept each one that joins two different components, tracked with union–find. Idea: the lightest edge leaving any component is always safe (cut property), and union–find answers “already connected?” almost instantly.',
+  'mst.prim': 'Grow one tree from a start vertex, always adding the cheapest edge leaving the tree. Idea: the cut between the tree and the rest always has a lightest edge that belongs to some minimum spanning tree.',
+  'mst.race': 'Runs Kruskal and Prim on the same graph side by side. Idea: two different greedy orders, both justified by the cut property, reach a tree of the same weight.',
+  'sp.dijkstra': 'Repeatedly settle the unsettled vertex with the smallest tentative distance and relax its outgoing edges. Idea: with non-negative weights no later detour can be shorter, so the smallest tentative distance is already final.',
+  'sp.bf': 'Relax every edge n − 1 times; one more round that still improves something reveals a negative cycle. Idea: a shortest path has at most n − 1 edges, and round i fixes all shortest paths that use at most i edges.',
+  'sp.hops': 'Breadth-first search that ignores the weights. Idea: when every edge costs the same, the fewest edges is the shortest route, and BFS finds it in linear time.',
+  'sp.astar': 'Dijkstra that always expands the vertex with the smallest distance-so-far plus estimated distance to the target. Idea: an estimate that never overestimates (here straight-line distance) steers the search towards the target without losing optimality.',
+  'sp.fw': 'For k = 1, …, n allow vertex k as a stop-over and update every pair: d(i, j) ← min(d(i, j), d(i, k) + d(k, j)). Idea: dynamic programming over the set of permitted intermediate vertices gives all pairs at once in O(n³).',
+  'sp.race': 'Runs the shortest-path methods on the same graph and compares their work. Idea: each one trades generality (negative weights, all pairs) for speed, and the counts show the price.',
+  'route.euler': 'Hierholzer walks unused edges until stuck, then backs up and splices in detours; if some degrees are odd, the postman first duplicates the cheapest paths pairing the odd vertices. Idea: a closed walk uses two edges at every visit, so all degrees must be even, and in a connected graph that is also enough.',
+  'route.fleury': 'Walk edge by edge, deleting each edge after use, and cross a bridge of the remaining edges only when nothing else is left. Idea: never burning the only way back means no edges are ever stranded, so the walk ends having used them all.',
+  'route.ham': 'Extend a path one vertex at a time and backtrack when no unvisited neighbour remains, until the path covers every vertex and closes into a cycle. Idea: no simple test like parity exists for Hamilton cycles, so in the worst case the search is exhaustive.',
+  'route.tsp': 'Compares nearest neighbour, the double-tree and Christofides tours with the exact Held–Karp optimum. Idea: a minimum spanning tree is a lower bound on any tour, and shortcutting a walk around it (plus a matching, for Christofides) costs at most 2 (or 1.5) times that bound.',
+  'flow.ek': 'Repeatedly push as much flow as possible along a shortest path in the residual network, whose backward arcs let earlier choices be undone. Idea: when no augmenting path is left, the vertices still reachable from s form a cut whose capacity equals the flow, proving it is maximum.',
+  'flow.race': 'Runs Ford–Fulkerson with different rules for choosing the augmenting path. Idea: the choice does not change the final value but can change the number of augmentations from a handful to thousands.',
+  'match.kuhn': 'For each left vertex, search for an augmenting path: an alternating path between two unmatched vertices; flipping it enlarges the matching by one. Idea: a matching is maximum exactly when no augmenting path exists (Berge), and the vertices this search reaches give a König cover of the same size.',
+  'match.hk': 'In each phase, find many shortest augmenting paths at once with one BFS and augment along a maximal set of disjoint ones. Idea: shortest augmenting paths grow longer after every phase, so only about √n phases are needed.',
+  'match.hung': 'Keep prices on rows and columns so that reduced costs stay non-negative, and grow a matching using only zero-cost edges, changing the prices when stuck. Idea: when the matching is perfect, the prices are a dual solution with the same total, which proves the assignment is cheapest.',
+  'match.race': 'Runs the matching algorithms on the same graph and compares their work. Idea: all reach the same maximum size, but batching shortest augmenting paths saves searches.',
+  'match.gs': 'Free proposers propose down their lists; each receiver keeps the best proposal so far and rejects the rest. Idea: receivers only ever trade up, so the process ends, and nobody can prefer each other to their final partners (a stable matching).',
+  'color.planar': 'Embed a cycle, then add the remaining pieces one path at a time into faces where they fit, always placing first the piece with the fewest possible faces. Idea: if some piece fits in no face the graph is not planar (and a Kuratowski subgraph can be extracted); otherwise the faces give Euler’s formula and the dual graph.',
+  'color.greedy': 'Go through the vertices in some order and give each the smallest colour not used by its already coloured neighbours. Idea: a vertex never needs more than its number of neighbours plus one colour, but the order decides how many colours are used.',
+  'color.dsatur': 'Always colour next the vertex that already sees the most different colours among its neighbours. Idea: deal with the most constrained vertex first, before its options run out.',
+  'color.exact': 'Try to colour with k colours by backtracking, starting from k = clique size and increasing k. Idea: a clique proves that fewer colours are impossible, so the first k that works is χ.',
+  'random.gnp': 'Give every pair of vertices its own random number and include the pairs below a threshold p that slowly rises. Idea: one random graph process shows how components merge, and a giant component appears suddenly once the average degree passes 1.',
+  'random.real': 'Compares the US airport network with a random graph G(n, m) of the same size. Idea: random wiring gives the same density but not the hubs and many triangles of real networks, so those features need another explanation.',
+  'dom.greedy': 'Repeatedly add the vertex that dominates the most vertices not yet dominated. Idea: like greedy set cover, it is never worse than about ln(Δ + 1) times the optimum.',
+  'dom.exact': 'Pick an undominated vertex u; some vertex of its closed neighbourhood must be in the set, so branch on each, and prune branches that cannot beat the best set found. Idea: every vertex dominates at most Δ + 1 vertices, so the remaining undominated vertices give a lower bound for pruning.',
+  'cagt.conj': 'Check the statement on every graph of the chosen order, one isomorphism class at a time, and plot the invariants. Idea: an exhaustive search finds a counterexample of that order whenever one exists; finding none is evidence for the statement, not a proof.',
+  'cagt.gen': 'Build the graphs on n vertices by adding a new vertex to each graph on n − 1 vertices in every possible way, and keep one copy of each isomorphism class. Idea: every graph arises this way (delete any vertex), so nothing is missed, and isomorphism tests remove duplicates.',
+  'cagt.sa': 'Flip random pairs between edge and non-edge, always accepting improvements and sometimes accepting worse graphs, less often as the temperature drops. Idea: occasional uphill moves let the search escape local optima on its way to an extremal graph.',
+};
+
 PSEUDO['sp.hops'] = PSEUDO['traverse.bfs'];
 
 /* ---------- networkx export ---------- */
@@ -3636,16 +3683,17 @@ function renderTabs(F) {
   const box = $('#state');
   $('#stage').classList.toggle('both', ST.tab === 'both');
   const stateHTML = () => ST.mode === 'cert' ? (ST.certRes ? cert(ST.certRes.ok ? 'yes' : 'no', ST.certRes.ok ? 'Certificate accepted' : 'Not accepted', ST.certRes.msg) : '<p class="note">Select, then press Check.</p>') : (F.panel || '<p class="note">Nothing to show for this step.</p>');
-  const codeHTML = () => {
-    const lines = PSEUDO[m.key + '.' + a.key]; if (!lines) return '<p class="note">This view compares algorithms or runs a search; it has no single pseudocode.</p>';
+  const idea = IDEAS[m.key + '.' + a.key] ? `<p class="idea"><b>How it works.</b> ${IDEAS[m.key + '.' + a.key].replace(/ Idea: (.)/, (x, c) => `</p><p class="idea idea2"><b>Idea.</b> ${c.toUpperCase()}`)}</p>` : '';
+  const codeHTML = (withIdea = true) => {
+    const lines = PSEUDO[m.key + '.' + a.key]; if (!lines) return (withIdea ? idea : '') + '<p class="note">This view compares algorithms or runs a search; it has no single pseudocode.</p>';
     const cur = ST.mode === 'cert' ? -1 : F.line;
-    return `<ol class="pseudo" start="0">${lines.map((l, i) => `<li class="${i === cur ? 'on' : ''}"><code>${esc(l)}</code></li>`).join('')}</ol><p class="note">${cur !== undefined && cur >= 0 ? 'The highlighted line produced this step.' : 'Step through the run to follow the highlighted line.'}</p>`;
+    return (withIdea ? idea : '') + `<ol class="pseudo" start="0">${lines.map((l, i) => `<li class="${i === cur ? 'on' : ''}"><code>${esc(l)}</code></li>`).join('')}</ol><p class="note">${cur !== undefined && cur >= 0 ? 'The highlighted line produced this step.' : 'Step through the run to follow the highlighted line.'}</p>`;
   };
   if (ST.tab === 'state') { box.innerHTML = stateHTML(); return; }
   if (ST.tab === 'code') { box.innerHTML = codeHTML(); return; }
   if (ST.tab === 'both') {
     // pseudocode and the data structures it changes, visible together (two columns when the panel is wide enough)
-    box.innerHTML = `<div class="both2"><section class="pane pcode" aria-label="Pseudocode"><p class="paneh">Pseudocode</p>${codeHTML()}</section><section class="pane pstate" aria-label="State"><p class="paneh">State</p>${stateHTML()}</section></div>`;
+    box.innerHTML = `${idea}<div class="both2"><section class="pane pcode" aria-label="Pseudocode"><p class="paneh">Pseudocode</p>${codeHTML(false)}</section><section class="pane pstate" aria-label="State"><p class="paneh">State</p>${stateHTML()}</section></div>`;
     const on = box.querySelector('.pseudo li.on'), pc = box.querySelector('.pcode'); if (on && pc && pc.scrollHeight > pc.clientHeight) pc.scrollTop = Math.max(0, on.offsetTop - pc.clientHeight / 3);
     return;
   }

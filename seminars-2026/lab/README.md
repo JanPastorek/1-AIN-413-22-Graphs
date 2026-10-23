@@ -12,7 +12,7 @@ Companion exercises: [Lab and database explorations](../practice/lab-and-databas
 - **Five definition cards.** Each card states the real problem that needs the concept (“Why we need it”), a precise definition in West’s notation, and a short animation that can be stepped through. Five cards can replay on whatever graph is on the board; eight concepts also have a Manim video.
 - **Step-through algorithms** with the data structures (queue, union–find, labels, residual capacities, potentials) and, at the end, a certificate: an odd cycle, a minimum cut, a König cover and Hall violator, a Kuratowski subgraph, a dual LP solution, an exhaustive-search count.
 - **The seminar problem sets, linked where they are used.** Under the session title, in a *Problem sets* panel below the lab tasks, on the definition cards (“Practice: PS 2, P3”), in the motivating problem and in the reading list. The panel lists the problems the session supports with their page, and 88 buttons load the graphs drawn on the sheets (64 drawings in 42 presets, each in the sheet’s own layout, plus cycles and paths for PS 11) with the right algorithm, so students can check paper work: the ten degree sequences of PS 2 P3, the twelve isomorphism sets of PS 3 P2, Grimaldi’s networks in PS 7, the marriage problems and preference tables of PS 8, and so on.
-- **Three tabs** beside the board: the algorithm’s state; CLRS-style pseudocode with the line that produced the current step highlighted; and networkx code (with SciPy for the ILP) for the graph on the board.
+- **Tabs beside the board:** state and pseudocode side by side (the default), each alone, and Python. Above the pseudocode, every algorithm has a two-sentence summary: how it works and the idea it exploits. The tabs show the algorithm’s state; CLRS-style pseudocode with the line that produced the current step highlighted; and networkx code (with SciPy for the ILP) for the graph on the board.
 
 | Mode | What it does |
 |---|---|
@@ -44,7 +44,7 @@ The problem-set links and the instances transcribed from the sheets’ figures a
 
 ## Checks behind the page
 
-`node tests/run-tests.js` runs 3 408 checks without dependencies, among them:
+`node tests/run-tests.js` runs 3 463 checks without dependencies, among them:
 
 - graph counts 1, 2, 4, 11, 34, 156, 1044 from the generator (12 346 for n = 8 in the browser);
 - the planarity test agrees with the known numbers of planar graphs (33, 142, 822 for n = 5, 6, 7), Euler’s formula holds on every embedding, and every 2-connected planar graph on up to 7 vertices is drawn without crossings;

@@ -161,16 +161,17 @@ function renderTabs(F) {
   const box = $('#state');
   $('#stage').classList.toggle('both', ST.tab === 'both');
   const stateHTML = () => ST.mode === 'cert' ? (ST.certRes ? cert(ST.certRes.ok ? 'yes' : 'no', ST.certRes.ok ? 'Certificate accepted' : 'Not accepted', ST.certRes.msg) : '<p class="note">Select, then press Check.</p>') : (F.panel || '<p class="note">Nothing to show for this step.</p>');
-  const codeHTML = () => {
-    const lines = PSEUDO[m.key + '.' + a.key]; if (!lines) return '<p class="note">This view compares algorithms or runs a search; it has no single pseudocode.</p>';
+  const idea = IDEAS[m.key + '.' + a.key] ? `<p class="idea"><b>How it works.</b> ${IDEAS[m.key + '.' + a.key].replace(/ Idea: (.)/, (x, c) => `</p><p class="idea idea2"><b>Idea.</b> ${c.toUpperCase()}`)}</p>` : '';
+  const codeHTML = (withIdea = true) => {
+    const lines = PSEUDO[m.key + '.' + a.key]; if (!lines) return (withIdea ? idea : '') + '<p class="note">This view compares algorithms or runs a search; it has no single pseudocode.</p>';
     const cur = ST.mode === 'cert' ? -1 : F.line;
-    return `<ol class="pseudo" start="0">${lines.map((l, i) => `<li class="${i === cur ? 'on' : ''}"><code>${esc(l)}</code></li>`).join('')}</ol><p class="note">${cur !== undefined && cur >= 0 ? 'The highlighted line produced this step.' : 'Step through the run to follow the highlighted line.'}</p>`;
+    return (withIdea ? idea : '') + `<ol class="pseudo" start="0">${lines.map((l, i) => `<li class="${i === cur ? 'on' : ''}"><code>${esc(l)}</code></li>`).join('')}</ol><p class="note">${cur !== undefined && cur >= 0 ? 'The highlighted line produced this step.' : 'Step through the run to follow the highlighted line.'}</p>`;
   };
   if (ST.tab === 'state') { box.innerHTML = stateHTML(); return; }
   if (ST.tab === 'code') { box.innerHTML = codeHTML(); return; }
   if (ST.tab === 'both') {
     // pseudocode and the data structures it changes, visible together (two columns when the panel is wide enough)
-    box.innerHTML = `<div class="both2"><section class="pane pcode" aria-label="Pseudocode"><p class="paneh">Pseudocode</p>${codeHTML()}</section><section class="pane pstate" aria-label="State"><p class="paneh">State</p>${stateHTML()}</section></div>`;
+    box.innerHTML = `${idea}<div class="both2"><section class="pane pcode" aria-label="Pseudocode"><p class="paneh">Pseudocode</p>${codeHTML(false)}</section><section class="pane pstate" aria-label="State"><p class="paneh">State</p>${stateHTML()}</section></div>`;
     const on = box.querySelector('.pseudo li.on'), pc = box.querySelector('.pcode'); if (on && pc && pc.scrollHeight > pc.clientHeight) pc.scrollTop = Math.max(0, on.offsetTop - pc.clientHeight / 3);
     return;
   }

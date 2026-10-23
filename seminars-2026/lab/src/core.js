@@ -148,7 +148,7 @@ function forceLayout(g, box = { x0: PAD, x1: W - PAD, y0: PAD, y1: H - PAD }, it
   const E = []; const seen = new Set();
   for (const e of g.edges) { const k = Math.min(e.u, e.v) + ',' + Math.max(e.u, e.v); if (!seen.has(k)) { seen.add(k); E.push([e.u, e.v]); } }
   if (stress && n > 12 && E.length) { // classical MDS start, then stress majorization
-    const Q = mdsInit(n, E, seed); stressRefine(n, E, Q, 300); fitInto(g, Q, box, false); return;
+    const Q = mdsInit(n, E, seed); stressRefine(n, E, Q, 300); fitInto(g, Q, box, false); separate(g, box); return;
   }
   const k = Math.sqrt(4 / n); let t = 0.25;
   for (let it = 0; it < iters; it++) {
@@ -164,7 +164,7 @@ function forceLayout(g, box = { x0: PAD, x1: W - PAD, y0: PAD, y1: H - PAD }, it
     }
     t = Math.max(0.005, t * 0.985);
   }
-  fitInto(g, P, box);
+  fitInto(g, P, box); separate(g, box);
 }
 /* Classical multidimensional scaling of hop distances (power iteration, 2 eigenvectors). */
 function mdsInit(n, E, seed = 7) {
@@ -205,6 +205,15 @@ function stressRefine(n, E, P, iters = 220) {
       if (sw > 0) { P[i][0] = sx / sw; P[i][1] = sy / sw; }
     }
   }
+}
+/* push apart vertices whose circles (radius 20, or 15 above 20 vertices, as drawn) would touch */
+function separate(g, box, iters = 60) {
+  const n = g.nodes.length; if (n > 40 || n < 2) return; const dmin = (n > 20 ? 15 : 20) * 2 + 6;
+  for (let t = 0; t < iters; t++) { let moved = false;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const a = g.nodes[i], b = g.nodes[j]; let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+      if (d >= dmin) continue; if (d < 1e-6) { dx = 1; dy = 0; d = 1; } const push = (dmin - d) / 2 + 0.5; dx /= d; dy /= d; a.x -= dx * push; a.y -= dy * push; b.x += dx * push; b.y += dy * push; moved = true; }
+    for (const v of g.nodes) { v.x = Math.max(box.x0, Math.min(box.x1, v.x)); v.y = Math.max(box.y0, Math.min(box.y1, v.y)); }
+    if (!moved) break; }
 }
 function fitInto(g, P, box, clamp = true) {
   if (clamp && P.length > 12) { // pull far-flung outliers (e.g. isolated vertices) back toward the drawing

@@ -22,7 +22,7 @@ class DefAnim {
     const svg = this.host.querySelector('svg.defsvg'); svg.innerHTML = ''; this.svg = svg;
     this.gBlob = this.el('g', {}, svg); this.gPoly = this.el('g', {}, svg); this.gEdge = this.el('g', {}, svg); this.gLab = this.el('g', {}, svg); this.gNode = this.el('g', {}, svg);
     this.P = {}; g.nodes.forEach((v, i) => { const p = pos && pos[v.label]; this.P[v.label] = p ? p.slice() : [v.x * CW / W, v.y * CH / H]; });
-    this.nodes = {}; g.nodes.forEach(v => { const G = this.el('g', { class: 'nd' }, this.gNode); this.el('circle', { r: 11 }, G); const t = this.el('text', { class: 'nl', y: 4, 'text-anchor': 'middle' }, G); t.textContent = v.label.length > 3 ? v.label.slice(0, 3) : v.label; const tg = this.el('text', { class: 'nt', x: 14, y: -9 }, G); this.nodes[v.label] = { G, tg }; });
+    this.nodes = {}; g.nodes.forEach(v => { const G = this.el('g', { class: 'nd' }, this.gNode); this.el('circle', { r: 14 }, G); const t = this.el('text', { class: 'nl', y: 5, 'text-anchor': 'middle' }, G); t.textContent = v.label.length > 3 ? v.label.slice(0, 3) : v.label; const tg = this.el('text', { class: 'nt', x: 17, y: -12 }, G); this.nodes[v.label] = { G, tg }; });
     this.edges = {}; g.edges.forEach(e => { const a = g.nodes[e.u].label, b = g.nodes[e.v].label; const k = a + '-' + b; const line = this.el('line', { class: 'ed' }, this.gEdge); const ah = this.directed ? this.el('path', { class: 'ah' }, this.gEdge) : null; const lb = this.el('text', { class: 'el', 'text-anchor': 'middle' }, this.gLab); if (weights) lb.textContent = fmt(e.w); this.edges[k] = { a, b, line, ah, lb }; });
     for (const ed of Object.values(this.edges)) ed.off = this.directed && this.edges[ed.b + '-' + ed.a] ? 7 : 0;
     this.blobs = []; this.polys = []; this.state = { n: {}, e: {}, t: {}, el: {} }; this.i = -1;
@@ -32,12 +32,12 @@ class DefAnim {
   layout() {
     for (const [l, { G }] of Object.entries(this.nodes)) G.setAttribute('transform', `translate(${this.P[l][0].toFixed(1)},${this.P[l][1].toFixed(1)})`);
     for (const ed of Object.values(this.edges)) {
-      let [x1, y1] = this.P[ed.a], [x2, y2] = this.P[ed.b]; const L = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / L, uy = (y2 - y1) / L; const r = 11;
+      let [x1, y1] = this.P[ed.a], [x2, y2] = this.P[ed.b]; const L = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / L, uy = (y2 - y1) / L; const r = 14;
       if (ed.off) { x1 -= uy * ed.off; y1 += ux * ed.off; x2 -= uy * ed.off; y2 += ux * ed.off; }
       const ex = x2 - ux * (r + (ed.ah ? 2 : 0)), ey = y2 - uy * (r + (ed.ah ? 2 : 0));
       ed.line.setAttribute('x1', (x1 + ux * r).toFixed(1)); ed.line.setAttribute('y1', (y1 + uy * r).toFixed(1)); ed.line.setAttribute('x2', ex.toFixed(1)); ed.line.setAttribute('y2', ey.toFixed(1));
       if (ed.ah) { const bx = ex - ux * 8, by = ey - uy * 8; ed.ah.setAttribute('d', `M${ex.toFixed(1)},${ey.toFixed(1)}L${(bx - uy * 4).toFixed(1)},${(by + ux * 4).toFixed(1)}L${(bx + uy * 4).toFixed(1)},${(by - ux * 4).toFixed(1)}Z`); }
-      ed.lb.setAttribute('x', ((x1 + x2) / 2 - uy * 8).toFixed(1)); ed.lb.setAttribute('y', ((y1 + y2) / 2 + ux * 8 + 4).toFixed(1));
+      ed.lb.setAttribute('x', ((x1 + x2) / 2 - uy * 11).toFixed(1)); ed.lb.setAttribute('y', ((y1 + y2) / 2 + ux * 11 + 4.5).toFixed(1));
     }
     for (const b of this.blobs) b.el.setAttribute('d', b.v.map((l, i) => (i ? 'L' : 'M') + this.P[l][0].toFixed(1) + ',' + this.P[l][1].toFixed(1)).join('') + 'Z');
     for (const p of this.polys) p.el.setAttribute('points', p.v.map(l => this.P[l].map(x => x.toFixed(1)).join(',')).join(' '));

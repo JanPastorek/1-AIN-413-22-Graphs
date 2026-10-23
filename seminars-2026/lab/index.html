@@ -294,6 +294,7 @@ footer p { margin: 0 0 6px; }
 .pseudo { margin: 0; padding-left: 28px; font-size: 12.5px; }
 .idea { margin: 0 0 12px; font-size: 13px; line-height: 1.45; padding: 7px 10px; background: var(--accent-soft); border-radius: 6px; color: var(--ink); max-width: 72ch; }
 .idea b { font-weight: 750; }
+.mono.cuts { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .idea:has(+ .idea2) { margin-bottom: 0; border-radius: 6px 6px 0 0; padding-bottom: 3px; }
 .idea2 { border-radius: 0 0 6px 6px; padding-top: 3px; }
 /* State + pseudocode together: the panel widens on large screens and splits into two columns once it is wide enough */
@@ -1273,6 +1274,75 @@ function algFleury(g, P) {
   const closed = v === start, len = g.edges.reduce((s0, e) => s0 + e.w, 0);
   R.line = 6; R.snap(`${closed ? 'Euler circuit' : 'Euler trail'}: ${trail.map(x => lab(g, x)).join(' → ')}. Every edge was used exactly once.`, { panel: cert('yes', `${closed ? 'Euler circuit' : `Euler trail from ${lab(g, start)} to ${lab(g, v)}`}, ${m} edges${g.weighted ? `, length ${fmt(len)}` : ''}`, 'Labels on the edges give the order. Check: consecutive edges share a vertex and no edge repeats.') + h4('Trail') + `<p class="mono">${trail.map(x => lab(g, x)).join(' → ')}</p>` + `<p class="note">Each step tests every unused edge at the current vertex for being a bridge, one graph search each, so this simple version takes O(m²) time; Hierholzer needs only O(m).</p>` }, true);
   return { frames: R.frames, truncated: R.truncated, trail, order };
+}
+
+/* Hamilton cycle / TSP as an integer linear program with arc variables x_ij,
+   in/out degree constraints and subtour elimination added lazily (cutting planes).
+   Each ILP is solved exactly by branch and bound over successor choices (small n). */
+function tourILPSolve(n, out, cuts, minimise, budget = 4e6) {
+  // out[i] = [[j, w], ...] sorted by w; cuts = [{ mask, last }]: at least one arc must leave S = mask
+  const succ = Array(n).fill(-1), usedIn = Array(n).fill(false); let best = null, bestCost = Infinity, nodes = 0, aborted = false;
+  const minOut = out.map(L => L.length ? L[0][1] : Infinity), tail = Array(n + 1).fill(0); for (let i = n - 1; i >= 0; i--) tail[i] = tail[i + 1] + (minimise ? minOut[i] : 0);
+  const byLast = Array.from({ length: n }, () => []); cuts.forEach(c => byLast[c.last].push(c.mask));
+  const violates = i => byLast[i].some(mask => { for (let v = 0; v < n; v++) if (mask >> v & 1 && !(mask >> succ[v] & 1)) return false; return true; });
+  function rec(i, cost) {
+    if (aborted || (best && !minimise)) return; if (++nodes > budget) { aborted = true; return; }
+    if (i === n) { if (cost < bestCost) { bestCost = cost; best = succ.slice(); } return; }
+    if (minimise && cost + tail[i] >= bestCost) return;
+    for (const [j, w] of out[i]) { if (usedIn[j]) continue; succ[i] = j; usedIn[j] = true; if (!violates(i)) rec(i + 1, cost + (minimise ? w : 0)); usedIn[j] = false; succ[i] = -1; if (aborted) return; }
+  }
+  rec(0, 0);
+  return { succ: best, cost: bestCost, nodes, aborted };
+}
+const CUTHEAD = '<p class="note">For each set S: Σ x(i,j) over i ∈ S, j ∉ S ≥ 1 (some chosen arc leaves S).</p>';
+function algTourILP(g, P) {
+  const n = g.nodes.length, R = new Rec(), tsp = P.goal !== 'ham', name = i => lab(g, i);
+  const note = g.directed ? ' Arcs keep their direction.' : '';
+  R.ec = {}; g.edges.forEach((e, i) => R.ec[i] = 'faint');
+  // arcs: both directions of every edge (one direction for arcs of a digraph)
+  const arcs = []; g.edges.forEach((e, i) => { if (e.u === e.v) return; arcs.push({ i: e.u, j: e.v, w: e.w, e: i }); if (!g.directed) arcs.push({ i: e.v, j: e.u, w: e.w, e: i }); });
+  const seenA = new Set(), A = arcs.filter(a => { const k = a.i + ',' + a.j; if (seenA.has(k)) return false; seenA.add(k); return true; });
+  const xv = a => `x<sub>${esc(name(a.i))}${esc(name(a.j))}</sub>`;
+  R.line = 0; R.snap(`An <b>integer linear program</b> (ILP) chooses numbers x to minimise a linear objective subject to linear constraints, with every x a whole number. Here each x<sub>ij</sub> ∈ {0, 1} answers one yes/no question: does the ${tsp ? 'tour' : 'cycle'} go from i straight to j?`, { panel: h4('Linear and integer programs') + `<pre class="ilp">minimise   Σ cₖ·xₖ
+subject to Σ aₖ·xₖ ≤ b
+           (also = or ≥)
+ILP:       xₖ ∈ {0, 1}
+LP:        0 ≤ xₖ ≤ 1</pre><p class="note">A linear program (LP) allows fractional values and is solvable in polynomial time; its optimum is a bound for the ILP. Requiring whole numbers makes the problem NP-hard in general, so solvers combine LP bounds with branching (branch and bound) and add constraints only when they are violated (cutting planes).</p>` });
+  if (n < 2) { R.snap('A cycle needs at least two vertices.', { panel: '' }, true); return { frames: R.frames }; }
+  if (n > 14) { R.snap('This browser search is limited to 14 vertices. The Python tab solves the same ILP with SciPy’s MILP solver.', { panel: '' }, true); return { frames: R.frames }; }
+  R.line = 0; R.snap(`Variables: one per arc, ${A.length} in total (${g.directed ? 'one per arc' : 'each edge uv gives x<sub>uv</sub> and x<sub>vu</sub>'}). x = 1 means the arc is used.${note}`, { panel: h4(`${A.length} binary variables`) + `<p class="mono">${A.slice(0, 40).map(xv).join(', ')}${A.length > 40 ? ', …' : ''}</p>` });
+  const outOf = v => A.filter(a => a.i === v), into = v => A.filter(a => a.j === v);
+  const degRows = g.nodes.map((v, i) => `<b>${esc(name(i))}</b>  out: ${outOf(i).map(xv).join(' + ')} = 1<br>${'&nbsp;'.repeat(name(i).length + 2)}in:  ${into(i).map(xv).join(' + ')} = 1`);
+  R.line = 1; R.snap('Degree constraints: the cycle leaves every vertex exactly once (Σ<sub>j</sub> x<sub>ij</sub> = 1) and enters every vertex exactly once (Σ<sub>i</sub> x<sub>ij</sub> = 1).', { panel: h4('Out- and in-degree constraints') + `<p class="mono cuts">${degRows.join('<br>')}</p>` });
+  R.line = 3; R.snap(tsp ? 'Objective: minimise the total weight Σ w<sub>ij</sub> x<sub>ij</sub> of the chosen arcs. Only the roads of the map may be used (no shortcuts through other vertices, unlike the metric TSP view).' : 'Objective: none. For the Hamilton question any 0/1 solution will do (minimise 0); the ILP is feasible exactly when a Hamilton cycle exists, once all subtours are forbidden.', { panel: `<pre class="ilp">${tsp ? 'min  Σ w(i,j)·x(i,j)' : 'min  0   (feasibility)'}
+s.t. Σ_j x(i,j) = 1   each i
+     Σ_i x(i,j) = 1   each j
+     x(i,j) ∈ {0, 1}</pre>` });
+  const out = g.nodes.map((v, i) => A.filter(a => a.i === i).map(a => [a.j, a.w]).sort((p, q) => p[1] - q[1]));
+  const cuts = [], cutText = []; const classes = ['path', 'flow', 'cand', 'match', 'cut', 'back'];
+  for (let it = 1; it <= 40; it++) {
+    const r = tourILPSolve(n, out, cuts, tsp);
+    if (r.aborted) { R.line = 5; R.snap('The branch-and-bound search hit its step limit. Use the Python export (SciPy MILP) for this instance.', { panel: '' }, true); return { frames: R.frames }; }
+    if (!r.succ) {
+      R.nc = {}; R.line = 8;
+      R.snap(`Iteration ${it}: the ILP has <b>no solution</b>${cuts.length ? ` once the ${cuts.length} subtour constraint${cuts.length > 1 ? 's are' : ' is'} added` : ': already the degree constraints cannot be met, so no set of arcs leaves and enters every vertex exactly once'}.`, { panel: cert('no', 'No Hamilton cycle', `Every Hamilton cycle would satisfy all these constraints, and no 0/1 vector does, so none exists. ${cuts.length} subtour constraint${cuts.length === 1 ? '' : 's'} were needed (branch and bound explored ${r.nodes.toLocaleString()} partial solutions in the last round).`) + (cutText.length ? h4('Subtour constraints added') + CUTHEAD + `<p class="mono cuts">${cutText.join('<br>')}</p>` : '') }, true);
+      return { frames: R.frames, cuts: cuts.length, tour: null };
+    }
+    const succ = r.succ, cyc = [], seen = Array(n).fill(false);
+    for (let s0 = 0; s0 < n; s0++) { if (seen[s0]) continue; const c = []; let v = s0; while (!seen[v]) { seen[v] = true; c.push(v); v = succ[v]; } cyc.push(c); }
+    const ov = []; cyc.forEach((c, k) => c.forEach(v => ov.push({ u: v, v: succ[v], cls: classes[k % classes.length], dir: true })));
+    R.nc = {}; cyc.forEach((c, k) => c.forEach(v => R.nc[v] = cyc.length > 1 ? 'k' + (k % 10) : 'done'));
+    const cost = A.filter(a => succ[a.i] === a.j).reduce((x, a) => x + a.w, 0);
+    const sol = h4(`Solution of iteration ${it}${tsp ? `, weight ${fmt(cost)}` : ''}`) + `<p class="mono">${cyc.map(c => c.concat([c[0]]).map(name).join(' → ')).join('<br>')}</p>`;
+    R.line = 5; R.snap(`Iteration ${it}: solve the ILP with the constraints so far. The chosen arcs form ${cyc.length === 1 ? 'one cycle' : cyc.length + ' separate cycles'}${tsp ? `, total weight ${fmt(cost)}` : ''}.`, { overlay: ov, panel: sol, ask: { type: 'number', answer: [cyc.length], prompt: 'Into how many separate cycles (subtours) do the chosen arcs fall?' } });
+    if (cyc.length === 1) {
+      R.line = 6; R.snap(`One cycle through all ${n} vertices: ${cyc[0].concat([cyc[0][0]]).map(name).join(' → ')}.`, { overlay: ov, panel: cert('yes', tsp ? `Optimal tour, weight ${fmt(cost)}` : 'Hamilton cycle found', `${tsp ? 'The ILP solved here has only some of the subtour constraints, so its optimum is a lower bound on every tour; it is itself a tour, hence optimal. ' : ''}${cuts.length} of the 2ⁿ − 2 = ${(2 ** n - 2).toLocaleString()} subtour constraints were needed.`) + sol + (cutText.length ? h4('Subtour constraints added') + CUTHEAD + `<p class="mono cuts">${cutText.join('<br>')}</p>` : '') }, true);
+      return { frames: R.frames, cuts: cuts.length, tour: cyc[0], cost };
+    }
+    const added = cyc.map(c => { const mask = c.reduce((m, v) => m | (1 << v), 0); cuts.push({ mask, last: Math.max(...c) }); const t = 'S = {' + c.map(name).join(', ') + '}'; cutText.push(t); return t; });
+    R.line = 7; R.snap(`Each subtour S breaks the rule “some arc must leave S”. Add that constraint for ${cyc.length === 2 ? 'both' : 'all ' + cyc.length} subtours (subtour elimination) and solve again.`, { overlay: ov, panel: h4('New subtour elimination constraints') + CUTHEAD + `<p class="mono cuts">${added.join('<br>')}</p><p class="note">There is one such constraint for every proper subset S, far too many to write down; adding only the violated ones is the cutting-plane idea used by real TSP solvers.</p>` });
+  }
+  R.snap('Stopped after 40 rounds of constraints.', { panel: '' }, true); return { frames: R.frames };
 }
 
 function algHamilton(g, P) {
@@ -2433,6 +2503,7 @@ const MODULES = [
       { key: 'euler', name: 'Euler circuit / Chinese postman', run: algEuler, params: [{ id: 'goal', type: 'select', label: 'Tour', options: [['closed', 'must return to start'], ['open', 'may end elsewhere']], def: 'closed' }] },
       { key: 'fleury', name: 'Fleury (edge by edge)', run: algFleury, params: [{ id: 'source', type: 'vertex', label: 'Start' }], legend: [['n', 'cur', 'current vertex'], ['n', 'front', 'start'], ['n', 'cut', 'odd degree'], ['e', 'cand', 'allowed next edge'], ['e', 'cut', 'bridge of the rest: avoid'], ['e', 'tree', 'trail so far (#order)']] },
       { key: 'ham', name: 'Hamilton cycle (backtracking)', run: algHamilton, params: [{ id: 'source', type: 'vertex', label: 'Start' }] },
+      { key: 'ilp', name: 'ILP: Hamilton cycle and TSP', run: algTourILP, params: [{ id: 'goal', type: 'select', label: 'Question', options: [['tsp', 'TSP: cheapest cycle'], ['ham', 'Hamilton: any cycle']], def: 'tsp' }], legend: [['e', 'path', 'cycle 1 of the solution'], ['e', 'flow', 'cycle 2'], ['e', 'cand', 'cycle 3'], ['n', 'done', 'on the final cycle']] },
       { key: 'tsp', name: 'TSP: heuristics vs optimum', run: algTSPCompare, params: [{ id: 'source', type: 'vertex', label: 'Start' }] },
     ],
     legend: [['n', 'cut', 'odd degree'], ['e', 'path', 'pairing path'], ['e', 'dup', 'duplicated'], ['e', 'cand', 'walked'], ['e', 'tree', 'in circuit / tour']],
@@ -2441,6 +2512,7 @@ const MODULES = [
       { tag: 'Lab', text: 'Fleury versus Hierholzer on two clusters joined by one link. Walk it yourself from c first: which edge would a careless walker take that leaves edges unreachable? Then run Fleury in <b>Predict</b> mode: it stops before every choice and accepts any edge that is not a bridge of the unused edges. Why does it never get stuck, and why is it slower than Hierholzer?', setup: { preset: 'barbell', algo: 'fleury', params: { source: 'c' } } },
       { tag: 'Proof', text: 'Prove the postman lower bound: the edges walked twice in any closed covering walk form a set J in which odd vertices have odd J-degree and even vertices even J-degree, so J contains paths pairing the odd vertices.' },
       { tag: 'Lab', text: 'Run the Hamilton search on the Petersen graph and note the number of recursive calls. Compare: how long does the Euler parity test take on the same graph? What would a short certificate of “no Hamilton cycle” even look like?', setup: { preset: 'petersen', algo: 'ham' } },
+      { tag: 'ILP', text: 'Integer programming from scratch. Load the snowplough streets, choose <b>ILP: Hamilton cycle and TSP</b> and step through: the variables x<sub>ij</sub> (one per direction of every street), the in- and out-degree constraints, and the objective. The first solution may split into several cycles; watch which subtour elimination constraints are added. Then switch the question to Hamilton and run it on the Petersen graph: how does the ILP prove that no Hamilton cycle exists?', setup: { preset: 'streets', algo: 'ilp', params: { goal: 'tsp' } } },
       { tag: 'ILP', text: 'Run TSP on the fiber graph. Write the TSP integer program for it with only the degree constraints. Find a 0/1 solution that is two disjoint triangles, name the subtour constraint it violates, and add it.', setup: { preset: 'studio_fiber', algo: 'tsp' } },
       { tag: HOG, text: 'Search Hypohamiltonian = true and sort by Number of Vertices. Paste the smallest result, delete one vertex in the graph box, and confirm with the Hamilton search that a cycle appears. Also search Eulerian = true with Hamiltonian = false and verify one result both ways here.' },
       { tag: 'Lab', text: 'Courier stops: compare nearest neighbour, double tree, Christofides and the exact optimum. Which guarantees are visibly tight or loose here? Find the first nearest-neighbour step that is clearly a mistake.', setup: { preset: 'courier', algo: 'tsp', params: { source: 'A' } } },
@@ -2575,6 +2647,7 @@ const PSEUDO = {
   'sp.fw': ['D ← W   (0 on the diagonal, ∞ where there is no edge)', 'for k ← 1 to n', '  for i ← 1 to n', '    for j ← 1 to n', '      D[i][j] ← min(D[i][j], D[i][k] + D[k][j])', 'negative cycle ⇔ some D[v][v] < 0'],
   'route.euler': ['if some vertex has odd degree', '  pair the odd vertices with least total distance; duplicate those paths', 'stack ← ⟨start⟩;  circuit ← ⟨⟩', 'while stack ≠ ∅', '  v ← top of stack', '  if v has an unused edge vw: mark it used; push w', '  else: pop v; prepend v to circuit', 'return circuit'],
   'route.fleury': ['FLEURY(G)', '  if the edges are not connected, or more than two vertices have odd degree: no Euler trail', '  v ← one of the two odd vertices if there are two, else any vertex;  trail ← ⟨v⟩', '  while v has an unused edge', '    choose an unused edge vw that is not a bridge of the unused edges, unless it is the only one at v', '    delete vw;  append w to trail;  v ← w', '  return trail        ▹ O(m) steps × O(m) bridge test = O(m²)'],
+  'route.ilp': ['x(i,j) ∈ {0, 1} for every arc i→j  ▹ 1 = used', 'Σ_j x(i,j) = 1 for every i  ▹ leave i once', 'Σ_i x(i,j) = 1 for every j  ▹ enter j once', 'TSP: min Σ w(i,j)·x(i,j);  Hamilton: any x', 'repeat', '  x ← optimal 0/1 solution with the constraints so far   (branch and bound)', '  if x forms one cycle through all vertices: return it', '  for each subtour S of x: add Σ x(i,j) over i ∈ S, j ∉ S ≥ 1', 'if no solution: no Hamilton cycle exists'],
   'route.ham': ['EXTEND(path)', '  if |path| = n: success if last(path) ~ first(path)', '  for each neighbour v of last(path) with v ∉ path', '    EXTEND(path + v)', '  backtrack'],
   'route.tsp': ['nearest neighbour: walk to the closest unvisited vertex', 'T ← minimum spanning tree            ▹ OPT ≥ w(T)', 'double tree: preorder walk of T, skip repeats   ▹ ≤ 2·OPT', 'Christofides: M ← min-weight perfect matching on odd vertices of T', '  Euler circuit of T + M, skip repeats   ▹ ≤ 1.5·OPT', 'Held–Karp: C(S, j) = min over i of C(S ∖ {j}, i) + d(i, j)'],
   'flow.ek': ['EDMONDS-KARP(G, s, t)', '  f ← 0', '  while the residual network G_f has an s–t path', '    p ← a shortest such path (BFS);  b ← min residual capacity on p', '    push b along p   (forward arcs +b, backward arcs −b)', '  S ← vertices reachable from s in G_f;  (S, V ∖ S) is a minimum cut'],
@@ -2615,6 +2688,7 @@ const IDEAS = {
   'sp.race': 'Runs the shortest-path methods on the same graph and compares their work. Idea: each one trades generality (negative weights, all pairs) for speed, and the counts show the price.',
   'route.euler': 'Hierholzer walks unused edges until stuck, then backs up and splices in detours; if some degrees are odd, the postman first duplicates the cheapest paths pairing the odd vertices. Idea: a closed walk uses two edges at every visit, so all degrees must be even, and in a connected graph that is also enough.',
   'route.fleury': 'Walk edge by edge, deleting each edge after use, and cross a bridge of the remaining edges only when nothing else is left. Idea: never burning the only way back means no edges are ever stranded, so the walk ends having used them all.',
+  'route.ilp': 'Write the cycle as 0/1 arc variables x<sub>ij</sub> with “leave every vertex once” and “enter every vertex once”, solve, and whenever the answer splits into separate cycles add a constraint forcing an arc out of each of them. Idea: degree constraints alone allow disjoint subtours; adding only the violated subtour constraints (cutting planes) reaches a single tour long before all 2ⁿ of them are written.',
   'route.ham': 'Extend a path one vertex at a time and backtrack when no unvisited neighbour remains, until the path covers every vertex and closes into a cycle. Idea: no simple test like parity exists for Hamilton cycles, so in the worst case the search is exhaustive.',
   'route.tsp': 'Compares nearest neighbour, the double-tree and Christofides tours with the exact Held–Karp optimum. Idea: a minimum spanning tree is a lower bound on any tour, and shortcutting a walk around it (plus a matching, for Christofides) costs at most 2 (or 1.5) times that bound.',
   'flow.ek': 'Repeatedly push as much flow as possible along a shortest path in the residual network, whose backward arcs let earlier choices be undone. Idea: when no augmenting path is left, the vertices still reachable from s form a cut whose capacity equals the flow, proving it is maximum.',
@@ -2675,6 +2749,7 @@ function pythonSnippet(modKey, algoKey, g, P) {
     case 'sp.fw': case 'sp.race': return head + G + `D = nx.floyd_warshall_numpy(G)\nprint(list(G.nodes()))\nprint(D)`;
     case 'route.euler': return head + G + `if nx.is_eulerian(G):\n    print(list(nx.eulerian_circuit(G)))\nelse:\n    odd = [v for v, d in G.degree() if d % 2]\n    print("odd vertices:", odd)\n    # nx.eulerize ignores weights; for the weighted postman pair odd vertices by\n    # min_weight_matching on shortest-path distances, as the lab does.\n    D = dict(nx.all_pairs_dijkstra_path_length(G))\n    K = nx.Graph(); K.add_weighted_edges_from((a, b, D[a][b]) for i, a in enumerate(odd) for b in odd[i+1:])\n    print("pairing:", nx.min_weight_matching(K))`;
     case 'route.fleury': return head + G + `def fleury(G, start):\n    H = nx.MultiGraph(G)          # edges are deleted as they are walked\n    odd = [v for v, d in H.degree() if d % 2]\n    if len(odd) not in (0, 2) or not nx.is_connected(H.subgraph(v for v, d in H.degree() if d)):\n        return None               # no Euler trail\n    v = odd[0] if odd and start not in odd else start\n    trail = [v]\n    while H.degree(v):\n        choices = list(H.edges(v, keys=True))\n        for a, w, k in choices:\n            H.remove_edge(a, w, k)\n            if len(choices) == 1 or nx.has_path(H, v, w):\n                break             # not a bridge of the rest (or the only edge left)\n            H.add_edge(a, w, k)   # a bridge: put it back and try the next edge\n        else:\n            a, w, k = choices[0]; H.remove_edge(a, w, k)\n        trail.append(w)\n        v = w\n    return trail\n\nprint(fleury(G, ${L(P.source)}))`;
+    case 'route.ilp': return head + G + `# Hamilton cycle / TSP as an ILP with arc variables, subtour constraints added lazily\nimport numpy as np\nfrom scipy.optimize import milp, LinearConstraint, Bounds\nV = list(G)\nA = ${g && g.directed ? 'list(G.edges())' : '[(u, v) for u, v in G.edges()] + [(v, u) for u, v in G.edges()]'}   # x[k] = 1: the cycle uses arc A[k]\nc = np.array([G[u][v].get("weight", 1) for u, v in A], float)${P.goal === 'ham' ? ' * 0   # Hamilton: feasibility only' : '   # TSP: minimise total weight'}\ncons = []\nfor v in V:\n    cons.append(LinearConstraint([1.0 if a[0] == v else 0.0 for a in A], 1, 1))   # leave v once\n    cons.append(LinearConstraint([1.0 if a[1] == v else 0.0 for a in A], 1, 1))   # enter v once\nwhile True:\n    res = milp(c=c, constraints=cons, integrality=np.ones(len(A)), bounds=Bounds(0, 1))\n    if res.x is None:\n        print("infeasible: no Hamilton cycle"); break\n    succ = {A[k][0]: A[k][1] for k in range(len(A)) if res.x[k] > 0.5}\n    cycles, seen = [], set()\n    for s in V:\n        if s not in seen:\n            cyc, t = [], s\n            while t not in seen:\n                seen.add(t); cyc.append(t); t = succ[t]\n            cycles.append(cyc)\n    if len(cycles) == 1:\n        print("cycle:", cycles[0], "weight:", sum(G[u][succ[u]].get("weight", 1) for u in V)); break\n    for S in cycles:   # subtour elimination: some arc must leave S\n        cons.append(LinearConstraint([1.0 if a[0] in S and a[1] not in S else 0.0 for a in A], lb=1))`;
     case 'route.ham': return head + G + `def hamilton_cycle(G, s):\n    n, path = G.number_of_nodes(), [s]\n    def extend():\n        if len(path) == n:\n            return G.has_edge(path[-1], s)\n        for v in G[path[-1]]:\n            if v not in path:\n                path.append(v)\n                if extend():\n                    return True\n                path.pop()\n        return False\n    return path if extend() else None\n\nprint(hamilton_cycle(G, ${L(P.source)}))`;
     case 'route.tsp': return head + G + `from networkx.algorithms import approximation as approx\nfor name, method in [("christofides", approx.christofides), ("greedy", approx.greedy_tsp)]:\n    tour = approx.traveling_salesman_problem(G, cycle=True, method=method)\n    length = sum(nx.dijkstra_path_length(G, a, b) for a, b in zip(tour, tour[1:]))\n    print(name, tour, length)`;
     case 'flow.ek': case 'flow.race': return head + G + `from networkx.algorithms.flow import edmonds_karp\nvalue, flow = nx.maximum_flow(G, ${L(P.source)}, ${L(P.sink)}, capacity="weight", flow_func=edmonds_karp)\ncut_value, (S, T) = nx.minimum_cut(G, ${L(P.source)}, ${L(P.sink)}, capacity="weight")\nprint(value, cut_value, sorted(S))`;
@@ -3099,9 +3174,12 @@ const DEFS = {
     { term: 'Triangle inequality and shortcuts', text: 'Metric TSP assumes d(a, c) ≤ d(a, b) + d(b, c). Shortest-path distances always satisfy it, so skipping an already visited vertex never lengthens a tour.',
       g: 'a b 3\nb c 4\na c 5', pos: { a: [40, 160], b: [150, 40], c: [260, 160] }, weights: true,
       steps: [['d(a, c) = 5 ≤ 3 + 4.', {}], ['A walk a → b → c that already visited b…', { e: ec('path', 'a-b', 'b-c') }], ['…can go straight from a to c instead.', { e: Object.assign(ec('', 'a-b', 'b-c'), { 'a-c': 'tree' }) }], ['This is why the double-tree and Christofides guarantees hold.', {}]] },
-    { term: 'Subtour elimination', text: 'TSP as an ILP: x(e) ∈ {0, 1}, Σ x(e) = 2 at every vertex, and Σ x(e) ≥ 2 over the edges leaving every proper subset S. The last family forbids disjoint subtours.',
+    { term: 'Linear and integer programs', text: 'A <b>linear program</b> (LP) minimises a linear objective Σ c<sub>k</sub>x<sub>k</sub> subject to linear constraints; an <b>integer linear program</b> (ILP) also demands whole-number values, here x<sub>k</sub> ∈ {0, 1} for yes/no decisions. Dropping integrality gives the <b>LP relaxation</b>, whose optimum bounds the ILP.',
+      g: 'a b 3\nb c 4\na c 5', pos: { a: [40, 160], b: [150, 40], c: [260, 160] }, weights: true,
+      steps: [['Decisions: is edge e used? One variable x(e) ∈ {0, 1} per edge.', { el: { 'a-b': 'x₁', 'b-c': 'x₂', 'a-c': 'x₃' } }], ['A linear constraint: x₁ + x₃ = 1 (exactly one edge at a).', { el: { 'a-b': 'x₁', 'b-c': 'x₂', 'a-c': 'x₃' }, e: ec('cand', 'a-b', 'a-c'), n: nc('cur', 'a') }], ['A linear objective: minimise 3x₁ + 4x₂ + 5x₃.', { el: { 'a-b': '3·x₁', 'b-c': '4·x₂', 'a-c': '5·x₃' } }], ['An ILP solution: x₁ = 1, x₂ = x₃ = 0. An LP could also choose x₁ = x₃ = ½.', { el: { 'a-b': 'x₁=1', 'b-c': 'x₂=0', 'a-c': 'x₃=0' }, e: ec('tree', 'a-b') }]] },
+    { term: 'Subtour elimination', text: 'Hamilton cycle / TSP as an ILP: x<sub>ij</sub> ∈ {0, 1} for every arc i→j, Σ<sub>j</sub> x<sub>ij</sub> = 1 (leave i once), Σ<sub>i</sub> x<sub>ij</sub> = 1 (enter j once), and Σ x<sub>ij</sub> ≥ 1 over the arcs leaving every proper subset S. Without the last family, disjoint subtours satisfy everything.',
       g: 'a b\nb c\nc a\nd e\ne f\nf d\nc d\nb e\na f', pos: { a: [50, 45], b: [50, 150], c: [120, 97], d: [180, 97], e: [250, 150], f: [250, 45] },
-      steps: [['Degree constraints only: two edges at every vertex.', {}], ['Two triangles satisfy them, but this is no tour.', { e: ec('tree', 'a-b', 'b-c', 'c-a', 'd-e', 'e-f', 'f-d') }], ['The constraint for S = {a, b, c}: at least 2 chosen edges must leave S.', { blob: [[['a', 'b', 'c'], 'sA']], e: ec('cand', 'c-d', 'b-e', 'a-f') }], ['A tour: a–b–c–d–e–f–a.', { blob: [], e: Object.assign(ec('', 'c-a', 'f-d', 'b-e'), ec('tree', 'a-b', 'b-c', 'c-d', 'd-e', 'e-f', 'a-f')) }]] },
+      steps: [['Degree constraints only: leave and enter every vertex once.', {}], ['Two triangles satisfy them, but this is no tour.', { e: ec('tree', 'a-b', 'b-c', 'c-a', 'd-e', 'e-f', 'f-d') }], ['The constraint for S = {a, b, c}: some chosen arc must leave S.', { blob: [[['a', 'b', 'c'], 'sA']], e: ec('cand', 'c-d', 'b-e', 'a-f') }], ['A tour: a–b–c–d–e–f–a.', { blob: [], e: Object.assign(ec('', 'c-a', 'f-d', 'b-e'), ec('tree', 'a-b', 'b-c', 'c-d', 'd-e', 'e-f', 'a-f')) }]] },
   ],
   flow: [
     { term: 'Flow network and flow', text: 'A flow f satisfies 0 ≤ f(e) ≤ c(e) on each arc and <b>conservation</b> (in = out) at every vertex other than s and t. Its value |f| is the net flow leaving s.',
@@ -3255,6 +3333,7 @@ const WHY = {
     'If the plough must repeat some streets, which ones, as cheaply as possible? Pairing up the odd-degree corners answers the Chinese postman problem.',
     'A courier must visit every customer exactly once and return. This is a Hamilton cycle, and no fast test for it is known.',
     'On road maps, driving straight to the next new customer is never longer than a detour through an old one. Approximation guarantees for TSP rest on this triangle inequality.',
+    'Airlines schedule crews, factories plan production and couriers build routes by handing yes/no decisions to integer-programming solvers. To use one you only have to write the problem as linear constraints on 0/1 variables.',
     'Delivery-route solvers that only demand “two edges at every customer” return several separate small loops. Subtour constraints forbid them.',
   ],
   flow: [
@@ -3436,9 +3515,9 @@ const SHEETS = {
       { p: 'P1(b)', title: 'Girth and circumference', page: 1, note: 'A Hamilton cycle, if one exists, shows the circumference is n.', runs: [sheetRun('Left graph', { preset: 'ps5_1b1', algo: 'ham', params: { source: '1' } }), sheetRun('Right graph', { preset: 'ps5_1b2', algo: 'ham', params: { source: '1' } })] },
       { p: 'P1.1–1.7', title: 'Euler trails in Kₙ and Kₘ,ₙ, trail decompositions, edge colourings', page: 2 },
       { p: 'P1.8', title: 'Fleury’s algorithm: why it finds an Euler tour or trail, and its running time', page: 2, note: 'Run it in <b>Predict</b> mode: before every choice the lab asks which edge Fleury may take and marks the bridges of the unused edges. Compare the number of steps with Hierholzer.', runs: [sheetRun('Two clusters joined by one link', { preset: 'barbell', algo: 'fleury', params: { source: 'c' } }), sheetRun('H of PS 3 P4(b)', { preset: 'ps3_4b5', algo: 'fleury', params: { source: 'a' } }), sheetRun('Octahedron (circuit)', { preset: 'planar_oct', algo: 'fleury', params: { source: 'a' } }), sheetRun('K₅ (circuit)', { preset: 'k5', algo: 'fleury', params: { source: '1' } })] },
-      { p: 'P2(a)', title: 'Hamiltonian? Find a Hamilton cycle or path', page: 3, runs: [sheetRun('Petersen', { preset: 'petersen', algo: 'ham', params: { source: '0' } }), sheetRun('G', { preset: 'ps5_2g', algo: 'ham', params: { source: 'a' } }), sheetRun('H', { preset: 'ps5_2h', algo: 'ham', params: { source: 'a' } })] },
+      { p: 'P2(a)', title: 'Hamiltonian? Find a Hamilton cycle or path', page: 3, note: 'Two methods: backtracking search, and the integer program with subtour constraints added one round at a time.', runs: [sheetRun('Petersen', { preset: 'petersen', algo: 'ham', params: { source: '0' } }), sheetRun('G', { preset: 'ps5_2g', algo: 'ham', params: { source: 'a' } }), sheetRun('H', { preset: 'ps5_2h', algo: 'ham', params: { source: 'a' } }), sheetRun('Petersen as an ILP', { preset: 'petersen', algo: 'ilp', params: { goal: 'ham' } }), sheetRun('G as an ILP', { preset: 'ps5_2g', algo: 'ilp', params: { goal: 'ham' } }), sheetRun('H as an ILP', { preset: 'ps5_2h', algo: 'ilp', params: { goal: 'ham' } })] },
       { p: 'P2(b)', title: 'Ore’s theorem: more than C(n − 1, 2) + 1 edges', page: 3 }] },
-    { ps: 6, items: [{ p: 'P−1', title: 'TSP heuristics far from the optimum (Stanoyevitch 9.2.35, 9.2.10)', page: 1, note: 'Edit a small instance until nearest neighbour is clearly worse than the optimum the lab computes.', runs: [sheetRun('Courier stops', { preset: 'courier', algo: 'tsp', params: { source: 'A' } })] }] },
+    { ps: 6, items: [{ p: 'P−1', title: 'TSP heuristics far from the optimum (Stanoyevitch 9.2.35, 9.2.10)', page: 1, note: 'Edit a small instance until nearest neighbour is clearly worse than the optimum the lab computes.', runs: [sheetRun('Courier stops', { preset: 'courier', algo: 'tsp', params: { source: 'A' } }), sheetRun('Courier stops as an ILP', { preset: 'courier', algo: 'ilp', params: { goal: 'tsp' } })] }] },
     { ps: 1, items: [{ p: 'P3', title: 'Traverse every arc once in a symmetric strongly connected digraph', page: 2 }] },
   ],
   flow: [
@@ -3487,7 +3566,7 @@ const SHEET_DEFS = {
   iso: { 'Isomorphism': [[3, 'P2', '1–4']], 'Invariants': [[3, 'P2', '1–4']] },
   mst: { 'Tree': [[3, 'P3', 4]], 'Spanning tree': [[3, 'P4(a–b)', 4]], 'Cut property': [[3, 'P4(c)', 5]], 'Cycle property': [[3, 'P4(c)', 5]] },
   sp: { 'Weighted distance': [[4, 'P4', '2–3']], 'Relaxation': [[6, 'P1', '2–3']], 'Negative cycle': [[6, 'P2', '3–5']] },
-  route: { 'Euler circuit': [[5, 'P1', '1–2'], [5, 'P1.8 (Fleury)', 2]], 'Hamilton cycle': [[5, 'P2', 3]], 'Triangle inequality and shortcuts': [[6, 'P−1', 1]] },
+  route: { 'Euler circuit': [[5, 'P1', '1–2'], [5, 'P1.8 (Fleury)', 2]], 'Hamilton cycle': [[5, 'P2', 3]], 'Subtour elimination': [[5, 'P2(a)', 3], [6, 'P−1', 1]], 'Triangle inequality and shortcuts': [[6, 'P−1', 1]] },
   flow: { 'Flow network and flow': [[7, 'flows', '1–2']], 'Residual network': [[7, 'FF / EK', '3–4']], 'Augmenting path': [[7, 'FF / EK', '3–4']], 's–t cut': [[7, 'cuts', 2]] },
   match: { 'Matching: maximal vs maximum': [[8, 'P1', 2], [8, 'P2.1', 2]], 'Augmenting path': [[8, 'P2.3', '2–3']], 'Vertex cover and König': [[8, 'P2.4', 3]], 'Hall’s condition': [[8, 'P2.6', 3]], 'Stable matching': [[8, 'P3', '3–4']] },
   color: { 'Proper colouring and χ': [[9, 'P3', '3–4']], 'Planar graph and faces': [[9, 'P1', 2]], 'Euler’s formula': [[9, 'P2', 3]], 'Dual graph': [[9, 'P1.2, P1.4', 2]] },

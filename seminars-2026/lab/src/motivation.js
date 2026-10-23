@@ -44,6 +44,7 @@ const WHY = {
     'If the plough must repeat some streets, which ones, as cheaply as possible? Pairing up the odd-degree corners answers the Chinese postman problem.',
     'A courier must visit every customer exactly once and return. This is a Hamilton cycle, and no fast test for it is known.',
     'On road maps, driving straight to the next new customer is never longer than a detour through an old one. Approximation guarantees for TSP rest on this triangle inequality.',
+    'Airlines schedule crews, factories plan production and couriers build routes by handing yes/no decisions to integer-programming solvers. To use one you only have to write the problem as linear constraints on 0/1 variables.',
     'Delivery-route solvers that only demand “two edges at every customer” return several separate small loops. Subtour constraints forbid them.',
   ],
   flow: [

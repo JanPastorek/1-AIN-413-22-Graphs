@@ -116,7 +116,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .nd { cursor: grab; }
 .nd circle { fill: var(--sheet); stroke: var(--ink); stroke-width: 2; }
 .nd .nl { fill: var(--ink); font-family: var(--f-mono); font-weight: 700; pointer-events: none; }
-.nd .nt { fill: var(--accent); font-family: var(--f-mono); font-weight: 700; font-size: 10.5px; paint-order: stroke; stroke: var(--paper); stroke-width: 3.5px; stroke-linejoin: round; pointer-events: none; }
+.nd .nt { fill: var(--accent); font-family: var(--f-mono); font-weight: 700; font-size: 13.5px; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
 .nd.cur circle { fill: var(--hot); stroke: var(--hot); } .nd.cur .nl { fill: var(--on-hot); }
 .nd.front circle { fill: var(--amber-soft); stroke: var(--amber); stroke-width: 3; }
 .nd.done circle { fill: var(--teal-soft); stroke: var(--teal); stroke-width: 2.5; }
@@ -131,8 +131,8 @@ button:disabled { opacity: 0.45; cursor: default; }
 .nd.esel circle { stroke: var(--accent); stroke-width: 4; stroke-dasharray: 4 3; }
 .nd circle.pinring { fill: none !important; stroke: var(--accent) !important; stroke-width: 2.5 !important; stroke-dasharray: 5 3; }
 .nd .pl, .nd .ol { font-family: var(--f-mono); font-weight: 700; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
-.nd .pl { fill: var(--accent); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; }
-.nd .ol { fill: var(--ink); font-size: 12px; }
+.nd .pl { fill: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+.nd .ol { fill: var(--ink); font-size: 14px; }
 .ed { fill: none; stroke: var(--edge); stroke-width: 2; stroke-linecap: round; }
 .ah { fill: var(--edge); stroke: none; }
 .ed.tree { stroke: var(--ink); stroke-width: 4.5; } .ah.tree { fill: var(--ink); }
@@ -150,7 +150,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .ed.res { stroke: var(--edge); stroke-width: 1.8; } .ed.resb { stroke: var(--muted); stroke-width: 1.8; stroke-dasharray: 5 4; } .ah.resb { fill: var(--muted); }
 .ed.dup { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 6 5; }
 .ed.faint { opacity: 0.28; }
-.el { font-family: var(--f-mono); font-size: 11.5px; font-weight: 700; fill: var(--ink2); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.el { font-family: var(--f-mono); font-size: 16px; font-weight: 700; fill: var(--ink2); paint-order: stroke; stroke: var(--paper); stroke-width: 4.5px; stroke-linejoin: round; pointer-events: none; }
 .el.path, .el.cand { fill: var(--hot); } .el.cut, .el.cancel { fill: var(--mag); } .el.flow { fill: var(--teal); } .el.dup, .el.match { fill: var(--accent); } .el.res, .el.resb { fill: var(--ink2); }
 
 /* State column */
@@ -258,12 +258,12 @@ footer p { margin: 0 0 6px; }
 .ddots { display: inline-flex; gap: 4px; }
 .ddot { width: 10px; height: 10px; min-width: 0; padding: 0 !important; border-radius: 50% !important; border: 1.5px solid var(--muted) !important; background: transparent !important; }
 .ddot.on { background: var(--accent) !important; border-color: var(--accent) !important; }
-.defsvg .nd circle { r: 11; }
-.defsvg .nd .nl { font-size: 10.5px; }
-.defsvg .nd .nt { font-size: 9.5px; }
+.defsvg .nd circle { r: 14; }
+.defsvg .nd .nl { font-size: 14px; }
+.defsvg .nd .nt { font-size: 12px; }
 .defsvg .ed, .defsvg .nd circle, .defsvg .ah, .defsvg .el { transition: stroke .45s, fill .45s, opacity .45s, stroke-width .45s; }
 .defsvg .ed { stroke-width: 2; } .defsvg .ed.tree, .defsvg .ed.cut, .defsvg .ed.path, .defsvg .ed.cand { stroke-width: 3.5; } .defsvg .ed.match { stroke-width: 5; }
-.defsvg .el { font-size: 10px; stroke-width: 3px; }
+.defsvg .el { font-size: 13px; stroke-width: 3.5px; }
 .defsvg .ed.hide, .defsvg .ah.hide, .defsvg .el.hide, .nd.hide { opacity: 0; }
 .blob { fill: var(--accent-soft); stroke: var(--accent-soft); stroke-width: 34; stroke-linejoin: round; stroke-linecap: round; opacity: .9; transition: opacity .45s; }
 .blob.sB { fill: var(--amber-soft); stroke: var(--amber-soft); }

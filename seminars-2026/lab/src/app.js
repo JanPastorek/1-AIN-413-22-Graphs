@@ -85,7 +85,7 @@ function hideError() { $('#err').hidden = true; }
 
 /* ---------- SVG rendering (shared by board and tickets) ---------- */
 function renderGraph(F, g, opt = {}) {
-  const n = g.nodes.length; const big = n > 40; const r = big ? 7 : (n > 20 ? 13 : 17); const dir = g.directed; const out = [];
+  const n = g.nodes.length; const big = n > 40; const r = big ? 7 : (n > 20 ? 15 : 20); const dir = g.directed; const out = [];
   if (F.polys) out.push(`<g class="faces">${F.polys.map(p => `<polygon class="face ${p.cls || ''}" points="${p.pts.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ')}"/>`).join('')}</g>`);
   const items = [];
   if (!F.hideBase) g.edges.forEach((e, i) => { if (F.edgeLimit !== undefined && i >= F.edgeLimit) return; const c = (F.ec && F.ec[i]) || ''; if (c === 'hide') return; items.push({ u: e.u, v: e.v, cls: c, label: (F.elab && F.elab[i]) ?? (opt.weighted && !big ? fmt(e.w) : ''), dir, key: 'e' + i, base: i }); });
@@ -96,7 +96,7 @@ function renderGraph(F, g, opt = {}) {
     const A = g.nodes[it.u], B = g.nodes[it.v]; if (!A || !B) return;
     let mx, my, cx, cy, off;
     if (it.via) { mx = it.via[0]; my = it.via[1]; cx = 2 * mx - (A.x + B.x) / 2; cy = 2 * my - (A.y + B.y) / 2; off = 1; }
-    else { const cnt = arr.length; off = (k - (cnt - 1) / 2) * 30; const [P0, P1] = it.u < it.v ? [A, B] : [B, A]; const dx = P1.x - P0.x, dy = P1.y - P0.y; const L = Math.hypot(dx, dy) || 1; const nx = -dy / L, ny = dx / L; mx = (A.x + B.x) / 2 + nx * off; my = (A.y + B.y) / 2 + ny * off; cx = 2 * mx - (A.x + B.x) / 2; cy = 2 * my - (A.y + B.y) / 2; }
+    else { const cnt = arr.length; off = (k - (cnt - 1) / 2) * 30; const [P0, P1] = it.u < it.v ? [A, B] : [B, A]; const dx = P1.x - P0.x, dy = P1.y - P0.y; const L = Math.hypot(dx, dy) || 1; const nx = -dy / L, ny = dx / L; mx = (A.x + B.x) / 2 + nx * off; my = (A.y + B.y) / 2 + ny * off; cx = 2 * mx - (A.x + B.x) / 2; cy = 2 * my - (A.y + B.y) / 2; if (off) { mx += nx * off * 0.8; my += ny * off * 0.8; } }
     const ra = it.via ? 7 : r;
     const t1x = cx - A.x, t1y = cy - A.y, l1 = Math.hypot(t1x, t1y) || 1; const t2x = B.x - cx, t2y = B.y - cy, l2 = Math.hypot(t2x, t2y) || 1;
     const sx = A.x + t1x / l1 * ra, sy = A.y + t1y / l1 * ra; const ex = B.x - t2x / l2 * (ra + (it.dir ? 2 : 0)), ey = B.y - t2y / l2 * (ra + (it.dir ? 2 : 0));
@@ -104,14 +104,14 @@ function renderGraph(F, g, opt = {}) {
     edgeSvg.push(`<path class="ed ${it.cls}" d="${d}"/>`);
     if (opt.hits && it.base !== undefined) hitSvg.push(`<path class="hit" data-e="${it.base}" d="${d}"><title>${esc(g.nodes[it.u].label)}–${esc(g.nodes[it.v].label)}</title></path>`);
     if (it.dir) { const ux = t2x / l2, uy = t2y / l2, s2 = 10; const bx = ex - ux * s2, by = ey - uy * s2; arrowSvg.push(`<path class="ah ${it.cls}" d="M${ex.toFixed(1)},${ey.toFixed(1)}L${(bx - uy * 5).toFixed(1)},${(by + ux * 5).toFixed(1)}L${(bx + uy * 5).toFixed(1)},${(by - ux * 5).toFixed(1)}Z"/>`); }
-    if (it.label !== '' && it.label !== undefined) labSvg.push(`<text class="el ${it.cls}" x="${mx.toFixed(1)}" y="${(my + 4).toFixed(1)}" text-anchor="middle">${esc(it.label)}</text>`);
+    if (it.label !== '' && it.label !== undefined) labSvg.push(`<text class="el ${it.cls}" x="${mx.toFixed(1)}" y="${(my + 5).toFixed(1)}" text-anchor="middle">${esc(it.label)}</text>`);
   });
   out.push(`<g class="edges">${edgeSvg.join('')}${arrowSvg.join('')}</g><g class="elabels">${labSvg.join('')}</g><g class="hits">${hitSvg.join('')}</g>`);
   const pins = opt.pins || new Map();
   const nodeOne = (v, i) => {
     const c = (F.nc && F.nc[i]) || ''; const tag = F.ntag && F.ntag[i]; const sel = opt.editSel === i ? ' esel' : ''; const pin = pins.get(i); const outerLab = big && (pin || c === 'cur');
     const rr = c === 'dualv' ? 9 : r;
-    return `<g class="nd ${c}${sel}${pin ? ' pinned' : ''}" data-i="${i}" transform="translate(${v.x.toFixed(1)},${v.y.toFixed(1)})"><title>${esc(v.label)}${tag ? ' · ' + esc(tag) : ''}</title>${pin ? `<circle class="pinring" r="${rr + 6}"/>` : ''}<circle r="${rr}"/>${!big ? `<text class="nl" y="4" text-anchor="middle" style="font-size:${c === 'dualv' ? 9 : v.label.length > 3 ? 10 : 13}px">${esc(v.label.length > 6 ? v.label.slice(0, 5) + '…' : v.label)}</text>` : ''}${tag && !big ? `<text class="nt" x="${rr + 3}" y="${-rr + 2}">${esc(tag)}</text>` : ''}${outerLab ? `<text class="ol" x="${rr + 5}" y="4">${esc(v.label)}${tag ? ' · ' + esc(tag) : ''}</text>` : ''}${pin ? `<text class="pl" y="${-(rr + 10)}" text-anchor="middle">${esc(pin)}</text>` : ''}</g>`;
+    return `<g class="nd ${c}${sel}${pin ? ' pinned' : ''}" data-i="${i}" transform="translate(${v.x.toFixed(1)},${v.y.toFixed(1)})"><title>${esc(v.label)}${tag ? ' · ' + esc(tag) : ''}</title>${pin ? `<circle class="pinring" r="${rr + 6}"/>` : ''}<circle r="${rr}"/>${!big ? `<text class="nl" y="5" text-anchor="middle" style="font-size:${c === 'dualv' ? 11 : (r * (v.label.length <= 2 ? 0.85 : v.label.length === 3 ? 0.75 : 0.58)).toFixed(1)}px">${esc(v.label.length > 6 ? v.label.slice(0, 5) + '…' : v.label)}</text>` : ''}${tag && !big ? `<text class="nt" x="${rr + 3}" y="${-rr + 2}">${esc(tag)}</text>` : ''}${outerLab ? `<text class="ol" x="${rr + 5}" y="4">${esc(v.label)}${tag ? ' · ' + esc(tag) : ''}</text>` : ''}${pin ? `<text class="pl" y="${-(rr + 12)}" text-anchor="middle">${esc(pin)}</text>` : ''}</g>`;
   };
   const order = g.nodes.map((v, i) => i).sort((a, b) => (pins.has(a) || (F.nc && F.nc[a] === 'cur') ? 1 : 0) - (pins.has(b) || (F.nc && F.nc[b] === 'cur') ? 1 : 0));
   out.push(`<g class="nodes">${order.map(i => nodeOne(g.nodes[i], i)).join('')}</g>`);

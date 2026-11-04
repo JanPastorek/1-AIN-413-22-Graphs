@@ -50,6 +50,14 @@ code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
 
 .app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100%; }
 .side { border-right: 1px solid var(--line); background: var(--sheet); padding: 20px 14px; position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+.app.noside { grid-template-columns: minmax(0, 1fr); }
+.app.noside .side { display: none; }
+.sidehide { align-self: flex-end; display: inline-flex; align-items: center; gap: 5px; margin: -8px -4px -8px 0; border: 1px solid transparent; background: none; color: var(--muted); font: inherit; font-size: 12px; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
+.sidehide:hover, .sidehide:focus-visible { color: var(--ink); border-color: var(--line); background: var(--paper); }
+.sideshow { position: fixed; z-index: 20; top: calc(env(safe-area-inset-top, 0px) + 10px); left: 10px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--sheet); color: var(--ink2); font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 8px; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+.sideshow:hover, .sideshow:focus-visible { color: var(--ink); border-color: var(--ink2); }
+.app.noside main { padding-top: 54px; }
+@media (min-width: 1101px) { .app.noside .stage.both { grid-template-columns: minmax(0, 1fr) clamp(300px, calc(40vw - 40px), 720px); } }
 .brand { display: flex; gap: 10px; align-items: center; padding-inline: 6px; }
 .brand svg { flex: none; }
 .brand b { display: block; font-family: var(--f-display); font-stretch: 118%; font-weight: 780; font-size: 17px; letter-spacing: -0.01em; line-height: 1.1; }
@@ -361,6 +369,8 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
   #nav { flex-direction: row; overflow-x: auto; gap: 4px; padding-bottom: 6px; }
   #nav button { flex: none; grid-template-columns: auto auto; padding: 6px 10px; border: 1px solid var(--line); white-space: nowrap; }
   .side-note { display: none; }
+  .sidehide { margin: 0; padding: 2px 6px; }
+  .app.noside main { padding-top: 52px; }
   main { padding: 18px 16px 32px; }
   .mhead .num { font-size: 40px; }
   .editor { grid-template-columns: 1fr; }
@@ -369,14 +379,16 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
 
-<div class="app">
-  <aside class="side">
+<div class="app" id="app">
+  <button id="sideshow" class="sideshow" type="button" aria-controls="side" aria-expanded="false" title="Show the sessions menu (M)" hidden><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Sessions</span></button>
+  <aside class="side" id="side">
+    <button id="sidehide" class="sidehide" type="button" aria-controls="side" aria-expanded="true" title="Hide this menu to give the board more room (M)"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M9 2L4 7l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Hide menu</span></button>
     <div class="brand">
       <svg width="38" height="38" viewBox="0 0 38 38" aria-hidden="true"><path d="M7 30L19 7L31 30Z M7 30L31 30" fill="none" stroke="var(--ink)" stroke-width="2"/><path d="M19 7L19 22" stroke="var(--hot)" stroke-width="3" stroke-linecap="round"/><circle cx="19" cy="7" r="4.5" fill="var(--hot)"/><circle cx="7" cy="30" r="4.5" fill="var(--sheet)" stroke="var(--ink)" stroke-width="2"/><circle cx="31" cy="30" r="4.5" fill="var(--sheet)" stroke="var(--ink)" stroke-width="2"/><circle cx="19" cy="22" r="4.5" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="2"/></svg>
       <div><b>Graph Studio Lab</b><span>1-AIN-413 · Graphs, Graph Algorithms and Optimization</span></div>
     </div>
     <nav id="nav" aria-label="Seminar sessions"></nav>
-    <p class="side-note">Step with <kbd>←</kbd> <kbd>→</kbd>, play with <kbd>Space</kbd>. Drag vertices to tidy a drawing; scroll on the board to zoom, drag the paper to pan.</p>
+    <p class="side-note">Step with <kbd>←</kbd> <kbd>→</kbd>, play with <kbd>Space</kbd>, hide this menu with <kbd>M</kbd>. Drag vertices to tidy a drawing; scroll on the board to zoom, drag the paper to pan.</p>
   </aside>
 
   <main>
@@ -4018,8 +4030,18 @@ function boot() {
   $('#zfit').onclick = () => setView(null);
   $('#zstart').onclick = () => { const s = modState(ST.mod), g = displayedGraph(); const p = currentAlgo().params.find(q => q.type === 'vertex'); const i = p && g === s.graph ? paramValue(p, s, g) : -1; const v = g && g.nodes[i]; if (!v) return; const w = W / 2.6, h = H / 2.6; setView([v.x - w / 2, v.y - h / 2, w, h]); };
   $('#editbtn').onclick = () => { ST.edit = !ST.edit; ST.editSel = -1; $('#editbtn').setAttribute('aria-pressed', ST.edit); $('#edithint').hidden = !ST.edit; draw(); };
+  const setSide = (show, focus) => {
+    $('#app').classList.toggle('noside', !show); $('#sideshow').hidden = show;
+    $('#sidehide').setAttribute('aria-expanded', show); $('#sideshow').setAttribute('aria-expanded', show);
+    saveStore({ noside: !show });
+    if (focus) (show ? $('#sidehide') : $('#sideshow')).focus();
+  };
+  $('#sidehide').onclick = () => setSide(false, true);
+  $('#sideshow').onclick = () => setSide(true, true);
+  setSide(!loadStore().noside, false);
   document.addEventListener('keydown', e => {
     if (e.target.closest('input, textarea, select')) return;
+    if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey) { setSide($('#app').classList.contains('noside'), false); e.preventDefault(); return; }
     if (ST.mode === 'cert' || ST.mode === 'ticket') return;
     if (e.key === 'ArrowRight') { stopPlay(); if (ST.asking === null) go(modState(ST.mod).fi + 1); e.preventDefault(); }
     else if (e.key === 'ArrowLeft') { stopPlay(); ST.asking = null; ST.feedback = null; const s = modState(ST.mod); s.fi = Math.max(0, s.fi - 1); draw(); e.preventDefault(); }

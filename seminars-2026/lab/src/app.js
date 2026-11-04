@@ -417,8 +417,18 @@ function boot() {
   $('#zfit').onclick = () => setView(null);
   $('#zstart').onclick = () => { const s = modState(ST.mod), g = displayedGraph(); const p = currentAlgo().params.find(q => q.type === 'vertex'); const i = p && g === s.graph ? paramValue(p, s, g) : -1; const v = g && g.nodes[i]; if (!v) return; const w = W / 2.6, h = H / 2.6; setView([v.x - w / 2, v.y - h / 2, w, h]); };
   $('#editbtn').onclick = () => { ST.edit = !ST.edit; ST.editSel = -1; $('#editbtn').setAttribute('aria-pressed', ST.edit); $('#edithint').hidden = !ST.edit; draw(); };
+  const setSide = (show, focus) => {
+    $('#app').classList.toggle('noside', !show); $('#sideshow').hidden = show;
+    $('#sidehide').setAttribute('aria-expanded', show); $('#sideshow').setAttribute('aria-expanded', show);
+    saveStore({ noside: !show });
+    if (focus) (show ? $('#sidehide') : $('#sideshow')).focus();
+  };
+  $('#sidehide').onclick = () => setSide(false, true);
+  $('#sideshow').onclick = () => setSide(true, true);
+  setSide(!loadStore().noside, false);
   document.addEventListener('keydown', e => {
     if (e.target.closest('input, textarea, select')) return;
+    if ((e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey) { setSide($('#app').classList.contains('noside'), false); e.preventDefault(); return; }
     if (ST.mode === 'cert' || ST.mode === 'ticket') return;
     if (e.key === 'ArrowRight') { stopPlay(); if (ST.asking === null) go(modState(ST.mod).fi + 1); e.preventDefault(); }
     else if (e.key === 'ArrowLeft') { stopPlay(); ST.asking = null; ST.feedback = null; const s = modState(ST.mod); s.fi = Math.max(0, s.fi - 1); draw(); e.preventDefault(); }

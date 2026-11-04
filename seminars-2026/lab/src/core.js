@@ -5,6 +5,10 @@
    ============================================================ */
 
 const MAXF = 700; // frame cap per run
+/* drawing sizes chosen by the viewer: vertices, edge lines, labels (1 = default) */
+const SZ = { n: 1, e: 1, l: 1 };
+/* vertex circles grow a little with large labels so the name stays inside */
+function nodeGrow() { return Math.max(1, 0.85 * SZ.l); }
 
 function rng(seed) {
   let a = (seed >>> 0) || 1;

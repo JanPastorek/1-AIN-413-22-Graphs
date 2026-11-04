@@ -39,13 +39,15 @@ a { color: var(--accent); }
 :focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
 code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
 
+:root { --sz-n: 1; --sz-e: 1; --sz-l: 1; }
 .app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100%; }
 .side { border-right: 1px solid var(--line); background: var(--sheet); padding: 20px 14px; position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
 .app.noside { grid-template-columns: minmax(0, 1fr); }
 .app.noside .side { display: none; }
 .sidehide { align-self: flex-end; display: inline-flex; align-items: center; gap: 5px; margin: -8px -4px -8px 0; border: 1px solid transparent; background: none; color: var(--muted); font: inherit; font-size: 12px; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
 .sidehide:hover, .sidehide:focus-visible { color: var(--ink); border-color: var(--line); background: var(--paper); }
-.sideshow { position: fixed; z-index: 20; top: calc(env(safe-area-inset-top, 0px) + 10px); left: 10px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--sheet); color: var(--ink2); font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 8px; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+.app { position: relative; }
+.sideshow { position: absolute; z-index: 20; top: 10px; left: 10px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--sheet); color: var(--ink2); font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 8px; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
 .sideshow:hover, .sideshow:focus-visible { color: var(--ink); border-color: var(--ink2); }
 .app.noside main { padding-top: 54px; }
 @media (min-width: 1101px) { .app.noside .stage.both { grid-template-columns: minmax(0, 1fr) clamp(300px, calc(40vw - 40px), 720px); } }
@@ -102,6 +104,12 @@ button:disabled { opacity: 0.45; cursor: default; }
   background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px; }
 #svg.editing { cursor: crosshair; }
 #svg.panning { cursor: grabbing; }
+.sizebar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--paper); font-size: 12.5px; }
+.sizebar label { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink2); }
+.sizebar input[type=range] { width: 120px; accent-color: var(--accent); }
+.sizebar output { font-family: var(--f-mono); font-size: 12px; min-width: 4ch; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sizebar button { border: 1.5px solid var(--line); background: var(--sheet); border-radius: 6px; padding: 3px 9px; cursor: pointer; font-size: 12px; font-weight: 600; }
+.sizebar .note { flex-basis: 100%; margin: 0; font-size: 11.5px; color: var(--muted); }
 .zoom { display: inline-flex; gap: 0; }
 .zoom button { border-radius: 0; margin-left: -1.5px; }
 .zoom button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; min-width: 30px; }
@@ -124,7 +132,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .nd { cursor: grab; }
 .nd circle { fill: var(--sheet); stroke: var(--ink); stroke-width: 2; }
 .nd .nl { fill: var(--ink); font-family: var(--f-mono); font-weight: 700; pointer-events: none; }
-.nd .nt { fill: var(--accent); font-family: var(--f-mono); font-weight: 700; font-size: 13.5px; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.nd .nt { fill: var(--accent); font-family: var(--f-mono); font-weight: 700; font-size: calc(13.5px * var(--sz-l)); paint-order: stroke; stroke: var(--paper); stroke-width: calc(4px * var(--sz-l)); stroke-linejoin: round; pointer-events: none; }
 .nd.cur circle { fill: var(--hot); stroke: var(--hot); } .nd.cur .nl { fill: var(--on-hot); }
 .nd.front circle { fill: var(--amber-soft); stroke: var(--amber); stroke-width: 3; }
 .nd.done circle { fill: var(--teal-soft); stroke: var(--teal); stroke-width: 2.5; }
@@ -139,26 +147,26 @@ button:disabled { opacity: 0.45; cursor: default; }
 .nd.esel circle { stroke: var(--accent); stroke-width: 4; stroke-dasharray: 4 3; }
 .nd circle.pinring { fill: none !important; stroke: var(--accent) !important; stroke-width: 2.5 !important; stroke-dasharray: 5 3; }
 .nd .pl, .nd .ol { font-family: var(--f-mono); font-weight: 700; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
-.nd .pl { fill: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
-.nd .ol { fill: var(--ink); font-size: 14px; }
-.ed { fill: none; stroke: var(--edge); stroke-width: 2; stroke-linecap: round; }
+.nd .pl { fill: var(--accent); font-size: calc(12px * var(--sz-l)); text-transform: uppercase; letter-spacing: 0.06em; }
+.nd .ol { fill: var(--ink); font-size: calc(14px * var(--sz-l)); }
+.ed { fill: none; stroke: var(--edge); stroke-width: calc(2px * var(--sz-e)); stroke-linecap: round; }
 .ah { fill: var(--edge); stroke: none; }
-.ed.tree { stroke: var(--ink); stroke-width: 4.5; } .ah.tree { fill: var(--ink); }
-.ed.nontree { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 5; }
-.ed.back { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 8 5; } .ah.back { fill: var(--accent); }
-.ed.fwd, .ed.cross { stroke: var(--muted); stroke-width: 2; stroke-dasharray: 1 5; }
-.ed.cand { stroke: var(--amber); stroke-width: 5; } .ah.cand { fill: var(--amber); }
-.ed.rej { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 2 6; opacity: 0.7; } .ah.rej { fill: var(--muted); opacity: 0.7; }
-.ed.cut { stroke: var(--mag); stroke-width: 5; } .ah.cut { fill: var(--mag); }
-.ed.path { stroke: var(--hot); stroke-width: 5.5; } .ah.path { fill: var(--hot); }
-.ed.hl { stroke: var(--hot); stroke-width: 4.5; }
-.ed.match { stroke: var(--accent); stroke-width: 7; }
-.ed.flow { stroke: var(--teal); stroke-width: 4; } .ah.flow { fill: var(--teal); }
-.ed.cancel { stroke: var(--mag); stroke-width: 4.5; stroke-dasharray: 7 4; } .ah.cancel { fill: var(--mag); }
-.ed.res { stroke: var(--edge); stroke-width: 1.8; } .ed.resb { stroke: var(--muted); stroke-width: 1.8; stroke-dasharray: 5 4; } .ah.resb { fill: var(--muted); }
-.ed.dup { stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 6 5; }
+.ed.tree { stroke: var(--ink); stroke-width: calc(4.5px * var(--sz-e)); } .ah.tree { fill: var(--ink); }
+.ed.nontree { stroke: var(--muted); stroke-width: calc(1.5px * var(--sz-e)); stroke-dasharray: 4 5; }
+.ed.back { stroke: var(--accent); stroke-width: calc(2.5px * var(--sz-e)); stroke-dasharray: 8 5; } .ah.back { fill: var(--accent); }
+.ed.fwd, .ed.cross { stroke: var(--muted); stroke-width: calc(2px * var(--sz-e)); stroke-dasharray: 1 5; }
+.ed.cand { stroke: var(--amber); stroke-width: calc(5px * var(--sz-e)); } .ah.cand { fill: var(--amber); }
+.ed.rej { stroke: var(--muted); stroke-width: calc(1.5px * var(--sz-e)); stroke-dasharray: 2 6; opacity: 0.7; } .ah.rej { fill: var(--muted); opacity: 0.7; }
+.ed.cut { stroke: var(--mag); stroke-width: calc(5px * var(--sz-e)); } .ah.cut { fill: var(--mag); }
+.ed.path { stroke: var(--hot); stroke-width: calc(5.5px * var(--sz-e)); } .ah.path { fill: var(--hot); }
+.ed.hl { stroke: var(--hot); stroke-width: calc(4.5px * var(--sz-e)); }
+.ed.match { stroke: var(--accent); stroke-width: calc(7px * var(--sz-e)); }
+.ed.flow { stroke: var(--teal); stroke-width: calc(4px * var(--sz-e)); } .ah.flow { fill: var(--teal); }
+.ed.cancel { stroke: var(--mag); stroke-width: calc(4.5px * var(--sz-e)); stroke-dasharray: 7 4; } .ah.cancel { fill: var(--mag); }
+.ed.res { stroke: var(--edge); stroke-width: calc(1.8px * var(--sz-e)); } .ed.resb { stroke: var(--muted); stroke-width: calc(1.8px * var(--sz-e)); stroke-dasharray: 5 4; } .ah.resb { fill: var(--muted); }
+.ed.dup { stroke: var(--accent); stroke-width: calc(2.5px * var(--sz-e)); stroke-dasharray: 6 5; }
 .ed.faint { opacity: 0.28; }
-.el { font-family: var(--f-mono); font-size: 16px; font-weight: 700; fill: var(--ink2); paint-order: stroke; stroke: var(--paper); stroke-width: 4.5px; stroke-linejoin: round; pointer-events: none; }
+.el { font-family: var(--f-mono); font-size: calc(20px * var(--sz-l)); font-weight: 700; fill: var(--ink2); paint-order: stroke; stroke: var(--paper); stroke-width: calc(5px * var(--sz-l)); stroke-linejoin: round; pointer-events: none; }
 .el.path, .el.cand { fill: var(--hot); } .el.cut, .el.cancel { fill: var(--mag); } .el.flow { fill: var(--teal); } .el.dup, .el.match { fill: var(--accent); } .el.res, .el.resb { fill: var(--ink2); }
 
 /* State column */
@@ -266,19 +274,18 @@ footer p { margin: 0 0 6px; }
 .ddots { display: inline-flex; gap: 4px; }
 .ddot { width: 10px; height: 10px; min-width: 0; padding: 0 !important; border-radius: 50% !important; border: 1.5px solid var(--muted) !important; background: transparent !important; }
 .ddot.on { background: var(--accent) !important; border-color: var(--accent) !important; }
-.defsvg .nd circle { r: 14; }
-.defsvg .nd .nl { font-size: 14px; }
-.defsvg .nd .nt { font-size: 12px; }
+.defsvg .nd .nl { font-size: calc(14px * var(--sz-n) * var(--sz-l)); }
+.defsvg .nd .nt { font-size: calc(12px * var(--sz-l)); }
 .defsvg .ed, .defsvg .nd circle, .defsvg .ah, .defsvg .el { transition: stroke .45s, fill .45s, opacity .45s, stroke-width .45s; }
-.defsvg .ed { stroke-width: 2; } .defsvg .ed.tree, .defsvg .ed.cut, .defsvg .ed.path, .defsvg .ed.cand { stroke-width: 3.5; } .defsvg .ed.match { stroke-width: 5; }
-.defsvg .el { font-size: 13px; stroke-width: 3.5px; }
+.defsvg .ed { stroke-width: calc(2px * var(--sz-e)); } .defsvg .ed.tree, .defsvg .ed.cut, .defsvg .ed.path, .defsvg .ed.cand { stroke-width: calc(3.5px * var(--sz-e)); } .defsvg .ed.match { stroke-width: calc(5px * var(--sz-e)); }
+.defsvg .el { font-size: calc(15px * var(--sz-l)); stroke-width: calc(4px * var(--sz-l)); }
 .defsvg .ed.hide, .defsvg .ah.hide, .defsvg .el.hide, .nd.hide { opacity: 0; }
 .blob { fill: var(--accent-soft); stroke: var(--accent-soft); stroke-width: 34; stroke-linejoin: round; stroke-linecap: round; opacity: .9; transition: opacity .45s; }
 .blob.sB { fill: var(--amber-soft); stroke: var(--amber-soft); }
 .face { stroke: none; opacity: .55; }
 .face.fc0 { fill: var(--k0); } .face.fc1 { fill: var(--k1); } .face.fc2 { fill: var(--k2); } .face.fc3 { fill: var(--k3); } .face.fc4 { fill: var(--k4); } .face.fc5 { fill: var(--k5); } .face.fc6 { fill: var(--k6); } .face.fc7 { fill: var(--k7); }
 .face.outer { fill: none; }
-.ed.dual { stroke: var(--hot); stroke-width: 2.2; stroke-dasharray: 5 4; } .ah.dual { fill: var(--hot); }
+.ed.dual { stroke: var(--hot); stroke-width: calc(2.2px * var(--sz-e)); stroke-dasharray: 5 4; } .ah.dual { fill: var(--hot); }
 .nd.dualv circle { fill: var(--hot); stroke: var(--hot); } .nd.dualv .nl { fill: var(--on-hot); }
 
 /* modes, tabs, prediction and certificate bars */
@@ -418,8 +425,16 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
             <button type="button" id="lay-circle">Circle</button>
             <button type="button" id="lay-cols">Two columns</button>
             <button type="button" id="editbtn" aria-pressed="false">Edit</button>
+            <button type="button" id="sizebtn" aria-pressed="false" aria-controls="sizebar" title="Change the size of vertices, edges and labels in every session">Sizes</button>
             <span class="zoom" role="group" aria-label="Zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">−</button><button type="button" id="zfit" disabled>Fit</button><button type="button" id="zstart">Zoom to start</button></span>
           </div>
+        </div>
+        <div id="sizebar" class="sizebar" hidden>
+          <label><span>Vertices</span><input type="range" id="sz-n" min="0.5" max="2.5" step="0.1" value="1"><output for="sz-n">100%</output></label>
+          <label><span>Edges</span><input type="range" id="sz-e" min="0.5" max="3" step="0.1" value="1"><output for="sz-e">100%</output></label>
+          <label><span>Labels</span><input type="range" id="sz-l" min="0.5" max="2.5" step="0.1" value="1"><output for="sz-l">100%</output></label>
+          <button type="button" id="szreset">Reset</button>
+          <span class="note">Applies to the board, the definition cards and exit tickets in every session.</span>
         </div>
         <svg id="svg" viewBox="0 0 800 520" role="img" aria-label="Graph drawing for the current step"></svg>
         <p id="edithint" class="edithint" hidden>Click empty paper to add a vertex. Click two vertices to add or remove the edge between them. The graph box below updates as you go.</p>

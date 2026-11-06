@@ -246,7 +246,7 @@ svg.mini { width: 100%; height: auto; display: block; margin: 4px 0 8px; }
 .sheet .tt .note { margin: 4px 0 0; max-width: 72ch; }
 .runs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .runs .setup { margin-top: 0; }
-.dpractice { margin: 0; font-size: 12.5px; color: var(--muted); }
+.dpractice { margin: 0; font-size: calc(13px * var(--dz)); color: var(--ink2); }
 .sheetref { display: block; margin-top: 6px; font-size: 13px; color: var(--ink2); }
 #netstats { margin-top: 6px; }
 footer { font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; max-width: 980px; }
@@ -258,16 +258,18 @@ footer p { margin: 0 0 6px; }
 .defhead { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
 .defhead h2 { margin: 0; }
 .defhead .note { margin: 0; }
-.defcards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(280px, 316px); gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
+.defhead .textsize { margin: 0 0 0 auto; align-self: center; }
+.defs { --dz: 1; }
+.defcards { display: grid; grid-auto-flow: column; grid-auto-columns: min(calc(100vw - 48px), clamp(290px, calc(240px + 90px * var(--dz)), 560px)); gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
 .dcard { scroll-snap-align: start; background: var(--sheet); border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.dcard h3 { margin: 0; font-size: 15px; }
-.dtext { margin: 0; font-size: 13px; color: var(--ink2); line-height: 1.45; }
-.dwhy { margin: 0; font-size: 13px; line-height: 1.45; padding: 6px 9px; background: var(--amber-soft); border-radius: 6px; color: var(--ink); }
+.dcard h3 { margin: 0; font-size: calc(17px * var(--dz)); color: var(--ink); }
+.dtext { margin: 0; font-size: calc(14.5px * var(--dz)); color: var(--ink); line-height: 1.5; }
+.dwhy { margin: 0; font-size: calc(14px * var(--dz)); line-height: 1.5; padding: 6px 9px; background: var(--amber-soft); border-radius: 6px; color: var(--ink); }
 .dwhy b { font-weight: 750; }
 .dfig { border-radius: 6px; overflow: hidden; background-color: var(--paper); background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 15px 15px; }
 .defsvg { display: block; width: 100%; height: auto; aspect-ratio: 300 / 190; }
 .dvideo { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
-.dcap { margin: 0; font-size: 13px; min-height: 2.9em; color: var(--ink); }
+.dcap { margin: 0; font-size: calc(14.5px * var(--dz)); font-weight: 550; min-height: 2.9em; color: var(--ink); line-height: 1.45; }
 .dctl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: auto; }
 .dctl button { border: 1.5px solid var(--line); background: var(--sheet); border-radius: 6px; padding: 3px 9px; cursor: pointer; font-size: 12px; font-weight: 600; }
 .dctl .dplay { background: var(--ink); color: var(--paper); border-color: var(--ink); }
@@ -422,7 +424,8 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
     </header>
 
     <section id="defs" class="defs" aria-label="Definitions">
-      <div class="defhead"><h2>Definitions</h2><p class="note">Press Play on a card, or step through it with the dots.</p></div>
+      <div class="defhead"><h2>Definitions</h2><p class="note">Press Play on a card, or step through it with the dots.</p>
+        <div class="textsize" role="group" aria-label="Text size in the definition cards"><button type="button" id="dzdown" title="Smaller text in the cards" aria-label="Smaller text">A<sup>−</sup></button><button type="button" id="dzval" title="Text size in the cards. Click to reset to 100%.">100%</button><button type="button" id="dzup" title="Bigger text in the cards" aria-label="Bigger text">A<sup>+</sup></button></div></div>
       <div id="defcards" class="defcards"></div>
     </section>
 

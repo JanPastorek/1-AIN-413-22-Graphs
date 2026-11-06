@@ -233,21 +233,23 @@ function initPaneSplit() {
 
 /* ---------- text size in the side panel ---------- */
 const TZ_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.6, 1.8, 2];
-function applyTextSize() {
-  const z = +loadStore().tz || 1, st = $('#state');
-  if (z === 1) st.style.removeProperty('--tz'); else st.style.setProperty('--tz', z);
-  $('#tzval').textContent = Math.round(z * 100) + '%';
-  $('#tzdown').disabled = z <= TZ_STEPS[0]; $('#tzup').disabled = z >= TZ_STEPS[TZ_STEPS.length - 1];
+/* one A− / 100% / A+ control: ids <p>down, <p>val, <p>up; stored under key; the factor goes into CSS variable --<p> on target */
+function textSizer(p, key, target) {
+  const get = () => +loadStore()[key] || 1;
+  const apply = () => {
+    const z = get(), t = $(target);
+    if (z === 1) t.style.removeProperty('--' + p); else t.style.setProperty('--' + p, z);
+    $('#' + p + 'val').textContent = Math.round(z * 100) + '%';
+    $('#' + p + 'down').disabled = z <= TZ_STEPS[0]; $('#' + p + 'up').disabled = z >= TZ_STEPS[TZ_STEPS.length - 1];
+  };
+  const step = d => {
+    const z = get(), next = d > 0 ? TZ_STEPS.find(v => v > z + 1e-9) : [...TZ_STEPS].reverse().find(v => v < z - 1e-9);
+    saveStore({ [key]: d === 0 ? 1 : (next || z) }); apply();
+  };
+  $('#' + p + 'down').onclick = () => step(-1); $('#' + p + 'up').onclick = () => step(1); $('#' + p + 'val').onclick = () => step(0);
+  apply();
 }
-function stepTextSize(d) {
-  const z = +loadStore().tz || 1;
-  const next = d > 0 ? TZ_STEPS.find(v => v > z + 1e-9) : [...TZ_STEPS].reverse().find(v => v < z - 1e-9);
-  saveStore({ tz: d === 0 ? 1 : (next || z) }); applyTextSize();
-}
-function initTextSize() {
-  $('#tzdown').onclick = () => stepTextSize(-1); $('#tzup').onclick = () => stepTextSize(1); $('#tzval').onclick = () => stepTextSize(0);
-  applyTextSize();
-}
+function initTextSize() { textSizer('tz', 'tz', '#state'); textSizer('dz', 'dz', '#defs'); }
 
 /* ---------- state / pseudocode / python tabs ---------- */
 function renderTabs(F) {

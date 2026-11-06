@@ -4,7 +4,7 @@
    module, pseudocode line, prediction question, certificate, ticket and definition is consistent. */
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const SRC = path.join(__dirname, '..', 'src');
-const ORDER = ['data', 'core', 'algos1', 'algos2', 'algos3', 'algos4', 'algos5', 'algos6', 'modules', 'pseudo', 'certs', 'tickets', 'anim', 'defs', 'motivation', 'sheets'];
+const ORDER = ['data', 'core', 'algos1', 'algos2', 'algos3', 'algos4', 'algos5', 'algos6', 'modules', 'pseudo', 'certs', 'tickets', 'anim', 'defs', 'motivation', 'sheets', 'guide'];
 vm.runInThisContext(ORDER.map(f => fs.readFileSync(path.join(SRC, f + '.js'), 'utf8')).join('\n'));
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('FAIL', m); } };
@@ -188,6 +188,38 @@ for (const m of MODULES) { ok(m.tasks[0] && m.tasks[0].tag === 'Motivation', `${
     for (let k = 0; k < 4; k++) rotateGraph(g, 90, box); ok(inBox(g) && Math.abs(len() - L0) < 1e-6, 'four quarter turns: back in the box at the original size');
     const before = g.nodes.map(v => [v.x, v.y]); rotateGraph(g, 0, box, true); rotateGraph(g, 0, box, true); ok(g.nodes.every((v, i) => Math.abs(v.x - before[i][0]) < 1e-6 && Math.abs(v.y - before[i][1]) < 1e-6), 'mirroring twice is the identity');
     rotateGraph(g, 15, box); const p = g.nodes.map(v => [v.x, v.y]); const d01 = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]); ok(inBox(g) && d01 <= L0 + 1e-6, 'a 15° turn keeps the drawing in the box and never enlarges it'); }
+}
+
+/* --- session 05: DAG shortest paths, Johnson, and the "which algorithm" guide --- */
+{
+  const R = rng(11), rnd = k => Math.floor(R() * k);
+  const fwAll = g => { const n = g.nodes.length, F = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => i === j ? 0 : Infinity)); g.edges.forEach(e => { F[e.u][e.v] = Math.min(F[e.u][e.v], e.w); if (!g.directed) F[e.v][e.u] = Math.min(F[e.v][e.u], e.w); }); for (let k = 0; k < n; k++) for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (F[i][k] + F[k][j] < F[i][j]) F[i][j] = F[i][k] + F[k][j]; return F; };
+  let dagOk = 0, johOk = 0, johN = 0;
+  for (let t = 0; t < 40; t++) { // random DAGs with negative weights: one pass equals Bellman–Ford
+    const n = 3 + rnd(8), lines = ['directed']; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (R() < 0.35) lines.push(`v${i} v${j} ${rnd(13) - 4}`);
+    if (lines.length < 2) continue; const g = parseGraph(lines.join('\n')); g.weighted = true;
+    const r = algDagSP(g, { source: 0 }), bf = bellmanFordPlain(g, 0); if (r.d && bf && r.d.every((x, i) => x === bf[i])) dagOk++; else dagOk -= 100;
+  }
+  ok(dagOk > 30, 'DAG shortest paths matches Bellman–Ford on random DAGs with negative weights');
+  for (let t = 0; t < 40; t++) { // random digraphs whose negative arcs only go "forward" (no negative cycle): Johnson equals Floyd–Warshall
+    const n = 3 + rnd(7), lines = ['directed']; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j && R() < 0.3) lines.push(`v${i} v${j} ${i < j ? rnd(12) - 4 : rnd(9) + 4}`);
+    if (lines.length < 2) continue; const g = parseGraph(lines.join('\n')); g.weighted = true; if (!bellmanFordPlain(g, 0)) continue; const F = fwAll(g); if (F.some((r, i) => r[i] < 0)) continue;
+    johN++; const r = algJohnson(g, {}); if (r.D && r.D.every((row, i) => row.every((x, j) => x === F[i][j]))) johOk++;
+  }
+  ok(johN > 15 && johOk === johN, `Johnson matches Floyd–Warshall (${johOk}/${johN})`);
+  { const g = parseGraph(PRESETS.arbitrage.text); g.weighted = true; const r = algJohnson(g, {}); ok(!r.D && /negative cycle/.test(r.frames.at(-1).msg), 'Johnson stops on the currency loop'); }
+  { const g = parseGraph('a b 2\nb c 1'); g.weighted = true; ok(!algDagSP(g, { source: 0 }).d, 'an undirected graph is not a DAG'); }
+  { const g = parseGraph('directed\na b 1\nb a 1'); g.weighted = true; ok(!algDagSP(g, { source: 0 }).d, 'a directed 2-cycle is not a DAG'); }
+  const walk = (kind, text, weighted = true) => { const g = parseGraph(text); g.weighted = weighted; const F = spFacts(g), ans = {}; for (const k of ['unw', 'dag', 'nonneg', 'dense', 'transform']) ans[k] = spAnswer(k, F, g).a; return { F, leaf: spWalk(kind, ans).leaf }; };
+  ok(walk('sssp', 'a b 2\nb c 2\nc a 2').leaf === 'bfs' && walk('apsp', 'a b\nb c', false).leaf === 'bfsall', 'guide: equal weights → BFS');
+  ok(walk('sssp', PRESETS.rebate.text).leaf === 'dag' && walk('apsp', PRESETS.rebate.text).leaf === 'dagall', 'guide: the rebate network is a DAG → DAG shortest paths');
+  ok(walk('sssp', 'a b 2\nb c 5\nc a 1').leaf === 'dijkstra', 'guide: undirected, weights ≥ 0 → Dijkstra');
+  { const r = walk('sssp', PRESETS.arbitrage.text); ok(r.leaf === 'bf' && r.F.negCycle, 'guide: currency loop → Bellman–Ford, negative cycle flagged'); }
+  { const k = Array.from({ length: 6 }, (_, i) => Array.from({ length: 6 }, (_, j) => i < j ? `v${i} v${j} ${i + j + 1}` : '')).flat().filter(Boolean).join('\n');
+    ok(walk('apsp', k).leaf === 'fw' && walk('apsp', 'a b 1\nb c 2\nc d 3\nd e 4\ne f 5\nf g 6\ng h 1\nh a 2').leaf === 'dijkstraall', 'guide APSP, weights ≥ 0: K6 is dense → Floyd–Warshall, a cycle C8 is sparse → Dijkstra from every vertex'); }
+  ok(walk('apsp', 'directed\na b 4\nb c -2\nc a 3\nc d 1\nd e 2\ne a 1').leaf === 'johnson', 'guide APSP: sparse with negative arcs → Johnson');
+  ok(walk('sssp', 'a b 2\nb c -1').F.negCycle, 'guide: an undirected negative edge counts as a negative cycle');
+  ok(spWalk('sssp', { unw: false, dag: false, nonneg: false, transform: true }).leaf === 'reweight' && spWalk('apsp', { unw: false, dag: false, nonneg: true }).needs === 'dense', 'guide: manual answers (transform → reweight; APSP w ≥ 0 asks dense or sparse)');
 }
 
 /* --- the assembled page compiles: no clashing top-level names between source files --- */

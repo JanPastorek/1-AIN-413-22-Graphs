@@ -283,6 +283,54 @@ footer p { margin: 0 0 6px; }
 .defhead .note { margin: 0; }
 .defhead .textsize { margin: 0 0 0 auto; align-self: center; }
 .defs { --dz: 1; }
+/* session 05: which shortest-path algorithm */
+.guide { background: var(--sheet); border: 1.5px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.ghead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.ghead h2 { margin: 0 auto 0 0; }
+.gseg { display: inline-flex; border: 1.5px solid var(--line); border-radius: 8px; overflow: hidden; }
+.gseg button { border: 0; background: var(--sheet); padding: 5px 11px; font: inherit; font-size: 13px; font-weight: 650; color: var(--ink2); cursor: pointer; }
+.gseg button + button { border-left: 1.5px solid var(--line); }
+.gseg button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); }
+.gbtn { border: 1.5px solid var(--line); background: var(--sheet); border-radius: 7px; padding: 5px 10px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink); }
+.gbtn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.guide > .note { margin: 0; }
+.gwarn { background: var(--mag-soft); border-left: 4px solid var(--mag); padding: 8px 12px; border-radius: 6px; font-size: 14px; }
+.gflow { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+.gstep { display: grid; grid-template-columns: minmax(0, 1.25fr) 56px minmax(0, 1fr); align-items: center; gap: 0; position: relative; padding-bottom: 26px; }
+.gstep:last-child { padding-bottom: 0; }
+.gstep:not(:last-child)::after { content: "No"; position: absolute; left: 26px; bottom: 3px; font-size: 12px; font-weight: 700; color: var(--muted); padding-left: 14px; border-left: 2px solid var(--line); height: 22px; line-height: 26px; }
+.gstep.path.no:not(:last-child)::after { color: var(--accent); border-left-color: var(--accent); }
+.gq { background: var(--accent-soft); border: 1.5px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 10px; padding: 9px 12px; display: flex; flex-direction: column; gap: 6px; opacity: .55; }
+.gq.gnone { visibility: hidden; padding: 0; border: 0; }
+.gstep.path .gq { opacity: 1; }
+.gstep.open .gq { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+.gq p { margin: 0; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.gq .gwhy, .gresult .gwhy { font-weight: 500; font-size: 13px; color: var(--ink2); }
+.gbtns { display: flex; gap: 6px; }
+.gbtns button { border: 1.5px solid var(--line); background: var(--sheet); border-radius: 6px; padding: 2px 12px; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; color: var(--ink); }
+.gbtns button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.garrow { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); position: relative; }
+.garrow:not(:empty)::after { content: ""; display: block; height: 2px; margin: 2px 6px 0; background: var(--line); }
+.gstep.path.yes .garrow { color: var(--accent); }
+.gstep.path.yes .garrow::after { background: var(--accent); }
+.gleaf { background: var(--amber-soft); border: 1.5px solid color-mix(in srgb, var(--amber) 45%, var(--line)); border-radius: 8px; padding: 8px 11px; display: flex; flex-direction: column; gap: 2px; opacity: .6; }
+.gleaf b { font-size: 14.5px; color: var(--ink); }
+.gleaf span { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink2); }
+.gleaf .glab { font-family: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.gleaf.on { opacity: 1; border-color: var(--amber); box-shadow: 0 0 0 3px color-mix(in srgb, var(--amber) 40%, transparent); }
+.gsplit { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.gend .gleaf { grid-column: 3; }
+.gneed { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: var(--accent-soft); border-radius: 10px; padding: 8px 12px; }
+.gneed p { margin: 0; font-weight: 600; }
+.gresult { border-left: 4px solid var(--amber); background: var(--paper); border-radius: 6px; padding: 10px 14px; }
+.gresult h3 { margin: 0 0 4px; font-size: 17px; }
+.gtime { font-family: var(--f-mono); font-size: 12.5px; font-weight: 500; color: var(--ink2); margin-left: 6px; }
+.gresult p { margin: 0 0 8px; max-width: 75ch; }
+.gprompt { margin: 0; }
+.gmore summary { cursor: pointer; font-weight: 650; color: var(--ink2); }
+.gmore ul { margin: 6px 0 0; padding-left: 20px; max-width: 80ch; }
+.gmore li { margin: 3px 0; }
+@media (max-width: 640px) { .gstep { grid-template-columns: 1fr; gap: 6px; } .garrow { text-align: left; } .garrow:not(:empty)::after { display: none; } .garrow:not(:empty)::before { content: "↓ "; } .gstep:not(:last-child)::after { left: 12px; } .gend .gleaf { grid-column: 1; } }
 .defcards { display: grid; grid-auto-flow: column; grid-auto-columns: var(--dcw, min(calc(100vw - 48px), clamp(290px, calc(240px + 90px * var(--dz)), 560px))); gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
 .dcard { position: relative; scroll-snap-align: start; background: var(--sheet); border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .dresize { position: absolute; top: 10px; bottom: 10px; right: -7px; width: 12px; cursor: col-resize; touch-action: none; outline: none; z-index: 2; }
@@ -471,6 +519,8 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
       </div>
       <span id="score" class="score" aria-live="polite"></span>
     </div>
+
+    <section id="guide" class="guide" aria-label="Which shortest-path algorithm" hidden></section>
 
     <section id="stage" class="stage" aria-label="Algorithm stage">
       <div class="board">
@@ -2112,6 +2162,76 @@ function countSP(g, s) {
   { const d = Array(n).fill(-1); d[s] = 0; const Q = [s]; let rel = 0; for (let h = 0; h < Q.length; h++) { const u = Q[h]; for (const { to } of A[u]) { rel++; if (d[to] < 0) { d[to] = d[u] + 1; Q.push(to); } } } out.push({ name: 'BFS (ignores weights)', rel, extra: 0, extraName: '' }); }
   return out;
 }
+/* ---------- shortest paths in a DAG: relax in topological order ---------- */
+function topoOrder(g) { // Kahn; null if there is a directed cycle (undirected graphs with an edge are never DAGs)
+  const n = g.nodes.length; if (!g.directed && g.edges.length) return null;
+  const indeg = Array(n).fill(0), A = adjOut(g); g.edges.forEach(e => indeg[e.v]++);
+  const Q = []; for (let i = 0; i < n; i++) if (!indeg[i]) Q.push(i);
+  const order = []; while (Q.length) { const u = Q.shift(); order.push(u); for (const { to } of A[u]) if (--indeg[to] === 0) Q.push(to); }
+  return order.length === n ? order : null;
+}
+function algDagSP(g, P) {
+  const n = g.nodes.length, R = new Rec(), s = P.source, A = adjOut(g);
+  const order = topoOrder(g);
+  if (!order) { R.line = 6; R.snap(g.directed ? 'Ordering failed: some vertices keep an incoming arc, so the graph has a directed cycle and is not a DAG.' : 'An undirected graph with an edge is not a DAG: every edge can be walked both ways.', { panel: cert('no', 'Not a DAG', 'DAG shortest paths needs a directed acyclic graph. Use Dijkstra (weights ≥ 0) or Bellman–Ford (negative weights).') }, true); return { frames: R.frames }; }
+  const d = Array(n).fill(Infinity), pred = Array(n).fill(-1), pe = Array(n).fill(-1); d[s] = 0;
+  g.nodes.forEach((v, i) => R.ntag[i] = i === s ? '0' : '∞');
+  const pos = Array(n); order.forEach((v, k) => { pos[v] = k; });
+  const panel = k => h4('Topological order') + chips(order.map((v, i) => i === k ? `<b>${lab(g, v)}</b>` : lab(g, v))) + h4('Labels') + distTable(g, d, i => pred[i] >= 0 ? lab(g, pred[i]) : '—');
+  R.line = 1; R.snap(`Topological order: ${order.map(v => lab(g, v)).join(', ')}. Every arc points forward in this order, so when a vertex is reached all paths into it are already known.`, { panel: panel(-1) });
+  R.line = 2; R.snap(`d(${lab(g, s)}) = 0, all others ∞. Vertices before ${lab(g, s)} in the order cannot be reached from it.`, { panel: panel(-1) });
+  for (let k = 0; k < n; k++) {
+    const u = order[k]; R.nc[u] = 'cur';
+    if (d[u] === Infinity) { R.line = 3; R.snap(`${N(g, u)} is not reachable from ${lab(g, s)} (d = ∞): nothing to relax.`, { panel: panel(k) }); R.nc[u] = 'done'; continue; }
+    R.line = 3; R.snap(`Take ${N(g, u)} (position ${k + 1}). Its label d = ${fmt(d[u])} is final: every arc into it comes from an earlier vertex.`, { panel: panel(k), ask: { type: 'vertex', answer: [u], prompt: 'Which vertex is processed next?' } });
+    for (const { to, w, e } of A[u]) {
+      const nd = d[u] + w; R.ec[e] = R.ec[e] === 'tree' ? 'tree' : 'cand';
+      if (nd < d[to]) { if (pe[to] >= 0) delete R.ec[pe[to]]; d[to] = nd; pred[to] = u; pe[to] = e; R.ec[e] = 'tree'; R.ntag[to] = fmt(nd); R.nc[to] = 'front'; R.line = 5; R.snap(`Relax ${edgeName(g, e)}: ${fmt(d[u])} + ${fmt(w)} = ${fmt(nd)} improves ${lab(g, to)}.${w < 0 ? ' A negative weight is fine here.' : ''}`, { panel: panel(k) }); }
+      else { delete R.ec[e]; R.line = 4; R.snap(`Relax ${edgeName(g, e)}: ${fmt(nd)} ≥ ${fmt(d[to])}, no change.`, { panel: panel(k) }); }
+    }
+    R.nc[u] = 'done';
+  }
+  const bf = bellmanFordPlain(g, s), ok = bf && g.nodes.every((v, i) => bf[i] === d[i]);
+  R.line = 3; R.snap(`Done after one pass over ${g.edges.length} arcs: O(n + m), even with negative weights.`, { panel: (ok ? cert('yes', 'Distances verified', 'Bellman–Ford gives the same labels. No vertex was relaxed after it was processed, which is why one pass suffices.') : cert('no', 'Mismatch', 'Bellman–Ford disagrees.')) + panel(-1) }, true);
+  return { frames: R.frames, d, order };
+}
+
+/* ---------- Johnson: potentials from one Bellman–Ford, then Dijkstra from every vertex ---------- */
+function algJohnson(g, P) {
+  const n = g.nodes.length, R = new Rec();
+  if (n > 14) { R.snap('Johnson’s display is limited to 14 vertices (it shows an n × n matrix).', { panel: '' }, true); return { frames: R.frames }; }
+  const arcs = []; g.edges.forEach((e, i) => { arcs.push([e.u, e.v, e.w, i]); if (!g.directed) arcs.push([e.v, e.u, e.w, i]); });
+  R.line = 1; R.snap('Add a new vertex q with an arc of weight 0 to every vertex. Distances from q exist for every vertex and are ≤ 0.', { panel: h4('Graph + q') + `<p class="note">q → ${g.nodes.map((v, i) => lab(g, i)).join(', ')}, all of weight 0.</p>` });
+  // Bellman–Ford from q
+  const h = Array(n).fill(0);
+  for (let k = 0; k < n; k++) { let ch = false; for (const [u, v, w] of arcs) if (h[u] + w < h[v]) { h[v] = h[u] + w; ch = true; } if (!ch) break; }
+  const negc = arcs.find(([u, v, w]) => h[u] + w < h[v]);
+  g.nodes.forEach((v, i) => R.ntag[i] = 'h=' + fmt(h[i]));
+  if (negc) { R.ec = {}; R.ec[negc[3]] = 'cut'; R.line = 2; R.snap('Bellman–Ford from q still improves a label after n rounds: the graph has a negative cycle, so all-pairs distances are undefined.' + (!g.directed && g.edges.some(e => e.w < 0) ? ' (In an undirected graph a negative edge is itself a negative cycle.)' : ''), { panel: cert('no', 'Negative cycle', 'Johnson stops here, exactly where Bellman–Ford would. Floyd–Warshall would show a negative entry on its diagonal.') }, true); return { frames: R.frames }; }
+  R.line = 2; R.snap('Bellman–Ford from q gives the potentials h(v) = d(q, v), written on the vertices. This is the only Bellman–Ford run.', { panel: h4('Potentials h(v)') + distTable(g, h, () => '') });
+  // reweighting
+  const w2 = g.edges.map(e => e.w + h[e.u] - h[e.v]), w2r = g.edges.map(e => e.w + h[e.v] - h[e.u]);
+  R.elab = {}; g.edges.forEach((e, i) => { R.elab[i] = g.directed ? fmt(w2[i]) : (w2[i] === w2r[i] ? fmt(w2[i]) : `${fmt(w2[i])}/${fmt(w2r[i])}`); });
+  R.line = 3; R.snap(`Reweight every arc: w′(u, v) = w(u, v) + h(u) − h(v). The triangle inequality h(v) ≤ h(u) + w(u, v) makes every w′ ≥ 0 (labels now show w′). Along any u→v path the terms telescope: w′(path) = w(path) + h(u) − h(v), so the same paths stay shortest.`, { panel: h4('New weights') + table(['arc', 'w', 'h(u) − h(v)', 'w′'], g.edges.map((e, i) => [edgeName(g, i), fmt(e.w), fmt(h[e.u] - h[e.v]), fmt(w2[i])])) });
+  // Dijkstra from every vertex on w'
+  const A = adjOut(g), D = Array.from({ length: n }, () => Array(n).fill(Infinity));
+  const wp = (u, e) => { const E = g.edges[e]; return E.u === u ? w2[e] : w2r[e]; };
+  for (let s = 0; s < n; s++) {
+    const d = Array(n).fill(Infinity), done = Array(n).fill(false); d[s] = 0;
+    for (let it = 0; it < n; it++) { let u = -1; for (let i = 0; i < n; i++) if (!done[i] && d[i] < Infinity && (u < 0 || d[i] < d[u])) u = i; if (u < 0) break; done[u] = true; for (const { to, e } of A[u]) { const nd = d[u] + wp(u, e); if (nd < d[to]) d[to] = nd; } }
+    for (let v = 0; v < n; v++) D[s][v] = d[v] === Infinity ? Infinity : d[v] - h[s] + h[v];
+    R.nc = { [s]: 'cur' }; R.line = 5;
+    R.snap(`Dijkstra from ${N(g, s)} with w′ ≥ 0, then undo the shift: d(${lab(g, s)}, v) = d′(${lab(g, s)}, v) − h(${lab(g, s)}) + h(v).`, { panel: h4(`Row ${lab(g, s)}: d′ and d`) + table(['v', 'd′', 'd'], g.nodes.map((v, i) => [lab(g, i), fmt(d[i]), fmt(D[s][i])])) + h4('Distance matrix so far') + matrixHTML(g, D) });
+  }
+  // verify with Floyd–Warshall
+  const F = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => i === j ? 0 : Infinity));
+  g.edges.forEach(e => { F[e.u][e.v] = Math.min(F[e.u][e.v], e.w); if (!g.directed) F[e.v][e.u] = Math.min(F[e.v][e.u], e.w); });
+  for (let k = 0; k < n; k++) for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (F[i][k] + F[k][j] < F[i][j]) F[i][j] = F[i][k] + F[k][j];
+  const same = D.every((r, i) => r.every((x, j) => x === F[i][j]));
+  R.nc = {}; R.line = 6; R.snap(`All ${n} rows done: one Bellman–Ford O(nm) plus n Dijkstras O(m log n) each, O(nm log n) in total — better than Floyd–Warshall’s O(n³) when the graph is sparse.`, { panel: (same ? cert('yes', 'All-pairs distances verified', 'Floyd–Warshall gives the same matrix.') : cert('no', 'Mismatch', 'Floyd–Warshall disagrees.')) + matrixHTML(g, D) }, true);
+  return { frames: R.frames, D, h };
+}
+
 function algRaceSP(g, P) {
   const R = new Rec(); const rows = countSP(g, P.source); const neg = g.edges.some(e => e.w < 0);
   R.snap(`Same source ${N(g, P.source)}, three algorithms. Count every edge relaxation attempted.`, { panel: raceBars(rows.map(r => ({ name: r.name, v: r.rel })), 'edge relaxations') + table(['algorithm', 'relaxations', 'other work'], rows.map(r => [esc(r.name), r.rel, r.extraName ? `${r.extra} ${r.extraName}` : '—']), 'compact') + `<p class="note">${neg ? 'With negative weights only Bellman–Ford is correct here.' : 'BFS is only correct when all weights are equal.'} Dijkstra relaxes each edge once; Bellman–Ford may need up to n − 1 passes over all edges.</p>` }, true);
@@ -2670,7 +2790,9 @@ const MODULES = [
       { key: 'bf', name: 'Bellman–Ford', run: algBellmanFord, params: [{ id: 'source', type: 'vertex', label: 'Source', def: 'S' }] },
       { key: 'hops', name: 'BFS (count hops)', run: algBFS, params: [{ id: 'source', type: 'vertex', label: 'Source', def: 'S' }] },
       { key: 'astar', name: 'A*', run: algAStar, params: [{ id: 'source', type: 'vertex', label: 'Source', def: 'S' }, { id: 'target', type: 'vertex', label: 'Target', def: 'T', last: true }] },
+      { key: 'dag', name: 'DAG shortest paths', run: algDagSP, params: [{ id: 'source', type: 'vertex', label: 'Source', def: 'S' }] },
       { key: 'fw', name: 'Floyd–Warshall', run: algFloyd, params: [] },
+      { key: 'johnson', name: 'Johnson (all pairs)', run: algJohnson, params: [] },
       { key: 'race', name: 'Race', run: algRaceSP, params: [{ id: 'source', type: 'vertex', label: 'Source', def: 'S' }] },
     ],
     legend: [['n', 'cur', 'settled now'], ['n', 'front', 'label improved'], ['n', 'done', 'settled'], ['e', 'tree', 'predecessor edge'], ['e', 'cand', 'being relaxed'], ['e', 'cut', 'negative cycle']],
@@ -2678,7 +2800,7 @@ const MODULES = [
       { tag: 'Lab', text: 'Run Dijkstra on the rebate network. The lab flags wrong labels. Find the exact step where a settled vertex could have improved, and explain why the settling invariant needs w ≥ 0.', setup: { preset: 'rebate', algo: 'dijkstra', params: { source: 'S' } } },
       { tag: 'Predict', text: 'A classmate suggests: add 3 to every weight to remove negatives, then run Dijkstra. Edit the rebate network that way and compare the S→T route with Bellman–Ford on the original. Which paths does the shift penalise?' },
       { tag: 'Lab', text: 'Currency loop: run Bellman–Ford and read the negative cycle. Explain how weights −log(rate) turn a profitable exchange loop into a negative cycle.', setup: { preset: 'arbitrage', algo: 'bf', params: { source: 'EUR' } } },
-      { tag: 'Choose', text: 'For each scenario name the algorithm and its running time: unit-weight metro hops; road travel times; a project DAG with negative “bonus” durations; all pairs among 300 depots; fares with discounts that might loop. Justify with the invariant each algorithm needs.' },
+      { tag: 'Choose', text: 'For each scenario name the algorithm and its running time: unit-weight metro hops; road travel times; a project DAG with negative “bonus” durations; all pairs among 300 depots; fares with discounts that might loop. Justify with the invariant each algorithm needs, then check yourself with the “Which shortest-path algorithm?” chart above the board (switch between one source and all pairs).' },
       { tag: 'Lab', text: 'City blocks with a river: run A* from A1 to E7, then Dijkstra, then the Race. How many vertices does each settle? Drag some vertices far from their grid position and rerun A*: the path stays optimal but the effort changes. Explain using admissibility.', setup: { preset: 'city', algo: 'astar', params: { source: 'A1', target: 'E7' } } },
       { tag: 'Lab', text: 'Floyd–Warshall on the transit network: which entries change in round k = B? Prove that k must be the outermost loop, and give a 3-vertex example where putting k innermost gives a wrong answer.', setup: { preset: 'studio_transit', algo: 'fw' } },
       { tag: 'Model', text: 'Load “Vienna U-Bahn with transfer times” (2 min per hop, 4 min per line change, modelled with one vertex per line at interchanges). Run Dijkstra from Oberlaa. Find a destination where the fastest route differs from the fewest-stops route, and explain the modelling choice that causes it.', setup: { preset: 'vienna_t', algo: 'dijkstra', params: { source: 'Oberlaa' } } },
@@ -2832,6 +2954,8 @@ const PSEUDO = {
   'sp.bf': ['BELLMAN-FORD(G, s)', '  d[v] ← ∞;  d[s] ← 0', '  repeat n − 1 times', '    for each edge (u, v)', '      if d[u] + w(u, v) < d[v]: d[v] ← d[u] + w(u, v);  π[v] ← u', '  if some edge can still be relaxed: negative cycle'],
   'sp.hops': null,
   'sp.astar': ['A*(G, s, t, h)    ▹ h(v) ≤ true distance to t', '  g[s] ← 0;  open ← {s}', '  u ← vertex in open with least g[u] + h(u);  stop if u = t', '  move u to closed', '  for each v ∈ Adj[u]: if g[u] + w(u, v) < g[v]: g[v] ← g[u] + w(u, v); π[v] ← u', '  return the path s → t along π'],
+  'sp.dag': ['DAG-SHORTEST-PATHS(G, s)', '  order ← a topological order of G', '  d[v] ← ∞ for all v;  d[s] ← 0', '  for each u in order', '    for each arc u → v', '      if d[u] + w(u, v) < d[v]: d[v] ← d[u] + w(u, v);  π[v] ← u', '  no topological order ⇒ not a DAG'],
+  'sp.johnson': ['JOHNSON(G)', '  add q with arcs q → v of weight 0', '  h ← BELLMAN-FORD(G + q, q)      ▹ stop on a negative cycle', '  w′(u, v) ← w(u, v) + h(u) − h(v)   ▹ now w′ ≥ 0', '  for each s ∈ V', '    d′ ← DIJKSTRA(G, w′, s)', '    d(s, v) ← d′(v) − h(s) + h(v)'],
   'sp.fw': ['D ← W   (0 on the diagonal, ∞ where there is no edge)', 'for k ← 1 to n', '  for i ← 1 to n', '    for j ← 1 to n', '      D[i][j] ← min(D[i][j], D[i][k] + D[k][j])', 'negative cycle ⇔ some D[v][v] < 0'],
   'route.euler': ['if some vertex has odd degree', '  pair the odd vertices with least total distance; duplicate those paths', 'stack ← ⟨start⟩;  circuit ← ⟨⟩', 'while stack ≠ ∅', '  v ← top of stack', '  if v has an unused edge vw: mark it used; push w', '  else: pop v; prepend v to circuit', 'return circuit'],
   'route.fleury': ['FLEURY(G)', '  if the edges are not connected, or more than two vertices have odd degree: no Euler trail', '  v ← one of the two odd vertices if there are two, else any vertex;  trail ← ⟨v⟩', '  while v has an unused edge', '    choose an unused edge vw that is not a bridge of the unused edges, unless it is the only one at v', '    delete vw;  append w to trail;  v ← w', '  return trail        ▹ O(m) steps × O(m) bridge test = O(m²)'],
@@ -2872,6 +2996,8 @@ const IDEAS = {
   'sp.bf': 'Relax every edge n − 1 times; one more round that still improves something reveals a negative cycle. Idea: a shortest path has at most n − 1 edges, and round i fixes all shortest paths that use at most i edges.',
   'sp.hops': 'Breadth-first search that ignores the weights. Idea: when every edge costs the same, the fewest edges is the shortest route, and BFS finds it in linear time.',
   'sp.astar': 'Dijkstra that always expands the vertex with the smallest distance-so-far plus estimated distance to the target. Idea: an estimate that never overestimates (here straight-line distance) steers the search towards the target without losing optimality.',
+  'sp.dag': 'Order the vertices so that every arc points forward, then relax the arcs out of each vertex once, in that order. Idea: when a vertex comes up, every arc into it has already been relaxed, so its label is final, even with negative weights.',
+  'sp.johnson': 'Run Bellman–Ford once from an extra vertex to get potentials h, reweight every arc to w + h(u) − h(v) ≥ 0, and run Dijkstra from every vertex. Idea: the reweighting changes every u→v path by the same amount h(u) − h(v), so shortest paths stay shortest while the negative weights disappear.',
   'sp.fw': 'For k = 1, …, n allow vertex k as a stop-over and update every pair: d(i, j) ← min(d(i, j), d(i, k) + d(k, j)). Idea: dynamic programming over the set of permitted intermediate vertices gives all pairs at once in O(n³).',
   'sp.race': 'Runs the shortest-path methods on the same graph and compares their work. Idea: each one trades generality (negative weights, all pairs) for speed, and the counts show the price.',
   'route.euler': 'Hierholzer walks unused edges until stuck, then backs up and splices in detours; if some degrees are odd, the postman first duplicates the cheapest paths pairing the odd vertices. Idea: a closed walk uses two edges at every visit, so all degrees must be even, and in a connected graph that is also enough.',
@@ -2934,6 +3060,8 @@ function pythonSnippet(modKey, algoKey, g, P) {
     case 'sp.dijkstra': return head + G + `dist, paths = nx.single_source_dijkstra(G, ${L(P.source)})\nprint(dist)`;
     case 'sp.bf': return head + G + `if nx.negative_edge_cycle(G):\n    print("negative cycle:", nx.find_negative_cycle(G, ${L(P.source)}))\nelse:\n    print(nx.single_source_bellman_ford_path_length(G, ${L(P.source)}))`;
     case 'sp.astar': { const pos = g ? `pos = {${g.nodes.map(v => `${pyStr(v.label)}: (${v.x.toFixed(0)}, ${v.y.toFixed(0)})`).join(', ')}}\n` : ''; return head + G + pos + `from math import dist\nalpha = min(w / dist(pos[u], pos[v]) for u, v, w in G.edges(data="weight"))\nh = lambda u, v: alpha * dist(pos[u], pos[v])\nprint(nx.astar_path(G, ${L(P.source)}, ${L(P.target)}, heuristic=h), nx.astar_path_length(G, ${L(P.source)}, ${L(P.target)}, heuristic=h))`; }
+    case 'sp.dag': return head + G + `if not nx.is_directed_acyclic_graph(G):\n    print("not a DAG")\nelse:\n    d = {v: float("inf") for v in G}; d[${L(P.source)}] = 0\n    for u in nx.topological_sort(G):\n        for v, w in G[u].items():\n            d[v] = min(d[v], d[u] + w.get("weight", 1))\n    print(d)`;
+    case 'sp.johnson': return head + G + `paths = nx.johnson(G, weight="weight")      # raises on a negative cycle\ndist = {s: {t: nx.path_weight(G, p, "weight") for t, p in ps.items()} for s, ps in paths.items()}\nprint(dist)`;
     case 'sp.fw': case 'sp.race': return head + G + `D = nx.floyd_warshall_numpy(G)\nprint(list(G.nodes()))\nprint(D)`;
     case 'route.euler': return head + G + `if nx.is_eulerian(G):\n    print(list(nx.eulerian_circuit(G)))\nelse:\n    odd = [v for v, d in G.degree() if d % 2]\n    print("odd vertices:", odd)\n    # nx.eulerize ignores weights; for the weighted postman pair odd vertices by\n    # min_weight_matching on shortest-path distances, as the lab does.\n    D = dict(nx.all_pairs_dijkstra_path_length(G))\n    K = nx.Graph(); K.add_weighted_edges_from((a, b, D[a][b]) for i, a in enumerate(odd) for b in odd[i+1:])\n    print("pairing:", nx.min_weight_matching(K))`;
     case 'route.fleury': return head + G + `def fleury(G, start):\n    H = nx.MultiGraph(G)          # edges are deleted as they are walked\n    odd = [v for v, d in H.degree() if d % 2]\n    if len(odd) not in (0, 2) or not nx.is_connected(H.subgraph(v for v, d in H.degree() if d)):\n        return None               # no Euler trail\n    v = odd[0] if odd and start not in odd else start\n    trail = [v]\n    while H.degree(v):\n        choices = list(H.edges(v, keys=True))\n        for a, w, k in choices:\n            H.remove_edge(a, w, k)\n            if len(choices) == 1 or nx.has_path(H, v, w):\n                break             # not a bridge of the rest (or the only edge left)\n            H.add_edge(a, w, k)   # a bridge: put it back and try the next edge\n        else:\n            a, w, k = choices[0]; H.remove_edge(a, w, k)\n        trail.append(w)\n        v = w\n    return trail\n\nprint(fleury(G, ${L(P.source)}))`;
@@ -3788,6 +3916,148 @@ for (const m of MODULES) {
 }
 
 /* ============================================================
+   Session 05: "Which shortest-path algorithm?" decision guide.
+   Two flowcharts (one source / all pairs), answered by clicking or
+   automatically for the graph on the board.
+   ============================================================ */
+
+const SP_LEAVES = {
+  bfs: { name: 'BFS', time: 'O(n + m)', algo: 'hops', why: 'With equal weights a shortest path is a path with fewest edges, and BFS finds those layer by layer. With every weight equal to c, multiply the hop count by c.' },
+  dag: { name: 'DAG shortest paths', time: 'O(n + m)', algo: 'dag', why: 'Relax the arcs out of each vertex once, in topological order. Negative weights are fine: there is no cycle that could be repeated.' },
+  dijkstra: { name: 'Dijkstra', time: 'O((n + m) log n) with a binary heap', algo: 'dijkstra', why: 'With weights ≥ 0 the closest unsettled vertex is already final. For a single target with a good lower-bound estimate (straight-line distance), A* settles fewer vertices.' },
+  reweight: { name: 'Transform, then Dijkstra', time: 'transform + O((n + m) log n)', algo: 'dijkstra', why: 'Valid transformations keep the order of path lengths: reweight with a potential, w′(u, v) = w(u, v) + h(u) − h(v) ≥ 0 (every u→v path changes by h(u) − h(v)), or for products of factors use −log. Adding the same constant to every weight is not valid: it penalises paths with more edges.' },
+  bf: { name: 'Bellman–Ford', time: 'O(n·m)', algo: 'bf', why: 'Relaxes every edge n − 1 times; an extra round that still improves something proves a negative cycle reachable from the source.' },
+  bfsall: { name: 'BFS from every vertex', time: 'n · O(n + m) = O(n² + nm)', algo: 'hops', why: 'One BFS per source. On a sparse graph this beats every weighted method.' },
+  dagall: { name: 'DAG shortest paths from every vertex', time: 'n · O(n + m)', algo: 'dag', why: 'One topological order serves every source; relax once per source. Negative weights are fine.' },
+  dijkstraall: { name: 'Dijkstra from every vertex', time: 'n · O((n + m) log n) = O(nm log n)', algo: 'dijkstra', why: 'On a sparse graph (m much smaller than n²) n runs of Dijkstra beat the O(n³) of Floyd–Warshall.' },
+  fw: { name: 'Floyd–Warshall', time: 'O(n³)', algo: 'fw', why: 'Three nested loops over an n × n matrix, simple and fast on dense graphs. It allows negative weights and reports a negative cycle as a negative entry on the diagonal.' },
+  johnson: { name: 'Johnson', time: 'O(nm) + n · O(m log n) = O(nm log n)', algo: 'johnson', why: 'One Bellman–Ford from an extra vertex gives potentials h; reweighting w + h(u) − h(v) makes every weight ≥ 0 without changing shortest paths; then Dijkstra from every vertex. It is the automatic version of “transform the graph”. (n runs of Bellman–Ford, O(n²m), are never the better choice.)' },
+};
+
+/* each step: a question; yes ends in a leaf (or a density split), no goes on to the next step (or to the final leaf) */
+const SP_GUIDE = {
+  sssp: {
+    title: 'One source (SSSP)',
+    steps: [
+      { key: 'unw', q: 'Is the graph unweighted (all weights equal and positive)?', yes: 'bfs' },
+      { key: 'dag', q: 'Is the graph a DAG (directed, no directed cycle)?', yes: 'dag' },
+      { key: 'nonneg', q: 'Are all weights non-negative?', yes: 'dijkstra' },
+      { key: 'transform', q: 'Can you remove the negative weights without changing which path is shortest?', yes: 'reweight', no: 'bf' },
+    ],
+  },
+  apsp: {
+    title: 'All pairs (APSP)',
+    steps: [
+      { key: 'unw', q: 'Is the graph unweighted (all weights equal and positive)?', yes: 'bfsall' },
+      { key: 'dag', q: 'Is the graph a DAG (directed, no directed cycle)?', yes: 'dagall' },
+      { key: 'nonneg', q: 'Are all weights non-negative?', yes: { split: 'dense', yes: 'fw', no: 'dijkstraall' } },
+      { key: 'dense', q: 'Negative weights, no negative cycle. Is the graph dense (m close to n²)?', yes: 'fw', no: 'johnson' },
+    ],
+  },
+};
+
+/* facts about a graph that the questions depend on */
+function spFacts(g) {
+  const n = g.nodes.length, arcs = g.edges.length * (g.directed ? 1 : 2);
+  const ws = g.edges.map(e => +e.w), w0 = ws[0];
+  const unw = !g.weighted || (ws.length > 0 && w0 > 0 && ws.every(w => w === w0)) || ws.length === 0;
+  const dag = !!topoOrder(g);
+  const negEdges = g.edges.filter(e => e.w < 0);
+  const nonneg = negEdges.length === 0;
+  // negative cycle anywhere: Bellman–Ford from a virtual source joined to every vertex
+  const h = Array(n).fill(0), A = []; g.edges.forEach(e => { A.push([e.u, e.v, e.w]); if (!g.directed) A.push([e.v, e.u, e.w]); });
+  for (let k = 0; k < n; k++) { let ch = false; for (const [u, v, w] of A) if (h[u] + w < h[v]) { h[v] = h[u] + w; ch = true; } if (!ch) break; }
+  const negCycle = A.some(([u, v, w]) => h[u] + w < h[v]);
+  const dense = n > 1 && arcs * Math.log2(Math.max(2, n)) >= n * n;
+  return { n, m: g.edges.length, arcs, directed: !!g.directed, unw, w0, dag, nonneg, negEdges, negCycle, dense, cyclic: g.directed && !dag };
+}
+
+/* the automatic answer and its reason for one question */
+function spAnswer(key, F, g) {
+  const name = e => `${g.nodes[e.u].label}${g.directed ? '→' : '–'}${g.nodes[e.v].label}`;
+  switch (key) {
+    case 'unw': return F.unw ? { a: true, why: F.m === 0 ? 'no edges' : !g.weighted ? 'no weights given' : `every weight is ${fmt(F.w0)}` } : { a: false, why: 'the weights differ' };
+    case 'dag': return F.dag ? { a: true, why: F.m === 0 ? 'no edges' : 'directed and acyclic' } : { a: false, why: F.directed ? 'it has a directed cycle' : 'undirected: every edge goes both ways' };
+    case 'nonneg': return F.nonneg ? { a: true, why: 'no negative weight' } : { a: false, why: `${F.negEdges.slice(0, 3).map(name).join(', ')}${F.negEdges.length > 3 ? ', …' : ''} ${F.negEdges.length > 1 ? 'are' : 'is'} negative` };
+    case 'dense': return { a: F.dense, why: `m = ${F.m} ${F.directed ? 'arcs' : 'edges'} for n = ${F.n}: m·log n ${F.dense ? '≥' : '<'} n², so ${F.dense ? 'Floyd–Warshall’s n³ wins' : 'Johnson’s nm log n wins'}` };
+    case 'transform': return { a: false, why: 'the lab knows no potential for this graph; finding one needs Bellman–Ford anyway' };
+  }
+  return null;
+}
+
+/* follow the answers; returns the visited steps and the leaf (or null while a question is open) */
+function spWalk(kind, ans, F) {
+  const T = SP_GUIDE[kind], path = [];
+  for (let i = 0; i < T.steps.length; i++) {
+    const st = T.steps[i], a = ans[st.key]; path.push(i);
+    if (a === undefined) return { path, open: i, leaf: null };
+    if (a) { let y = st.yes; if (typeof y === 'object') { const b = ans[y.split]; if (b === undefined) return { path, open: i, leaf: null, needs: y.split }; y = b ? y.yes : y.no; } return { path, leaf: y }; }
+    if (st.no) return { path, leaf: st.no };
+  }
+  return { path, leaf: null };
+}
+
+/* ---------- the panel ---------- */
+const GUIDE = { kind: 'sssp', ans: {}, autoOn: false, more: false };
+function spAutoAll() {
+  const s = modState(ST.mod), g = s.graph; if (!g) return null;
+  const F = spFacts(g), out = { _F: F };
+  for (const k of ['unw', 'dag', 'nonneg', 'dense', 'transform']) out[k] = spAnswer(k, F, g);
+  return out;
+}
+function renderGuide(m) {
+  const box = $('#guide'); if (!box) return;
+  box.hidden = m.key !== 'sp'; if (box.hidden) return;
+  const auto = GUIDE.autoOn ? spAutoAll() : null;
+  if (auto) { GUIDE.ans = {}; for (const st of SP_GUIDE[GUIDE.kind].steps) GUIDE.ans[st.key] = auto[st.key].a; GUIDE.ans.dense = auto.dense.a; }
+  const T = SP_GUIDE[GUIDE.kind], W = spWalk(GUIDE.kind, GUIDE.ans), last = W.path[W.path.length - 1];
+  const leafBox = (k, on, label = '') => { const L = SP_LEAVES[k]; return `<div class="gleaf${on ? ' on' : ''}">${label ? `<span class="glab">${label}</span>` : ''}<b>${L.name}</b><span>${L.time}</span></div>`; };
+  const rows = T.steps.map((st, i) => {
+    const a = GUIDE.ans[st.key], onPath = W.path.includes(i), au = auto && auto[st.key], endsHere = W.leaf && last === i && a === true;
+    const yes = typeof st.yes === 'object'
+      ? `<div class="gsplit">${leafBox(st.yes.yes, endsHere && W.leaf === st.yes.yes, 'dense')}${leafBox(st.yes.no, endsHere && W.leaf === st.yes.no, 'sparse')}</div>`
+      : leafBox(st.yes, endsHere);
+    return `<li class="gstep${onPath ? ' path' : ''}${W.open === i ? ' open' : ''}${a === true ? ' yes' : a === false ? ' no' : ''}">
+      <div class="gq"><p>${st.q}</p>${au ? `<p class="gwhy">${au.a ? 'Yes' : 'No'}: ${esc(au.why)}</p>` : ''}
+        <div class="gbtns" role="group" aria-label="Answer"><button type="button" data-k="${st.key}" data-a="1" aria-pressed="${a === true}">Yes</button><button type="button" data-k="${st.key}" data-a="0" aria-pressed="${a === false}">No</button></div></div>
+      <div class="garrow" aria-hidden="true">Yes</div>${yes}
+    </li>`;
+  }).join('');
+  const lastSt = T.steps[T.steps.length - 1];
+  const endRow = lastSt.no ? `<li class="gstep gend${W.leaf === lastSt.no && GUIDE.ans[lastSt.key] === false ? ' path' : ''}"><div class="gq gnone"></div><div class="garrow" aria-hidden="true"></div>${leafBox(lastSt.no, W.leaf === lastSt.no && GUIDE.ans[lastSt.key] === false, 'no')}</li>` : '';
+  const needs = W.needs ? `<div class="gneed"><p>Weights ≥ 0. Is the graph dense (m close to n²)?</p><div class="gbtns" role="group" aria-label="Answer"><button type="button" data-k="dense" data-a="1">Dense</button><button type="button" data-k="dense" data-a="0">Sparse</button></div></div>` : '';
+  const L = W.leaf && SP_LEAVES[W.leaf], algo = L && ST.mod.algos.find(a => a.key === L.algo);
+  const perSource = L && GUIDE.kind === 'apsp' && !['fw', 'johnson'].includes(L.algo);
+  const result = L ? `<div class="gresult"><h3>Use: ${L.name} <span class="gtime">${L.time}</span></h3><p>${L.why}</p>${algo ? `<button type="button" class="setup" id="grun">Run ${esc(algo.name)} on the board</button>${perSource ? ' <span class="note">The lab runs it from one source; all pairs repeats it from every vertex.</span>' : ''}` : ''}${auto && auto.dense && GUIDE.kind === 'apsp' && /fw|johnson|dijkstraall/.test(W.leaf) ? `<p class="gwhy">${esc(auto.dense.why)}</p>` : ''}</div>`
+    : `<p class="note gprompt">${W.needs ? 'One more question, below the chart.' : 'Answer the questions from the top, or let the lab answer them for the graph on the board.'}</p>`;
+  const F = auto && auto._F;
+  const warn = F && F.negCycle ? `<div class="gwarn"><b>This graph has a negative cycle.</b> Going round it lowers the cost without bound, so shortest paths through it are undefined. ${GUIDE.kind === 'sssp' ? 'Bellman–Ford finds the cycle if the source reaches it.' : 'Floyd–Warshall shows it as a negative diagonal entry; Johnson stops at its Bellman–Ford step.'}${!F.directed ? ' In an undirected graph every negative edge is such a cycle: walk it back and forth.' : ''}</div>` : '';
+  box.innerHTML = `<div class="ghead"><h2>Which shortest-path algorithm?</h2>
+      <div class="gseg" role="tablist" aria-label="Question">${['sssp', 'apsp'].map(k => `<button type="button" role="tab" data-kind="${k}" aria-selected="${GUIDE.kind === k}">${SP_GUIDE[k].title}</button>`).join('')}</div>
+      <button type="button" id="gauto" class="gbtn${GUIDE.autoOn ? ' on' : ''}" aria-pressed="${GUIDE.autoOn}" title="Answer every question for the graph on the board, and keep the answers up to date when the graph changes">Answer for the graph on the board</button><button type="button" id="gclear" class="gbtn">Clear</button></div>
+    <p class="note">Each question assumes <b>no negative cycle</b> (a cycle of negative total weight): with one, shortest paths through it do not exist.${F ? ` Board graph: n = ${F.n}, m = ${F.m}${F.directed ? ', directed' : ', undirected'}.` : ''}</p>
+    ${warn}<ol class="gflow">${rows}${endRow}</ol>${needs}${result}
+    <details class="gmore"${GUIDE.more ? ' open' : ''}><summary>Why these rules</summary><ul>
+      <li><b>Equal weights:</b> a shortest path is a path with fewest edges; BFS finds those layer by layer, with no priority queue.</li>
+      <li><b>DAG:</b> in a topological order every arc points forward, so a vertex is final before anything after it is looked at. One pass suffices and negative weights do no harm.</li>
+      <li><b>Dijkstra needs w ≥ 0:</b> it settles the closest vertex for good; a negative edge found later could still shorten a settled path (run it on the rebate network).</li>
+      <li><b>Transforming:</b> a potential h with w(u, v) + h(u) − h(v) ≥ 0 shifts every u→v path by the same h(u) − h(v), so shortest paths are preserved; Johnson computes such an h with one Bellman–Ford. Adding a constant c to every edge is <i>not</i> such a transform: a path with k edges grows by k·c.</li>
+      <li><b>Dense or sparse (all pairs):</b> Floyd–Warshall costs n³; n runs of Dijkstra or Johnson cost about n·m·log n. With m near n² the matrix method wins, with m near n the repeated searches win. The lab calls a graph dense when m·log₂n ≥ n² (m counts arcs).</li>
+      <li><b>Negative cycles:</b> Bellman–Ford (one source) and Floyd–Warshall (all pairs) detect them; Dijkstra and DAG shortest paths do not.</li>
+    </ul></details>`;
+  box.querySelectorAll('[data-kind]').forEach(b => b.onclick = () => { GUIDE.kind = b.dataset.kind; if (!GUIDE.autoOn) GUIDE.ans = {}; renderGuide(m); });
+  box.querySelectorAll('.gbtns button').forEach(b => b.onclick = () => {
+    const k = b.dataset.k, v = b.dataset.a === '1', steps = SP_GUIDE[GUIDE.kind].steps, i = steps.findIndex(st => st.key === k);
+    GUIDE.autoOn = false; if (i >= 0) steps.slice(i + 1).forEach(st => delete GUIDE.ans[st.key]); if (k !== 'dense' || i >= 0) delete GUIDE.ans.dense;
+    GUIDE.ans[k] = v; renderGuide(m);
+  });
+  $('#gauto').onclick = () => { GUIDE.autoOn = !GUIDE.autoOn; if (!GUIDE.autoOn) GUIDE.ans = {}; renderGuide(m); };
+  $('#gclear').onclick = () => { GUIDE.ans = {}; GUIDE.autoOn = false; renderGuide(m); };
+  box.querySelector('.gmore').ontoggle = e => { GUIDE.more = e.target.open; };
+  const run = $('#grun'); if (run) run.onclick = () => applySetup({ algo: L.algo });
+}
+
+/* ============================================================
    UI: state, rendering, player, modes (watch / predict / certificate / ticket),
    pseudocode + Python tabs, definitions strip, editor
    ============================================================ */
@@ -3852,6 +4122,7 @@ function renderParams() {
 /* ---------- run ---------- */
 function run(keepIndex = false) {
   const m = ST.mod, s = modState(m), a = currentAlgo(); stopPlay(); hideError(); ST.asking = null; ST.feedback = null;
+  if (GUIDE.autoOn) try { renderGuide(m); } catch (e) { }
   try {
     ensureGraph(m, s);
     for (const p of a.params) { const ui = document.getElementById(`p-${m.key}-${a.key}-${p.id}`); if (ui) s.params[s.algo + '.' + p.id] = ui.value; }
@@ -4296,7 +4567,7 @@ function openModule(key) {
   m.algos.forEach(a => { const b = document.createElement('button'); b.type = 'button'; b.textContent = a.name; b.setAttribute('aria-pressed', a.key === s.algo); b.onclick = () => { s.algo = a.key; tabs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderLegend(); renderParams(); syncEditor(); run(); }; tabs.appendChild(b); });
   renderLegend();
   $('#modes [data-mode="cert"]').disabled = !(CERTS[m.key] || []).length; $('#modes [data-mode="ticket"]').disabled = !TICKETS[m.key];
-  renderTasks(m); renderDefs(m);
+  renderTasks(m); renderDefs(m); GUIDE.ans = {}; GUIDE.autoOn = false; renderGuide(m);
   try { ensureGraph(m, s); } catch (e) { }
   renderParams(); syncEditor();
   if ((ST.mode === 'cert' && !(CERTS[m.key] || []).length) || (ST.mode === 'ticket' && !TICKETS[m.key])) ST.mode = 'watch';

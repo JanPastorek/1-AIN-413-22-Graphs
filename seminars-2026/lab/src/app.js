@@ -193,6 +193,44 @@ function initSplitter() {
   window.addEventListener('resize', applyPanelWidth);
 }
 
+/* ---------- draggable border between pseudocode and state ---------- */
+const PANE_MIN = 140;
+function pcodeFrac() { const f = +loadStore().pf; return f > 0 && f < 1 ? f : 1.05 / 2.05; }
+function applyPcodeFrac() {
+  const st = $('#state'), f = loadStore().pf;
+  if (f) { st.style.setProperty('--pfa', f + 'fr'); st.style.setProperty('--pfb', (1 - f) + 'fr'); } else { st.style.removeProperty('--pfa'); st.style.removeProperty('--pfb'); }
+  const sp = st.querySelector('.psplit'); if (sp) sp.setAttribute('aria-valuenow', Math.round(pcodeFrac() * 100));
+}
+function setPcodeFrac(f) {
+  const two = $('#state .both2');
+  if (f == null || !two) { saveStore({ pf: null }); applyPcodeFrac(); return; }
+  const w = two.clientWidth - 17, lo = Math.min(0.5, PANE_MIN / Math.max(1, w));
+  saveStore({ pf: Math.min(1 - lo, Math.max(lo, f)) }); applyPcodeFrac();
+}
+function initPaneSplit() {
+  const box = $('#state'); applyPcodeFrac();
+  const frac = () => { const pc = box.querySelector('.pcode'), two = box.querySelector('.both2'); return (pc.getBoundingClientRect().width) / Math.max(1, two.clientWidth - 17); };
+  box.addEventListener('pointerdown', e => {
+    const sp = e.target.closest('.psplit'); if (!sp || e.button !== 0) return;
+    e.preventDefault(); sp.classList.add('drag'); document.body.classList.add('resizing');
+    const move = ev => { const two = box.querySelector('.both2'); if (!two) return; const r = two.getBoundingClientRect(); setPcodeFrac((ev.clientX - r.left - 8.5) / Math.max(1, r.width - 17)); const s2 = box.querySelector('.psplit'); if (s2) s2.classList.add('drag'); };
+    const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up); document.body.classList.remove('resizing'); box.querySelectorAll('.psplit').forEach(x => x.classList.remove('drag')); };
+    document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+  });
+  box.addEventListener('dblclick', e => { if (e.target.closest('.psplit')) setPcodeFrac(null); });
+  box.addEventListener('keydown', e => {
+    if (!e.target.closest('.psplit')) return;
+    const step = e.shiftKey ? 0.1 : 0.04;
+    if (e.key === 'ArrowLeft') setPcodeFrac(frac() - step);
+    else if (e.key === 'ArrowRight') setPcodeFrac(frac() + step);
+    else if (e.key === 'Home') setPcodeFrac(0);
+    else if (e.key === 'End') setPcodeFrac(1);
+    else if (e.key === 'Enter' || e.key === 'Escape') setPcodeFrac(null);
+    else return;
+    e.preventDefault(); e.stopPropagation();
+  });
+}
+
 /* ---------- state / pseudocode / python tabs ---------- */
 function renderTabs(F) {
   const m = ST.mod, s = modState(m), a = currentAlgo();
@@ -211,7 +249,7 @@ function renderTabs(F) {
   if (ST.tab === 'code') { box.innerHTML = codeHTML(); return; }
   if (ST.tab === 'both') {
     // pseudocode and the data structures it changes, visible together (two columns when the panel is wide enough)
-    box.innerHTML = `${idea}<div class="both2"><section class="pane pcode" aria-label="Pseudocode"><p class="paneh">Pseudocode</p>${codeHTML(false)}</section><section class="pane pstate" aria-label="State"><p class="paneh">State</p>${stateHTML()}</section></div>`;
+    box.innerHTML = `${idea}<div class="both2"><section class="pane pcode" aria-label="Pseudocode"><p class="paneh">Pseudocode</p>${codeHTML(false)}</section><div class="psplit" role="separator" aria-orientation="vertical" aria-label="Resize pseudocode and state (drag, or use the arrow keys; double-click to reset)" title="Drag to balance pseudocode and state. Double-click to reset." tabindex="0" aria-valuemin="20" aria-valuemax="80" aria-valuenow="${Math.round(pcodeFrac() * 100)}"><span class="grip"></span></div><section class="pane pstate" aria-label="State"><p class="paneh">State</p>${stateHTML()}</section></div>`;
     const on = box.querySelector('.pseudo li.on'), pc = box.querySelector('.pcode'); if (on && pc && pc.scrollHeight > pc.clientHeight) pc.scrollTop = Math.max(0, on.offsetTop - pc.clientHeight / 3);
     return;
   }
@@ -466,7 +504,7 @@ function boot() {
   ['n', 'e', 'l'].forEach(k => { const inp = $('#sz-' + k); inp.oninput = () => setSizes(Object.assign({}, SZ, { [k]: +inp.value }), false); inp.onchange = () => setSizes(SZ, true); });
   $('#szreset').onclick = () => setSizes({ n: 1, e: 1, l: 1 }, true);
   $('#sizebtn').onclick = () => { const b = $('#sizebtn'), on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); $('#sizebar').hidden = !on; };
-  initSplitter();
+  initSplitter(); initPaneSplit();
   const setSide = (show, focus) => {
     $('#app').classList.toggle('noside', !show); $('#sideshow').hidden = show;
     $('#sidehide').setAttribute('aria-expanded', show); $('#sideshow').setAttribute('aria-expanded', show);

@@ -317,10 +317,17 @@ body.resizing { cursor: col-resize; user-select: none; }
 .paneh { margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .pcode { border-bottom: 1px solid var(--line); padding-bottom: 10px; max-height: 42vh; overflow-y: auto; }
 .pcode .pseudo { padding-left: 24px; }
+.psplit { display: none; position: relative; align-self: stretch; cursor: col-resize; touch-action: none; outline: none; }
 @container (min-width: 430px) {
-  .both2 { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; }
-  .pcode { border-bottom: 0; border-right: 1px solid var(--line); padding: 0 14px 0 0; max-height: none; overflow: visible; }
+  .both2 { grid-template-columns: minmax(0, var(--pfa, 1.05fr)) 17px minmax(0, var(--pfb, 1fr)); gap: 0; }
+  .pcode { border-bottom: 0; padding: 0 6px 0 0; max-height: none; overflow: visible; }
+  .pstate { padding-left: 6px; }
+  .psplit { display: block; }
 }
+.psplit::before { content: ""; position: absolute; top: 0; bottom: 0; left: 8px; width: 1px; background: var(--line); transition: background .15s, width .15s, left .15s; }
+.psplit .grip { position: sticky; top: 40%; display: block; margin: 28px auto 0; width: 7px; height: 34px; border-radius: 4px; border: 1.5px solid var(--line); background: var(--sheet); }
+.psplit:hover::before, .psplit:focus-visible::before, .psplit.drag::before { background: var(--accent); width: 2px; left: 7.5px; }
+.psplit:hover .grip, .psplit:focus-visible .grip, .psplit.drag .grip { border-color: var(--accent); background: var(--accent); }
 .pseudo li { padding: 2px 6px; border-radius: 4px; white-space: pre-wrap; }
 .pseudo li::marker { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
 .pseudo li.on { background: var(--amber-soft); box-shadow: inset 3px 0 0 var(--amber); }

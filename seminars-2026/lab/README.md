@@ -29,7 +29,7 @@ Companion exercises: [Lab and database explorations](../practice/lab-and-databas
 | 2 Degree sequences and resilience | Havel–Hakimi with Erdős–Gallai check; degree-preserving swaps; bridges and cut vertices | PS 1 P1; PS 2 P2(b–c), P3; PS 3 P3(c) |
 | 3 Isomorphism and symmetry | 1-WL colour refinement on two graphs; automorphism group, orbits and a greedy fixing set | PS 3 P2 |
 | 4 Trees, MST and union–find | Kruskal with union–find; Prim; cycle-property certificate; race | PS 3 P3–P4; PS 4 P1–P2 |
-| 5 Shortest paths | Dijkstra (cross-checked by Bellman–Ford), Bellman–Ford with negative cycles, BFS, A*, Floyd–Warshall; race | PS 4 P4; PS 6 P1–P2 |
+| 5 Shortest paths | “Which shortest-path algorithm?” decision chart (one source / all pairs, answered by hand or for the graph on the board); Dijkstra (cross-checked by Bellman–Ford), Bellman–Ford with negative cycles, BFS, A*, DAG shortest paths, Floyd–Warshall, Johnson; race | PS 4 P4; PS 6 P1–P2 |
 | 6 Euler, Hamilton, postman, TSP | Hierholzer and Chinese postman; Fleury edge by edge, with the bridges of the unused edges marked; Hamilton cycle and TSP as an integer program (arc variables x<sub>ij</sub>, in/out-degree constraints, subtour constraints added round by round); Hamilton backtracking; nearest neighbour, double tree, Christofides and Held–Karp with the DFJ integer program | PS 5; PS 6 P−1; PS 1 P3 |
 | 7 Flows and cuts | Edmonds–Karp with a residual view and min-cut certificate; race of path rules (2 vs 2000 augmentations) | PS 7 |
 | 8 Matchings | Augmenting paths with König cover and Hall violator; Hopcroft–Karp; Hungarian method with dual certificate; Gale–Shapley; race | PS 8 |

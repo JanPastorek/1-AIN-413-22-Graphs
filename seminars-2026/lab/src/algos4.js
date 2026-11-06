@@ -78,6 +78,76 @@ function countSP(g, s) {
   { const d = Array(n).fill(-1); d[s] = 0; const Q = [s]; let rel = 0; for (let h = 0; h < Q.length; h++) { const u = Q[h]; for (const { to } of A[u]) { rel++; if (d[to] < 0) { d[to] = d[u] + 1; Q.push(to); } } } out.push({ name: 'BFS (ignores weights)', rel, extra: 0, extraName: '' }); }
   return out;
 }
+/* ---------- shortest paths in a DAG: relax in topological order ---------- */
+function topoOrder(g) { // Kahn; null if there is a directed cycle (undirected graphs with an edge are never DAGs)
+  const n = g.nodes.length; if (!g.directed && g.edges.length) return null;
+  const indeg = Array(n).fill(0), A = adjOut(g); g.edges.forEach(e => indeg[e.v]++);
+  const Q = []; for (let i = 0; i < n; i++) if (!indeg[i]) Q.push(i);
+  const order = []; while (Q.length) { const u = Q.shift(); order.push(u); for (const { to } of A[u]) if (--indeg[to] === 0) Q.push(to); }
+  return order.length === n ? order : null;
+}
+function algDagSP(g, P) {
+  const n = g.nodes.length, R = new Rec(), s = P.source, A = adjOut(g);
+  const order = topoOrder(g);
+  if (!order) { R.line = 6; R.snap(g.directed ? 'Ordering failed: some vertices keep an incoming arc, so the graph has a directed cycle and is not a DAG.' : 'An undirected graph with an edge is not a DAG: every edge can be walked both ways.', { panel: cert('no', 'Not a DAG', 'DAG shortest paths needs a directed acyclic graph. Use Dijkstra (weights ≥ 0) or Bellman–Ford (negative weights).') }, true); return { frames: R.frames }; }
+  const d = Array(n).fill(Infinity), pred = Array(n).fill(-1), pe = Array(n).fill(-1); d[s] = 0;
+  g.nodes.forEach((v, i) => R.ntag[i] = i === s ? '0' : '∞');
+  const pos = Array(n); order.forEach((v, k) => { pos[v] = k; });
+  const panel = k => h4('Topological order') + chips(order.map((v, i) => i === k ? `<b>${lab(g, v)}</b>` : lab(g, v))) + h4('Labels') + distTable(g, d, i => pred[i] >= 0 ? lab(g, pred[i]) : '—');
+  R.line = 1; R.snap(`Topological order: ${order.map(v => lab(g, v)).join(', ')}. Every arc points forward in this order, so when a vertex is reached all paths into it are already known.`, { panel: panel(-1) });
+  R.line = 2; R.snap(`d(${lab(g, s)}) = 0, all others ∞. Vertices before ${lab(g, s)} in the order cannot be reached from it.`, { panel: panel(-1) });
+  for (let k = 0; k < n; k++) {
+    const u = order[k]; R.nc[u] = 'cur';
+    if (d[u] === Infinity) { R.line = 3; R.snap(`${N(g, u)} is not reachable from ${lab(g, s)} (d = ∞): nothing to relax.`, { panel: panel(k) }); R.nc[u] = 'done'; continue; }
+    R.line = 3; R.snap(`Take ${N(g, u)} (position ${k + 1}). Its label d = ${fmt(d[u])} is final: every arc into it comes from an earlier vertex.`, { panel: panel(k), ask: { type: 'vertex', answer: [u], prompt: 'Which vertex is processed next?' } });
+    for (const { to, w, e } of A[u]) {
+      const nd = d[u] + w; R.ec[e] = R.ec[e] === 'tree' ? 'tree' : 'cand';
+      if (nd < d[to]) { if (pe[to] >= 0) delete R.ec[pe[to]]; d[to] = nd; pred[to] = u; pe[to] = e; R.ec[e] = 'tree'; R.ntag[to] = fmt(nd); R.nc[to] = 'front'; R.line = 5; R.snap(`Relax ${edgeName(g, e)}: ${fmt(d[u])} + ${fmt(w)} = ${fmt(nd)} improves ${lab(g, to)}.${w < 0 ? ' A negative weight is fine here.' : ''}`, { panel: panel(k) }); }
+      else { delete R.ec[e]; R.line = 4; R.snap(`Relax ${edgeName(g, e)}: ${fmt(nd)} ≥ ${fmt(d[to])}, no change.`, { panel: panel(k) }); }
+    }
+    R.nc[u] = 'done';
+  }
+  const bf = bellmanFordPlain(g, s), ok = bf && g.nodes.every((v, i) => bf[i] === d[i]);
+  R.line = 3; R.snap(`Done after one pass over ${g.edges.length} arcs: O(n + m), even with negative weights.`, { panel: (ok ? cert('yes', 'Distances verified', 'Bellman–Ford gives the same labels. No vertex was relaxed after it was processed, which is why one pass suffices.') : cert('no', 'Mismatch', 'Bellman–Ford disagrees.')) + panel(-1) }, true);
+  return { frames: R.frames, d, order };
+}
+
+/* ---------- Johnson: potentials from one Bellman–Ford, then Dijkstra from every vertex ---------- */
+function algJohnson(g, P) {
+  const n = g.nodes.length, R = new Rec();
+  if (n > 14) { R.snap('Johnson’s display is limited to 14 vertices (it shows an n × n matrix).', { panel: '' }, true); return { frames: R.frames }; }
+  const arcs = []; g.edges.forEach((e, i) => { arcs.push([e.u, e.v, e.w, i]); if (!g.directed) arcs.push([e.v, e.u, e.w, i]); });
+  R.line = 1; R.snap('Add a new vertex q with an arc of weight 0 to every vertex. Distances from q exist for every vertex and are ≤ 0.', { panel: h4('Graph + q') + `<p class="note">q → ${g.nodes.map((v, i) => lab(g, i)).join(', ')}, all of weight 0.</p>` });
+  // Bellman–Ford from q
+  const h = Array(n).fill(0);
+  for (let k = 0; k < n; k++) { let ch = false; for (const [u, v, w] of arcs) if (h[u] + w < h[v]) { h[v] = h[u] + w; ch = true; } if (!ch) break; }
+  const negc = arcs.find(([u, v, w]) => h[u] + w < h[v]);
+  g.nodes.forEach((v, i) => R.ntag[i] = 'h=' + fmt(h[i]));
+  if (negc) { R.ec = {}; R.ec[negc[3]] = 'cut'; R.line = 2; R.snap('Bellman–Ford from q still improves a label after n rounds: the graph has a negative cycle, so all-pairs distances are undefined.' + (!g.directed && g.edges.some(e => e.w < 0) ? ' (In an undirected graph a negative edge is itself a negative cycle.)' : ''), { panel: cert('no', 'Negative cycle', 'Johnson stops here, exactly where Bellman–Ford would. Floyd–Warshall would show a negative entry on its diagonal.') }, true); return { frames: R.frames }; }
+  R.line = 2; R.snap('Bellman–Ford from q gives the potentials h(v) = d(q, v), written on the vertices. This is the only Bellman–Ford run.', { panel: h4('Potentials h(v)') + distTable(g, h, () => '') });
+  // reweighting
+  const w2 = g.edges.map(e => e.w + h[e.u] - h[e.v]), w2r = g.edges.map(e => e.w + h[e.v] - h[e.u]);
+  R.elab = {}; g.edges.forEach((e, i) => { R.elab[i] = g.directed ? fmt(w2[i]) : (w2[i] === w2r[i] ? fmt(w2[i]) : `${fmt(w2[i])}/${fmt(w2r[i])}`); });
+  R.line = 3; R.snap(`Reweight every arc: w′(u, v) = w(u, v) + h(u) − h(v). The triangle inequality h(v) ≤ h(u) + w(u, v) makes every w′ ≥ 0 (labels now show w′). Along any u→v path the terms telescope: w′(path) = w(path) + h(u) − h(v), so the same paths stay shortest.`, { panel: h4('New weights') + table(['arc', 'w', 'h(u) − h(v)', 'w′'], g.edges.map((e, i) => [edgeName(g, i), fmt(e.w), fmt(h[e.u] - h[e.v]), fmt(w2[i])])) });
+  // Dijkstra from every vertex on w'
+  const A = adjOut(g), D = Array.from({ length: n }, () => Array(n).fill(Infinity));
+  const wp = (u, e) => { const E = g.edges[e]; return E.u === u ? w2[e] : w2r[e]; };
+  for (let s = 0; s < n; s++) {
+    const d = Array(n).fill(Infinity), done = Array(n).fill(false); d[s] = 0;
+    for (let it = 0; it < n; it++) { let u = -1; for (let i = 0; i < n; i++) if (!done[i] && d[i] < Infinity && (u < 0 || d[i] < d[u])) u = i; if (u < 0) break; done[u] = true; for (const { to, e } of A[u]) { const nd = d[u] + wp(u, e); if (nd < d[to]) d[to] = nd; } }
+    for (let v = 0; v < n; v++) D[s][v] = d[v] === Infinity ? Infinity : d[v] - h[s] + h[v];
+    R.nc = { [s]: 'cur' }; R.line = 5;
+    R.snap(`Dijkstra from ${N(g, s)} with w′ ≥ 0, then undo the shift: d(${lab(g, s)}, v) = d′(${lab(g, s)}, v) − h(${lab(g, s)}) + h(v).`, { panel: h4(`Row ${lab(g, s)}: d′ and d`) + table(['v', 'd′', 'd'], g.nodes.map((v, i) => [lab(g, i), fmt(d[i]), fmt(D[s][i])])) + h4('Distance matrix so far') + matrixHTML(g, D) });
+  }
+  // verify with Floyd–Warshall
+  const F = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => i === j ? 0 : Infinity));
+  g.edges.forEach(e => { F[e.u][e.v] = Math.min(F[e.u][e.v], e.w); if (!g.directed) F[e.v][e.u] = Math.min(F[e.v][e.u], e.w); });
+  for (let k = 0; k < n; k++) for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (F[i][k] + F[k][j] < F[i][j]) F[i][j] = F[i][k] + F[k][j];
+  const same = D.every((r, i) => r.every((x, j) => x === F[i][j]));
+  R.nc = {}; R.line = 6; R.snap(`All ${n} rows done: one Bellman–Ford O(nm) plus n Dijkstras O(m log n) each, O(nm log n) in total — better than Floyd–Warshall’s O(n³) when the graph is sparse.`, { panel: (same ? cert('yes', 'All-pairs distances verified', 'Floyd–Warshall gives the same matrix.') : cert('no', 'Mismatch', 'Floyd–Warshall disagrees.')) + matrixHTML(g, D) }, true);
+  return { frames: R.frames, D, h };
+}
+
 function algRaceSP(g, P) {
   const R = new Rec(); const rows = countSP(g, P.source); const neg = g.edges.some(e => e.w < 0);
   R.snap(`Same source ${N(g, P.source)}, three algorithms. Count every edge relaxation attempted.`, { panel: raceBars(rows.map(r => ({ name: r.name, v: r.rel })), 'edge relaxations') + table(['algorithm', 'relaxations', 'other work'], rows.map(r => [esc(r.name), r.rel, r.extraName ? `${r.extra} ${r.extraName}` : '—']), 'compact') + `<p class="note">${neg ? 'With negative weights only Bellman–Ford is correct here.' : 'BFS is only correct when all weights are equal.'} Dijkstra relaxes each edge once; Bellman–Ford may need up to n − 1 passes over all edges.</p>` }, true);

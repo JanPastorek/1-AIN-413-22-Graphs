@@ -63,6 +63,7 @@ function renderParams() {
 /* ---------- run ---------- */
 function run(keepIndex = false) {
   const m = ST.mod, s = modState(m), a = currentAlgo(); stopPlay(); hideError(); ST.asking = null; ST.feedback = null;
+  if (GUIDE.autoOn) try { renderGuide(m); } catch (e) { }
   try {
     ensureGraph(m, s);
     for (const p of a.params) { const ui = document.getElementById(`p-${m.key}-${a.key}-${p.id}`); if (ui) s.params[s.algo + '.' + p.id] = ui.value; }
@@ -485,7 +486,7 @@ function openModule(key) {
   m.algos.forEach(a => { const b = document.createElement('button'); b.type = 'button'; b.textContent = a.name; b.setAttribute('aria-pressed', a.key === s.algo); b.onclick = () => { s.algo = a.key; tabs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderLegend(); renderParams(); syncEditor(); run(); }; tabs.appendChild(b); });
   renderLegend();
   $('#modes [data-mode="cert"]').disabled = !(CERTS[m.key] || []).length; $('#modes [data-mode="ticket"]').disabled = !TICKETS[m.key];
-  renderTasks(m); renderDefs(m);
+  renderTasks(m); renderDefs(m); GUIDE.ans = {}; GUIDE.autoOn = false; renderGuide(m);
   try { ensureGraph(m, s); } catch (e) { }
   renderParams(); syncEditor();
   if ((ST.mode === 'cert' && !(CERTS[m.key] || []).length) || (ST.mode === 'ticket' && !TICKETS[m.key])) ST.mode = 'watch';

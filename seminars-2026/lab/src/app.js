@@ -161,7 +161,7 @@ function applyPanelWidth() {
   const st = $('#stage'), w = (loadStore().pw || {})[panelKey()];
   if (w) st.style.setProperty('--pw', `min(${Math.round(w)}px, max(${PW_MIN}px, calc(100% - ${BOARD_MIN + 18}px)))`); else st.style.removeProperty('--pw');
   const sp = $('#splitter'), pan = st.querySelector('.statepanel');
-  if (sp && pan) { sp.setAttribute('aria-valuenow', Math.round(pan.getBoundingClientRect().width)); sp.setAttribute('aria-valuemin', PW_MIN); sp.setAttribute('aria-valuemax', Math.max(PW_MIN, Math.round(st.clientWidth - BOARD_MIN - 18))); }
+  if (sp && pan) { sp.setAttribute('aria-valuenow', Math.round(pan.offsetWidth)); sp.setAttribute('aria-valuemin', PW_MIN); sp.setAttribute('aria-valuemax', Math.max(PW_MIN, Math.round(st.clientWidth - BOARD_MIN - 18))); }
 }
 function setPanelWidth(w) {
   const st = $('#stage'), max = Math.max(PW_MIN, st.clientWidth - BOARD_MIN - 18);
@@ -171,11 +171,12 @@ function setPanelWidth(w) {
 }
 function initSplitter() {
   const sp = $('#splitter'), st = $('#stage');
-  const panelW = () => st.querySelector('.statepanel').getBoundingClientRect().width;
+  const k = () => st.getBoundingClientRect().width / Math.max(1, st.offsetWidth); // page text size zooms the layout
+  const panelW = () => st.querySelector('.statepanel').offsetWidth;
   sp.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     e.preventDefault(); sp.setPointerCapture(e.pointerId); sp.classList.add('drag'); document.body.classList.add('resizing');
-    const move = ev => { const r = st.getBoundingClientRect(); setPanelWidth(r.right - ev.clientX - 9); };
+    const move = ev => { const r = st.getBoundingClientRect(); setPanelWidth((r.right - ev.clientX) / k() - 9); };
     const up = () => { sp.releasePointerCapture(e.pointerId); sp.classList.remove('drag'); document.body.classList.remove('resizing'); sp.removeEventListener('pointermove', move); sp.removeEventListener('pointerup', up); sp.removeEventListener('pointercancel', up); };
     sp.addEventListener('pointermove', move); sp.addEventListener('pointerup', up); sp.addEventListener('pointercancel', up);
   });
@@ -249,7 +250,7 @@ function textSizer(p, key, target) {
   $('#' + p + 'down').onclick = () => step(-1); $('#' + p + 'up').onclick = () => step(1); $('#' + p + 'val').onclick = () => step(0);
   apply();
 }
-function initTextSize() { textSizer('tz', 'tz', '#state'); textSizer('dz', 'dz', '#defs'); }
+function initTextSize() { textSizer('tz', 'tz', '#state'); textSizer('dz', 'dz', '#defs'); textSizer('pz', 'pz', '#app'); }
 
 /* ---------- state / pseudocode / python tabs ---------- */
 function renderTabs(F) {
@@ -402,16 +403,16 @@ function initCardResize() {
   const box = $('#defcards'); applyCardWidth();
   box.addEventListener('pointerdown', e => {
     const h = e.target.closest('.dresize'); if (!h || e.button !== 0) return;
-    e.preventDefault(); const card = h.closest('.dcard'), x0 = e.clientX, w0 = card.getBoundingClientRect().width, left0 = card.offsetLeft - box.scrollLeft;
+    e.preventDefault(); const card = h.closest('.dcard'), x0 = e.clientX, k = card.getBoundingClientRect().width / Math.max(1, card.offsetWidth), w0 = card.offsetWidth, left0 = card.offsetLeft - box.scrollLeft;
     h.classList.add('drag'); document.body.classList.add('resizing');
-    const move = ev => { setCardWidth(w0 + ev.clientX - x0); const nl = card.offsetLeft - box.scrollLeft; if (nl !== left0) box.scrollLeft += nl - left0; };
+    const move = ev => { setCardWidth(w0 + (ev.clientX - x0) / k); const nl = card.offsetLeft - box.scrollLeft; if (nl !== left0) box.scrollLeft += nl - left0; };
     const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up); h.classList.remove('drag'); document.body.classList.remove('resizing'); };
     document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
   });
   box.addEventListener('dblclick', e => { if (e.target.closest('.dresize')) setCardWidth(null); });
   box.addEventListener('keydown', e => {
     const h = e.target.closest('.dresize'); if (!h) return;
-    const w = h.closest('.dcard').getBoundingClientRect().width, step = e.shiftKey ? 80 : 24;
+    const w = h.closest('.dcard').offsetWidth, step = e.shiftKey ? 80 : 24;
     if (e.key === 'ArrowRight') setCardWidth(w + step);
     else if (e.key === 'ArrowLeft') setCardWidth(w - step);
     else if (e.key === 'Enter' || e.key === 'Escape') setCardWidth(null);

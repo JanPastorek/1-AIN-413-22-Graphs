@@ -194,7 +194,7 @@ function initSplitter() {
 }
 
 /* ---------- draggable border between pseudocode and state ---------- */
-const PANE_MIN = 140;
+const PANE_MIN = 110; // in the panel's own (text-size-scaled) pixels
 function pcodeFrac() { const f = +loadStore().pf; return f > 0 && f < 1 ? f : 1.05 / 2.05; }
 function applyPcodeFrac() {
   const st = $('#state'), f = loadStore().pf;
@@ -209,11 +209,11 @@ function setPcodeFrac(f) {
 }
 function initPaneSplit() {
   const box = $('#state'); applyPcodeFrac();
-  const frac = () => { const pc = box.querySelector('.pcode'), two = box.querySelector('.both2'); return (pc.getBoundingClientRect().width) / Math.max(1, two.clientWidth - 17); };
+  const frac = () => { const pc = box.querySelector('.pcode'), two = box.querySelector('.both2'); return pc.offsetWidth / Math.max(1, two.clientWidth - 17); };
   box.addEventListener('pointerdown', e => {
     const sp = e.target.closest('.psplit'); if (!sp || e.button !== 0) return;
     e.preventDefault(); sp.classList.add('drag'); document.body.classList.add('resizing');
-    const move = ev => { const two = box.querySelector('.both2'); if (!two) return; const r = two.getBoundingClientRect(); setPcodeFrac((ev.clientX - r.left - 8.5) / Math.max(1, r.width - 17)); const s2 = box.querySelector('.psplit'); if (s2) s2.classList.add('drag'); };
+    const move = ev => { const two = box.querySelector('.both2'); if (!two) return; const r = two.getBoundingClientRect(), k = r.width / Math.max(1, two.offsetWidth); setPcodeFrac((ev.clientX - r.left - 8.5 * k) / Math.max(1, r.width - 17 * k)); const s2 = box.querySelector('.psplit'); if (s2) s2.classList.add('drag'); };
     const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up); document.body.classList.remove('resizing'); box.querySelectorAll('.psplit').forEach(x => x.classList.remove('drag')); };
     document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
   });
@@ -229,6 +229,24 @@ function initPaneSplit() {
     else return;
     e.preventDefault(); e.stopPropagation();
   });
+}
+
+/* ---------- text size in the side panel ---------- */
+const TZ_STEPS = [0.8, 0.9, 1, 1.1, 1.25, 1.4, 1.6, 1.8, 2];
+function applyTextSize() {
+  const z = +loadStore().tz || 1, st = $('#state');
+  if (z === 1) st.style.removeProperty('--tz'); else st.style.setProperty('--tz', z);
+  $('#tzval').textContent = Math.round(z * 100) + '%';
+  $('#tzdown').disabled = z <= TZ_STEPS[0]; $('#tzup').disabled = z >= TZ_STEPS[TZ_STEPS.length - 1];
+}
+function stepTextSize(d) {
+  const z = +loadStore().tz || 1;
+  const next = d > 0 ? TZ_STEPS.find(v => v > z + 1e-9) : [...TZ_STEPS].reverse().find(v => v < z - 1e-9);
+  saveStore({ tz: d === 0 ? 1 : (next || z) }); applyTextSize();
+}
+function initTextSize() {
+  $('#tzdown').onclick = () => stepTextSize(-1); $('#tzup').onclick = () => stepTextSize(1); $('#tzval').onclick = () => stepTextSize(0);
+  applyTextSize();
 }
 
 /* ---------- state / pseudocode / python tabs ---------- */
@@ -504,7 +522,7 @@ function boot() {
   ['n', 'e', 'l'].forEach(k => { const inp = $('#sz-' + k); inp.oninput = () => setSizes(Object.assign({}, SZ, { [k]: +inp.value }), false); inp.onchange = () => setSizes(SZ, true); });
   $('#szreset').onclick = () => setSizes({ n: 1, e: 1, l: 1 }, true);
   $('#sizebtn').onclick = () => { const b = $('#sizebtn'), on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); $('#sizebar').hidden = !on; };
-  initSplitter(); initPaneSplit();
+  initSplitter(); initPaneSplit(); initTextSize();
   const setSide = (show, focus) => {
     $('#app').classList.toggle('noside', !show); $('#sideshow').hidden = show;
     $('#sidehide').setAttribute('aria-expanded', show); $('#sideshow').setAttribute('aria-expanded', show);

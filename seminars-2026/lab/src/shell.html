@@ -294,7 +294,16 @@ footer p { margin: 0 0 6px; }
 .seg button:disabled { opacity: .4; cursor: not-allowed; }
 .score { font-family: var(--f-mono); font-size: 13px; color: var(--ink2); font-variant-numeric: tabular-nums; }
 .controls.dim { opacity: .45; pointer-events: none; }
-.tabs { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1.5px solid var(--line); margin: -4px 0 12px; }
+.phead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 4px 10px; border-bottom: 1.5px solid var(--line); margin: -4px 0 12px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; }
+.textsize { display: inline-flex; align-items: center; margin-bottom: 5px; border: 1.5px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--paper); }
+.textsize button { border: 0; background: none; padding: 3px 8px; font: inherit; font-size: 13px; font-weight: 700; color: var(--ink2); cursor: pointer; line-height: 1.3; }
+.textsize button + button { border-left: 1px solid var(--line); }
+.textsize button:hover, .textsize button:focus-visible { background: var(--sheet); color: var(--ink); }
+.textsize button:disabled { color: var(--muted); opacity: .45; cursor: default; }
+.textsize sup { font-size: 10px; }
+#tzval { font-family: var(--f-mono); font-size: 11.5px; font-weight: 600; min-width: 5ch; font-variant-numeric: tabular-nums; }
+#state { zoom: var(--tz, 1); }
 .tabs button { border: 0; background: none; padding: 6px 10px; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .pseudo { margin: 0; padding-left: 28px; font-size: 12.5px; }
@@ -468,7 +477,14 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
       </div>
       <div id="splitter" class="splitter" role="separator" aria-orientation="vertical" aria-controls="stage" aria-label="Resize the board and the side panel (drag, or use the arrow keys; double-click to reset)" title="Drag to give the figure or the pseudocode more room. Double-click to reset." tabindex="0"><span class="grip"></span></div>
       <aside class="statepanel" aria-label="Data structures, pseudocode and code">
-        <div id="tabs" class="tabs" role="tablist"><button type="button" role="tab" data-tab="both" aria-selected="true">State + pseudocode</button><button type="button" role="tab" data-tab="state" aria-selected="false">State</button><button type="button" role="tab" data-tab="code" aria-selected="false">Pseudocode</button><button type="button" role="tab" data-tab="py" aria-selected="false">Python</button></div>
+        <div class="phead">
+          <div id="tabs" class="tabs" role="tablist"><button type="button" role="tab" data-tab="both" aria-selected="true">State + pseudocode</button><button type="button" role="tab" data-tab="state" aria-selected="false">State</button><button type="button" role="tab" data-tab="code" aria-selected="false">Pseudocode</button><button type="button" role="tab" data-tab="py" aria-selected="false">Python</button></div>
+          <div class="textsize" role="group" aria-label="Text size in this panel">
+            <button type="button" id="tzdown" title="Smaller text in this panel" aria-label="Smaller text">A<sup>−</sup></button>
+            <button type="button" id="tzval" title="Text size in this panel. Click to reset to 100%.">100%</button>
+            <button type="button" id="tzup" title="Bigger text in this panel" aria-label="Bigger text">A<sup>+</sup></button>
+          </div>
+        </div>
         <div id="state" role="tabpanel"></div>
       </aside>
     </section>

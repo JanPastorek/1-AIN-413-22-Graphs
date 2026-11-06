@@ -610,6 +610,13 @@ function boot() {
   ['n', 'e', 'l'].forEach(k => { const inp = $('#sz-' + k); inp.oninput = () => setSizes(Object.assign({}, SZ, { [k]: +inp.value }), false); inp.onchange = () => setSizes(SZ, true); });
   $('#szreset').onclick = () => setSizes({ n: 1, e: 1, l: 1 }, true);
   $('#sizebtn').onclick = () => { const b = $('#sizebtn'), on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); $('#sizebar').hidden = !on; };
+  $('#state').addEventListener('click', e => { // copy buttons inside panels (e.g. the ILP as an LP file)
+    const b = e.target.closest('.copybtn'); if (!b) return;
+    const pre = b.parentElement.querySelector(`pre[data-kind="${b.dataset.copy}"]`); if (!pre) return;
+    const done = ok => { const t = b.textContent; b.textContent = ok ? 'Copied' : 'Select the text and copy'; setTimeout(() => { b.textContent = t; }, 1600); };
+    const show = () => { b.parentElement.querySelectorAll('pre.lpsrc').forEach(p => { p.hidden = p !== pre; }); const r = document.createRange(); r.selectNodeContents(pre); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); };
+    show(); try { navigator.clipboard.writeText(pre.textContent).then(() => done(true), () => done(false)); } catch (err) { done(false); }
+  });
   initSplitter(); initPaneSplit(); initTextSize(); initCardResize(); initBoardHeight();
   const setSide = (show, focus) => {
     $('#app').classList.toggle('noside', !show); $('#sideshow').hidden = show;

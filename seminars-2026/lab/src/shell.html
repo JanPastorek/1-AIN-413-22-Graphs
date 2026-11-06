@@ -39,18 +39,21 @@ a { color: var(--accent); }
 :focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
 code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
 
-:root { --sz-n: 1; --sz-e: 1; --sz-l: 1; }
+:root { --sz-n: 1; --sz-e: 1; --sz-l: 1; --guide: color-mix(in srgb, var(--accent) 38%, transparent); }
 .app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100%; }
 .side { border-right: 1px solid var(--line); background: var(--sheet); padding: 20px 14px; position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
 .app.noside { grid-template-columns: minmax(0, 1fr); }
 .app.noside .side { display: none; }
 .sidehide { align-self: flex-end; display: inline-flex; align-items: center; gap: 5px; margin: -8px -4px -8px 0; border: 1px solid transparent; background: none; color: var(--muted); font: inherit; font-size: 12px; padding: 4px 8px; border-radius: 6px; cursor: pointer; }
 .sidehide:hover, .sidehide:focus-visible { color: var(--ink); border-color: var(--line); background: var(--paper); }
-.app { position: relative; }
+.app { position: relative; zoom: var(--pz, 1); }
+.pagesize { position: fixed; z-index: 40; top: calc(env(safe-area-inset-top, 0px) + 10px); right: 18px; display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 9px; border: 1.5px solid var(--line); border-radius: 9px; background: var(--sheet); box-shadow: 0 2px 8px rgba(0,0,0,0.12); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.pagesize .textsize { margin: 0; }
+@media (max-width: 820px) { .pagesize { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); right: 12px; } }
 .sideshow { position: absolute; z-index: 20; top: 10px; left: 10px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--sheet); color: var(--ink2); font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 8px; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
 .sideshow:hover, .sideshow:focus-visible { color: var(--ink); border-color: var(--ink2); }
 .app.noside main { padding-top: 54px; }
-@media (min-width: 1101px) { .app.noside .stage.both { grid-template-columns: minmax(0, 1fr) clamp(300px, calc(40vw - 40px), 720px); } }
+@media (min-width: 1101px) { .app.noside .stage.both { grid-template-columns: minmax(0, 1fr) 18px var(--pw, clamp(300px, calc(40vw - 40px), 720px)); } }
 .brand { display: flex; gap: 10px; align-items: center; padding-inline: 6px; }
 .brand svg { flex: none; }
 .brand b { display: block; font-family: var(--f-display); font-stretch: 118%; font-weight: 780; font-size: 17px; letter-spacing: -0.01em; line-height: 1.1; }
@@ -91,17 +94,28 @@ h3 { font-family: var(--f-display); font-stretch: 108%; font-weight: 700; font-s
 button:disabled { opacity: 0.45; cursor: default; }
 .tools button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
-.stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); gap: 18px; align-items: start; scroll-margin-top: 12px; }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 18px var(--pw, minmax(280px, 360px)); gap: 0; align-items: start; scroll-margin-top: 12px; }
 .board { border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--paper); min-width: 0; }
 .boardbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 12px; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--sheet); }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--ink2); }
 .lg { display: inline-flex; gap: 5px; align-items: center; }
 .tools { display: flex; flex-wrap: wrap; gap: 6px; }
 .tools button { padding: 4px 9px; font-size: 12px; }
+.laygrp { display: inline-flex; }
+.laygrp select { font: inherit; font-size: 12px; padding: 3px 6px; border: 1.5px solid var(--line); border-right: 0; border-radius: 6px 0 0 6px; background: var(--sheet); color: var(--ink); max-width: 13em; }
+.laygrp button { border-radius: 0 6px 6px 0 !important; }
+#rotl, #rotr, #flipx, #flipy { font-size: 15px; line-height: 1; padding: 3px 8px; }
 #svg { display: block; width: 100%; height: auto; aspect-ratio: 800 / 520; max-width: 100%; touch-action: none; user-select: none;
   background-color: var(--paper);
   background-image: linear-gradient(var(--grid2) 1px, transparent 1px), linear-gradient(90deg, var(--grid2) 1px, transparent 1px), linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px; }
+#svg.customh { aspect-ratio: auto; height: var(--bh); }
+.hsplit { position: relative; height: 12px; margin-top: -6px; margin-bottom: -6px; z-index: 3; cursor: row-resize; touch-action: none; outline: none; }
+.hsplit .grip { position: absolute; left: 50%; top: 2px; width: 60px; height: 8px; margin-left: -30px; border-radius: 4px; border: 1.5px solid var(--edge); background: var(--line); transition: background .15s, border-color .15s; }
+.hsplit::before { content: ""; position: absolute; left: 0; right: 0; top: 5.5px; height: 1px; background: transparent; transition: background .15s; }
+.hsplit:hover .grip, .hsplit:focus-visible .grip, .hsplit.drag .grip { background: var(--accent); border-color: var(--accent); }
+.hsplit:hover::before, .hsplit:focus-visible::before, .hsplit.drag::before { background: var(--accent); }
+body.resizing-v { cursor: row-resize; user-select: none; }
 #svg.editing { cursor: crosshair; }
 #svg.panning { cursor: grabbing; }
 .sizebar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--paper); font-size: 12.5px; }
@@ -170,7 +184,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .el.path, .el.cand { fill: var(--hot); } .el.cut, .el.cancel { fill: var(--mag); } .el.flow { fill: var(--teal); } .el.dup, .el.match { fill: var(--accent); } .el.res, .el.resb { fill: var(--ink2); }
 
 /* State column */
-.statepanel { background: var(--sheet); border: 1.5px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow-y: auto; }
+.statepanel { background: var(--sheet); border: 1.5px solid var(--line); border-radius: 10px; padding: 14px 16px; min-width: 0; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc((100vh - 24px) / var(--pz, 1)); overflow-y: auto; }
 .statepanel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-family: var(--f-body); font-stretch: 100%; font-weight: 700; }
 #state h4 { margin: 14px 0 6px; font-size: 12px; font-weight: 700; color: var(--ink2); text-transform: uppercase; letter-spacing: 0.06em; }
 #state h4:first-child { margin-top: 0; }
@@ -246,7 +260,7 @@ svg.mini { width: 100%; height: auto; display: block; margin: 4px 0 8px; }
 .sheet .tt .note { margin: 4px 0 0; max-width: 72ch; }
 .runs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .runs .setup { margin-top: 0; }
-.dpractice { margin: 0; font-size: 12.5px; color: var(--muted); }
+.dpractice { margin: 0; font-size: calc(13px * var(--dz)); color: var(--ink2); }
 .sheetref { display: block; margin-top: 6px; font-size: 13px; color: var(--ink2); }
 #netstats { margin-top: 6px; }
 footer { font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; max-width: 980px; }
@@ -258,16 +272,22 @@ footer p { margin: 0 0 6px; }
 .defhead { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
 .defhead h2 { margin: 0; }
 .defhead .note { margin: 0; }
-.defcards { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(280px, 316px); gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
-.dcard { scroll-snap-align: start; background: var(--sheet); border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.dcard h3 { margin: 0; font-size: 15px; }
-.dtext { margin: 0; font-size: 13px; color: var(--ink2); line-height: 1.45; }
-.dwhy { margin: 0; font-size: 13px; line-height: 1.45; padding: 6px 9px; background: var(--amber-soft); border-radius: 6px; color: var(--ink); }
+.defhead .textsize { margin: 0 0 0 auto; align-self: center; }
+.defs { --dz: 1; }
+.defcards { display: grid; grid-auto-flow: column; grid-auto-columns: var(--dcw, min(calc(100vw - 48px), clamp(290px, calc(240px + 90px * var(--dz)), 560px))); gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
+.dcard { position: relative; scroll-snap-align: start; background: var(--sheet); border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.dresize { position: absolute; top: 10px; bottom: 10px; right: -7px; width: 12px; cursor: col-resize; touch-action: none; outline: none; z-index: 2; }
+.dresize::before { content: ""; position: absolute; top: 50%; left: 3px; width: 6px; height: 42px; margin-top: -21px; border-radius: 3px; border: 1.5px solid var(--line); background: var(--sheet); opacity: 0; transition: opacity .15s, background .15s, border-color .15s; }
+.dcard:hover .dresize::before { opacity: 1; }
+.dresize:hover::before, .dresize:focus-visible::before, .dresize.drag::before { opacity: 1; background: var(--accent); border-color: var(--accent); }
+.dcard h3 { margin: 0; font-size: calc(17px * var(--dz)); color: var(--ink); }
+.dtext { margin: 0; font-size: calc(14.5px * var(--dz)); color: var(--ink); line-height: 1.5; }
+.dwhy { margin: 0; font-size: calc(14px * var(--dz)); line-height: 1.5; padding: 6px 9px; background: var(--amber-soft); border-radius: 6px; color: var(--ink); }
 .dwhy b { font-weight: 750; }
 .dfig { border-radius: 6px; overflow: hidden; background-color: var(--paper); background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 15px 15px; }
 .defsvg { display: block; width: 100%; height: auto; aspect-ratio: 300 / 190; }
 .dvideo { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000; }
-.dcap { margin: 0; font-size: 13px; min-height: 2.9em; color: var(--ink); }
+.dcap { margin: 0; font-size: calc(14.5px * var(--dz)); font-weight: 550; min-height: 2.9em; color: var(--ink); line-height: 1.45; }
 .dctl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: auto; }
 .dctl button { border: 1.5px solid var(--line); background: var(--sheet); border-radius: 6px; padding: 3px 9px; cursor: pointer; font-size: 12px; font-weight: 600; }
 .dctl .dplay { background: var(--ink); color: var(--paper); border-color: var(--ink); }
@@ -294,7 +314,16 @@ footer p { margin: 0 0 6px; }
 .seg button:disabled { opacity: .4; cursor: not-allowed; }
 .score { font-family: var(--f-mono); font-size: 13px; color: var(--ink2); font-variant-numeric: tabular-nums; }
 .controls.dim { opacity: .45; pointer-events: none; }
-.tabs { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1.5px solid var(--line); margin: -4px 0 12px; }
+.phead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 4px 10px; border-bottom: 1.5px solid var(--line); margin: -4px 0 12px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; }
+.textsize { display: inline-flex; align-items: center; margin-bottom: 5px; border: 1.5px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--paper); }
+.textsize button { border: 0; background: none; padding: 3px 8px; font: inherit; font-size: 13px; font-weight: 700; color: var(--ink2); cursor: pointer; line-height: 1.3; }
+.textsize button + button { border-left: 1px solid var(--line); }
+.textsize button:hover, .textsize button:focus-visible { background: var(--sheet); color: var(--ink); }
+.textsize button:disabled { color: var(--muted); opacity: .45; cursor: default; }
+.textsize sup { font-size: 10px; }
+#tzval { font-family: var(--f-mono); font-size: 11.5px; font-weight: 600; min-width: 5ch; font-variant-numeric: tabular-nums; }
+#state { zoom: var(--tz, 1); }
 .tabs button { border: 0; background: none; padding: 6px 10px; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); cursor: pointer; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px; }
 .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .pseudo { margin: 0; padding-left: 28px; font-size: 12.5px; }
@@ -305,19 +334,36 @@ footer p { margin: 0 0 6px; }
 .idea2 { border-radius: 0 0 6px 6px; padding-top: 3px; }
 /* State + pseudocode together: the panel widens on large screens and splits into two columns once it is wide enough */
 .statepanel { container-type: inline-size; }
-.stage.both { grid-template-columns: minmax(0, 1fr) clamp(300px, calc(44vw - 120px), 660px); }
+.stage.both { grid-template-columns: minmax(0, 1fr) 18px var(--pw, clamp(300px, calc(44vw - 120px), 660px)); }
+.splitter { align-self: stretch; position: relative; cursor: col-resize; touch-action: none; outline: none; }
+.splitter::before { content: ""; position: absolute; top: 0; bottom: 0; left: 8px; width: 2px; border-radius: 2px; background: transparent; transition: background .15s; }
+.splitter .grip { position: sticky; top: calc(50vh - 22px); display: block; margin: 40px auto 0; width: 8px; height: 44px; border-radius: 4px; border: 1.5px solid var(--line); background: var(--sheet); }
+.splitter:hover::before, .splitter:focus-visible::before, .splitter.drag::before { background: var(--accent); }
+.splitter:hover .grip, .splitter:focus-visible .grip, .splitter.drag .grip { border-color: var(--accent); background: var(--accent); }
+body.resizing { cursor: col-resize; user-select: none; }
 .both2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .pane { min-width: 0; }
 .paneh { margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .pcode { border-bottom: 1px solid var(--line); padding-bottom: 10px; max-height: 42vh; overflow-y: auto; }
 .pcode .pseudo { padding-left: 24px; }
+.psplit { display: none; position: relative; align-self: stretch; cursor: col-resize; touch-action: none; outline: none; }
 @container (min-width: 430px) {
-  .both2 { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; }
-  .pcode { border-bottom: 0; border-right: 1px solid var(--line); padding: 0 14px 0 0; max-height: none; overflow: visible; }
+  .both2 { grid-template-columns: minmax(0, var(--pfa, 1.05fr)) 17px minmax(0, var(--pfb, 1fr)); gap: 0; }
+  .pcode { border-bottom: 0; padding: 0 6px 0 0; max-height: none; overflow: visible; }
+  .pstate { padding-left: 6px; }
+  .psplit { display: block; }
 }
+.psplit::before { content: ""; position: absolute; top: 0; bottom: 0; left: 8px; width: 1px; background: var(--line); transition: background .15s, width .15s, left .15s; }
+.psplit .grip { position: sticky; top: 40%; display: block; margin: 28px auto 0; width: 7px; height: 34px; border-radius: 4px; border: 1.5px solid var(--line); background: var(--sheet); }
+.psplit:hover::before, .psplit:focus-visible::before, .psplit.drag::before { background: var(--accent); width: 2px; left: 7.5px; }
+.psplit:hover .grip, .psplit:focus-visible .grip, .psplit.drag .grip { border-color: var(--accent); background: var(--accent); }
 .pseudo li { padding: 2px 6px; border-radius: 4px; white-space: pre-wrap; }
 .pseudo li::marker { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
-.pseudo li.on { background: var(--amber-soft); box-shadow: inset 3px 0 0 var(--amber); }
+.pseudo li.on { background-color: var(--amber-soft); box-shadow: inset 3px 0 0 var(--amber); }
+/* indentation: each level is one 1.7em step with a vertical guide, wrapped lines keep the indent */
+.pseudo li { --iw: 1.7em; font-size: 12px; }
+.pseudo li code { display: block; padding-left: calc(var(--lv, 0) * var(--iw)); }
+.pseudo li.ind { background-image: repeating-linear-gradient(to right, var(--guide) 0 1.5px, transparent 1.5px var(--iw)); background-size: calc(var(--lv) * var(--iw)) 100%; background-position: calc(6px + 0.35em) 0; background-repeat: no-repeat; }
 .pseudo code { font-family: var(--f-mono); font-size: 12px; white-space: pre-wrap; }
 .pyhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .pyhead button { border: 1.5px solid var(--line); background: var(--sheet); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 12px; font-weight: 600; }
@@ -358,9 +404,9 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
 .rb { height: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
 .rb span { display: block; height: 100%; background: var(--accent); }
 .rv { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
-@media (max-width: 820px) { .tbody { grid-template-columns: 1fr; } .defcards { grid-auto-columns: minmax(260px, 86vw); } }
+@media (max-width: 820px) { .tbody { grid-template-columns: 1fr; } .defcards { grid-auto-columns: var(--dcw, minmax(260px, 86vw)); } }
 
-@media (max-width: 1100px) { .stage, .stage.both { grid-template-columns: 1fr; } .statepanel { position: static; max-height: none; } }
+@media (max-width: 1100px) { .stage, .stage.both { grid-template-columns: 1fr; gap: 18px; } .splitter { display: none; } .statepanel { position: static; max-height: none; } }
 @media (max-width: 820px) {
   .app { grid-template-columns: 1fr; }
   .side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 14px 16px 10px; gap: 10px; }
@@ -377,6 +423,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
 
+<div class="pagesize" role="group" aria-label="Text size of the whole page"><span class="pslabel" aria-hidden="true">Page</span><span class="textsize"><button type="button" id="pzdown" title="Smaller page" aria-label="Smaller page text">A<sup>−</sup></button><button type="button" id="pzval" title="Text size of the whole page. Click to reset to 100%.">100%</button><button type="button" id="pzup" title="Bigger page" aria-label="Bigger page text">A<sup>+</sup></button></span></div>
 <div class="app" id="app">
   <button id="sideshow" class="sideshow" type="button" aria-controls="side" aria-expanded="false" title="Show the sessions menu (M)" hidden><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Sessions</span></button>
   <aside class="side" id="side">
@@ -386,7 +433,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
       <div><b>Graph Studio Lab</b><span>1-AIN-413 · Graphs, Graph Algorithms and Optimization</span></div>
     </div>
     <nav id="nav" aria-label="Seminar sessions"></nav>
-    <p class="side-note">Step with <kbd>←</kbd> <kbd>→</kbd>, play with <kbd>Space</kbd>, hide this menu with <kbd>M</kbd>. Drag vertices to tidy a drawing; scroll on the board to zoom, drag the paper to pan.</p>
+    <p class="side-note">Step with <kbd>←</kbd> <kbd>→</kbd>, play with <kbd>Space</kbd>, hide this menu with <kbd>M</kbd>. Drag vertices to tidy a drawing; scroll on the board to zoom, drag the paper to pan. Drag the bar between the board and the side panel to resize them, and the grip under the drawing to change its height.</p>
   </aside>
 
   <main>
@@ -396,7 +443,8 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
     </header>
 
     <section id="defs" class="defs" aria-label="Definitions">
-      <div class="defhead"><h2>Definitions</h2><p class="note">Press Play on a card, or step through it with the dots.</p></div>
+      <div class="defhead"><h2>Definitions</h2><p class="note">Press Play on a card, or step through it with the dots. Drag the right edge of a card to make all cards wider or narrower.</p>
+        <div class="textsize" role="group" aria-label="Text size in the definition cards"><button type="button" id="dzdown" title="Smaller text in the cards" aria-label="Smaller text">A<sup>−</sup></button><button type="button" id="dzval" title="Text size in the cards. Click to reset to 100%.">100%</button><button type="button" id="dzup" title="Bigger text in the cards" aria-label="Bigger text">A<sup>+</sup></button></div></div>
       <div id="defcards" class="defcards"></div>
     </section>
 
@@ -421,9 +469,8 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
           <div id="legend" class="legend"></div>
           <div class="tools">
             <button type="button" id="resid" aria-pressed="false" hidden>Residual view</button>
-            <button type="button" id="lay-force">Re-layout</button>
-            <button type="button" id="lay-circle">Circle</button>
-            <button type="button" id="lay-cols">Two columns</button>
+            <span class="laygrp" role="group" aria-label="Layout"><select id="laysel" aria-label="Layout method" title="How to place the vertices. Spring: edges as springs. Stress: drawn distances follow hop distances. Shells: rings by distance from the start vertex. Layered: one row per BFS level from the start. Spectral: coordinates from Laplacian eigenvectors. Two columns: the two sides of a bipartite graph."></select><button type="button" id="lay-force" title="Lay the graph out again with the chosen method (a fresh random start where the method uses one)">Re-layout</button></span>
+            <span class="zoom" role="group" aria-label="Rotate and mirror"><button type="button" id="rotl" aria-label="Rotate anticlockwise" title="Rotate 15° anticlockwise (Shift: 90°)">⟲</button><button type="button" id="rotr" aria-label="Rotate clockwise" title="Rotate 15° clockwise (Shift: 90°)">⟳</button><button type="button" id="flipx" aria-label="Mirror left to right" title="Mirror left ↔ right">⇋</button><button type="button" id="flipy" aria-label="Mirror top to bottom" title="Mirror top ↕ bottom">⇵</button></span>
             <button type="button" id="editbtn" aria-pressed="false">Edit</button>
             <button type="button" id="sizebtn" aria-pressed="false" aria-controls="sizebar" title="Change the size of vertices, edges and labels in every session">Sizes</button>
             <span class="zoom" role="group" aria-label="Zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">−</button><button type="button" id="zfit" disabled>Fit</button><button type="button" id="zstart">Zoom to start</button></span>
@@ -437,6 +484,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
           <span class="note">Applies to the board, the definition cards and exit tickets in every session.</span>
         </div>
         <svg id="svg" viewBox="0 0 800 520" role="img" aria-label="Graph drawing for the current step"></svg>
+        <div id="bhandle" class="hsplit" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Height of the drawing (drag, or use the up and down arrow keys; double-click to reset)" title="Drag to make the drawing taller or shorter. Double-click to reset."><span class="grip"></span></div>
         <p id="edithint" class="edithint" hidden>Click empty paper to add a vertex. Click two vertices to add or remove the edge between them. The graph box below updates as you go.</p>
         <div id="askbar" class="askbar" hidden aria-live="polite"></div>
         <div id="narr" class="narr" aria-live="polite"><p id="msg"></p></div>
@@ -453,8 +501,16 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
           <select id="speed" aria-label="Playback speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
         </div>
       </div>
+      <div id="splitter" class="splitter" role="separator" aria-orientation="vertical" aria-controls="stage" aria-label="Resize the board and the side panel (drag, or use the arrow keys; double-click to reset)" title="Drag to give the figure or the pseudocode more room. Double-click to reset." tabindex="0"><span class="grip"></span></div>
       <aside class="statepanel" aria-label="Data structures, pseudocode and code">
-        <div id="tabs" class="tabs" role="tablist"><button type="button" role="tab" data-tab="both" aria-selected="true">State + pseudocode</button><button type="button" role="tab" data-tab="state" aria-selected="false">State</button><button type="button" role="tab" data-tab="code" aria-selected="false">Pseudocode</button><button type="button" role="tab" data-tab="py" aria-selected="false">Python</button></div>
+        <div class="phead">
+          <div id="tabs" class="tabs" role="tablist"><button type="button" role="tab" data-tab="both" aria-selected="true">State + pseudocode</button><button type="button" role="tab" data-tab="state" aria-selected="false">State</button><button type="button" role="tab" data-tab="code" aria-selected="false">Pseudocode</button><button type="button" role="tab" data-tab="py" aria-selected="false">Python</button></div>
+          <div class="textsize" role="group" aria-label="Text size in this panel">
+            <button type="button" id="tzdown" title="Smaller text in this panel" aria-label="Smaller text">A<sup>−</sup></button>
+            <button type="button" id="tzval" title="Text size in this panel. Click to reset to 100%.">100%</button>
+            <button type="button" id="tzup" title="Bigger text in this panel" aria-label="Bigger text">A<sup>+</sup></button>
+          </div>
+        </div>
         <div id="state" role="tabpanel"></div>
       </aside>
     </section>

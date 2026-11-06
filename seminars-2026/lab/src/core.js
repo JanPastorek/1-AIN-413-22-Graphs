@@ -151,7 +151,7 @@ function forceLayout(g, box = { x0: PAD, x1: W - PAD, y0: PAD, y1: H - PAD }, it
   const P = g.nodes.map((v, i) => { const a = 2 * Math.PI * i / n; return [Math.cos(a) + 0.05 * R(), Math.sin(a) + 0.05 * R()]; });
   const E = []; const seen = new Set();
   for (const e of g.edges) { const k = Math.min(e.u, e.v) + ',' + Math.max(e.u, e.v); if (!seen.has(k)) { seen.add(k); E.push([e.u, e.v]); } }
-  if (stress && n > 12 && E.length) { // classical MDS start, then stress majorization
+  if (stress && (n > 12 || stress === 'always') && E.length) { // classical MDS start, then stress majorization
     const Q = mdsInit(n, E, seed); stressRefine(n, E, Q, 300); fitInto(g, Q, box, false); separate(g, box); return;
   }
   const k = Math.sqrt(4 / n); let t = 0.25;
@@ -228,8 +228,10 @@ function fitInto(g, P, box, clamp = true) {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const [x, y] of P) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
   const sx = (box.x1 - box.x0) / Math.max(1e-6, x1 - x0), sy = (box.y1 - box.y0) / Math.max(1e-6, y1 - y0); const s = Math.min(sx, sy);
-  const ox = box.x0 + ((box.x1 - box.x0) - s * (x1 - x0)) / 2, oy = box.y0 + ((box.y1 - box.y0) - s * (y1 - y0)) / 2;
-  g.nodes.forEach((v, i) => { v.x = ox + (P[i][0] - x0) * s; v.y = oy + (P[i][1] - y0) * s; });
+  // box.stretch (a board the user made taller or wider): a force layout has no natural shape, so let it fill up to 2× more in one direction
+  const tx = box.stretch ? Math.min(sx, 2 * s) : s, ty = box.stretch ? Math.min(sy, 2 * s) : s;
+  const ox = box.x0 + ((box.x1 - box.x0) - tx * (x1 - x0)) / 2, oy = box.y0 + ((box.y1 - box.y0) - ty * (y1 - y0)) / 2;
+  g.nodes.forEach((v, i) => { v.x = ox + (P[i][0] - x0) * tx; v.y = oy + (P[i][1] - y0) * ty; });
 }
 function columnsLayout(g, leftSet) {
   const L = [], Rr = []; g.nodes.forEach((v, i) => (leftSet.has(i) ? L : Rr).push(i));
@@ -240,6 +242,104 @@ function twoColoring(g) {
   const n = g.nodes.length, A = adjUnd(g), col = Array(n).fill(-1);
   for (let s = 0; s < n; s++) { if (col[s] >= 0) continue; col[s] = 0; const Q = [s]; for (let h = 0; h < Q.length; h++) { const u = Q[h]; for (const { to } of A[u]) { if (col[to] < 0) { col[to] = 1 - col[u]; Q.push(to); } else if (col[to] === col[u]) return null; } } }
   return col;
+}
+
+/* ---------- more layouts, rotation and mirroring ---------- */
+const LAYOUTS = {
+  spring: 'Spring', stress: 'Stress', circle: 'Circle', shells: 'Shells (rings)', layered: 'Layered (BFS tree)',
+  grid: 'Grid', spectral: 'Spectral', columns: 'Two columns', random: 'Random',
+};
+function undirectedLists(g) { const A = g.nodes.map(() => []); for (const e of g.edges) if (e.u !== e.v) { A[e.u].push(e.v); A[e.v].push(e.u); } return A; }
+/* BFS levels from root; every other component gets its own BFS from its highest-degree vertex, also starting at level 0 */
+function bfsLevels(g, root) {
+  const n = g.nodes.length, A = undirectedLists(g), lev = Array(n).fill(-1), par = Array(n).fill(-1), order = [];
+  const deg = A.map(a => a.length), starts = [root >= 0 && root < n ? root : deg.indexOf(Math.max(...deg))];
+  for (let k = 0; order.length < n; k++) {
+    let s = starts[k]; if (s === undefined || lev[s] >= 0) { let best = -1; for (let i = 0; i < n; i++) if (lev[i] < 0 && (best < 0 || deg[i] > deg[best])) best = i; s = best; }
+    lev[s] = 0; const Q = [s]; order.push(s);
+    for (let h = 0; h < Q.length; h++) { const u = Q[h]; for (const v of A[u]) if (lev[v] < 0) { lev[v] = lev[u] + 1; par[v] = u; Q.push(v); order.push(v); } }
+  }
+  return { lev, par, order, A };
+}
+function layoutPositions(g, kind, box, opt = {}) {
+  const n = g.nodes.length, R = rng(opt.seed || 7), bw = box.x1 - box.x0, bh = box.y1 - box.y0;
+  if (kind === 'random') return g.nodes.map(() => [R(), R() * bh / bw]);
+  if (kind === 'circle') return g.nodes.map((v, i) => { const a = -Math.PI / 2 + 2 * Math.PI * i / Math.max(1, n); return [Math.cos(a), Math.sin(a)]; });
+  const { lev, par, order, A } = bfsLevels(g, opt.root ?? -1);
+  if (kind === 'shells') {
+    // other components go on the rings outside the start's component
+    const comp0 = new Set(); { const q = [order[0]]; comp0.add(order[0]); for (let h = 0; h < q.length; h++) for (const v of A[q[h]]) if (!comp0.has(v)) { comp0.add(v); q.push(v); } }
+    const top = Math.max(...[...comp0].map(v => lev[v])); order.forEach(v => { if (!comp0.has(v)) lev[v] += top + 1; });
+    const by = []; order.forEach(v => (by[lev[v]] = by[lev[v]] || []).push(v)); const P = Array(n);
+    by.forEach((ring, d) => ring.forEach((v, k) => { if (d === 0 && ring.length === 1) { P[v] = [0, 0]; return; } const a = -Math.PI / 2 + 2 * Math.PI * (k + 0.5 * (d % 2)) / ring.length, r = d === 0 ? 0.5 : d; P[v] = [r * Math.cos(a), r * Math.sin(a)]; }));
+    return P;
+  }
+  if (kind === 'layered') {
+    const rows = []; order.forEach(v => (rows[lev[v]] = rows[lev[v]] || []).push(v)); const x = Array(n).fill(0);
+    rows[0].forEach((v, k) => { x[v] = k * 2; });
+    // put each row under (or over) the average of its neighbours in the row before, one unit apart; a down pass, then an up pass
+    const place = (d, from) => {
+      const want = v => { const nb = A[v].filter(u => lev[u] === from); return nb.length ? nb.reduce((s, u) => s + x[u], 0) / nb.length : x[v]; };
+      const r = rows[d].map(v => [v, want(v)]).sort((p, q) => p[1] - q[1] || p[0] - q[0]);
+      let last = -Infinity; const pos = r.map(([, w]) => (last = Math.max(w, last + 1)));
+      const shift = r.reduce((s, [, w], k) => s + w - pos[k], 0) / r.length;
+      r.forEach(([v], k) => { x[v] = pos[k] + shift; }); rows[d] = r.map(([v]) => v);
+    };
+    for (let d = 1; d < rows.length; d++) place(d, d - 1);
+    for (let d = rows.length - 2; d >= 0; d--) place(d, d + 1);
+    const span = Math.max(1, Math.max(...x) - Math.min(...x));
+    return g.nodes.map((_, v) => [x[v], lev[v] * Math.max(1, span / Math.max(1, rows.length - 1)) * 0.6]);
+  }
+  if (kind === 'grid') { const c = Math.max(1, Math.round(Math.sqrt(n * bw / bh))), P = Array(n); order.forEach((v, k) => { P[v] = [k % c, Math.floor(k / c)]; }); return P; }
+  if (kind === 'spectral') {
+    const deg = A.map(a => a.length), c = 2 * Math.max(1, ...deg) + 1, vecs = [];
+    const mul = v => v.map((vi, i) => c * vi - deg[i] * vi + A[i].reduce((s, j) => s + v[j], 0)); // (cI − L)v
+    const ortho = v => { const m = v.reduce((s, x) => s + x, 0) / n; v = v.map(x => x - m); for (const u of vecs) { const d = v.reduce((s, x, i) => s + x * u[i], 0); v = v.map((x, i) => x - d * u[i]); } const nr = Math.hypot(...v) || 1; return v.map(x => x / nr); };
+    for (let k = 0; k < 2; k++) { let v = ortho(g.nodes.map(() => R() - 0.5)); for (let it = 0; it < 300; it++) v = ortho(mul(v)); vecs.push(v); }
+    return g.nodes.map((_, i) => [vecs[0][i] + 1e-4 * (R() - 0.5), vecs[1][i] + 1e-4 * (R() - 0.5)]);
+  }
+  return null;
+}
+/* lay out g in box with the named method; parts (two graphs to compare) side by side */
+function layoutGraph(g, kind, box = { x0: PAD, x1: W - PAD, y0: PAD, y1: H - PAD }, opt = {}) {
+  const parts = g.parts || 1;
+  if (parts > 1 && !opt.whole) {
+    const span = (box.x1 - box.x0) / parts;
+    for (let p = 0; p < parts; p++) {
+      const idx = g.nodes.map((v, i) => v.part === p ? i : -1).filter(i => i >= 0), pos = new Map(idx.map((i, k) => [i, k]));
+      const sub = { directed: g.directed, nodes: idx.map(i => g.nodes[i]), edges: [] };
+      for (const e of g.edges) if (pos.has(e.u) && pos.has(e.v)) sub.edges.push({ u: pos.get(e.u), v: pos.get(e.v), w: e.w });
+      const r = opt.root >= 0 && pos.has(opt.root) ? pos.get(opt.root) : -1;
+      layoutGraph(sub, kind, { x0: box.x0 + p * span + 10, x1: box.x0 + (p + 1) * span - 10, y0: box.y0, y1: box.y1, stretch: box.stretch }, Object.assign({}, opt, { whole: true, root: r }));
+    }
+    g._scale = 1; return true;
+  }
+  g._scale = 1;
+  if (kind === 'spring' || kind === 'stress') { forceLayout(g, box, 350, opt.seed || 7, kind === 'stress' ? 'always' : false); return true; }
+  if (kind === 'columns') {
+    const col = twoColoring(g); if (!col) return false;
+    const L = [], Rr = []; col.forEach((c, i) => (c === 0 ? L : Rr).push(i));
+    const cx = (box.x0 + box.x1) / 2, dx = Math.min(170, (box.x1 - box.x0) / 2 - 20);
+    const place = (arr, x) => arr.forEach((i, k) => { g.nodes[i].x = x; g.nodes[i].y = arr.length === 1 ? (box.y0 + box.y1) / 2 : box.y0 + 10 + (box.y1 - box.y0 - 20) * k / (arr.length - 1); });
+    place(L, cx - dx); place(Rr, cx + dx); return true;
+  }
+  if (g.nodes.length === 0) return true;
+  if (g.nodes.length === 1) { g.nodes[0].x = (box.x0 + box.x1) / 2; g.nodes[0].y = (box.y0 + box.y1) / 2; return true; }
+  const P = layoutPositions(g, kind, box, opt); if (!P) return false;
+  if (kind === 'circle') { const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2, r = Math.min(Math.min(box.x1 - box.x0, box.y1 - box.y0) / 2, 40 + g.nodes.length * 14); g.nodes.forEach((v, i) => { v.x = cx + r * P[i][0]; v.y = cy + r * P[i][1]; }); return true; }
+  fitInto(g, P, Object.assign({}, box, { stretch: box.stretch || kind === 'grid' || kind === 'layered' }), false); separate(g, box); return true;
+}
+/* rotate by deg (or mirror) about the drawing's centre; shrink to stay inside box, and grow back what earlier turns shrank */
+function rotateGraph(g, deg, box = { x0: PAD, x1: W - PAD, y0: PAD, y1: H - PAD }, mirror = false) {
+  const n = g.nodes.length; if (!n) return;
+  const cx = g.nodes.reduce((s, v) => s + v.x, 0) / n, cy = g.nodes.reduce((s, v) => s + v.y, 0) / n, a = deg * Math.PI / 180, c = Math.cos(a), sn = Math.sin(a);
+  const P = g.nodes.map(v => { const x = mirror ? cx - (v.x - cx) : v.x, y = v.y; return [cx + (x - cx) * c - (y - cy) * sn, cy + (x - cx) * sn + (y - cy) * c]; });
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const [x, y] of P) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  const fit = Math.min((box.x1 - box.x0) / Math.max(1e-6, x1 - x0), (box.y1 - box.y0) / Math.max(1e-6, y1 - y0));
+  const prev = g._scale || 1, s = Math.min(fit, 1 / prev); g._scale = prev * s;
+  const mx = (x0 + x1) / 2, my = (y0 + y1) / 2, bx = (box.x0 + box.x1) / 2, by = (box.y0 + box.y1) / 2;
+  const tx = Math.min(Math.max(mx, box.x0 + s * (mx - x0)), box.x1 - s * (x1 - mx)), ty = Math.min(Math.max(my, box.y0 + s * (my - y0)), box.y1 - s * (y1 - my));
+  g.nodes.forEach((v, i) => { v.x = (s < 1 ? bx : tx) + (P[i][0] - mx) * s; v.y = (s < 1 ? by : ty) + (P[i][1] - my) * s; });
 }
 
 /* ---------- frame recorder & panel helpers ---------- */
@@ -260,4 +360,4 @@ const h4 = t => `<h4>${t}</h4>`;
 const fmt = x => x === Infinity ? '∞' : x === -Infinity ? '−∞' : (Number.isInteger(x) ? String(x).replace('-', '−') : (+x.toFixed(3)).toString().replace('-', '−'));
 function edgeName(g, i) { const e = g.edges[i]; return `${lab(g, e.u)}${g.directed ? '→' : '–'}${lab(g, e.v)}`; }
 
-if (typeof module !== 'undefined') Object.assign(globalThis, { MAXF, rng, newGraph, addNode, parseGraph, graphToText, cloneGraph, decodeGraph6, encodeGraph6, adjOut, adjUnd, adjMatrix, simpleNbrSets, components, bfsDist, triangleCount, diameterInfo, circleLayout, partsLayout, forceLayout, fitInto, columnsLayout, twoColoring, Rec, esc, lab, N, chips, table, cert, h4, fmt, edgeName, W, H, PAD });
+if (typeof module !== 'undefined') Object.assign(globalThis, { MAXF, rng, newGraph, addNode, parseGraph, graphToText, cloneGraph, decodeGraph6, encodeGraph6, adjOut, adjUnd, adjMatrix, simpleNbrSets, components, bfsDist, triangleCount, diameterInfo, circleLayout, partsLayout, forceLayout, LAYOUTS, bfsLevels, layoutPositions, layoutGraph, rotateGraph, fitInto, columnsLayout, twoColoring, Rec, esc, lab, N, chips, table, cert, h4, fmt, edgeName, W, H, PAD });

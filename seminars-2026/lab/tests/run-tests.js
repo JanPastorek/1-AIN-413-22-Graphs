@@ -170,6 +170,26 @@ for (const m of MODULES) { ok(m.tasks[0] && m.tasks[0].tag === 'Motivation', `${
   { const g = parseGraph('directed\na b\nb c\nc a'); ok(autSearch(g, Array(3).fill(0)).count === 3, '|Aut| of a directed 3-cycle is 3'); }
 }
 
+/* --- layout menu, rotation and mirroring --- */
+{
+  const box = { x0: 46, x1: 754, y0: 46, y1: 474 }, inBox = g => g.nodes.every(v => Number.isFinite(v.x) && Number.isFinite(v.y) && v.x >= box.x0 - 1e-6 && v.x <= box.x1 + 1e-6 && v.y >= box.y0 - 1e-6 && v.y <= box.y1 + 1e-6);
+  const graphs = ['a b\nb c\nc d\nd a\na c\ne f', 'r a\nr b\na c\na d\nb e\nb f\nc g', 'a b\nb c\nc d\nd e\ne a\na f\nb g\nc h\nd i\ne j\nf h\nh j\nj g\ng i\ni f', 'x', 'a b\n---\nc d\nd e'];
+  for (const t of graphs) for (const k of Object.keys(LAYOUTS)) {
+    const g = parseGraph(t), done = layoutGraph(g, k, box, { seed: 5 });
+    if (k === 'columns' && !twoColoring(g)) { ok(!done, `columns refuses a non-bipartite graph (${t.split('\n').length} lines)`); continue; }
+    ok(done && inBox(g), `${k} layout stays in the box (${t.slice(0, 12)}…)`);
+  }
+  { const g = parseGraph('r a\nr b\na c\na d\nb e\nb f'); layoutGraph(g, 'layered', box, { root: 0 }); const y = l => g.nodes.find(v => v.label === l).y, x = l => g.nodes.find(v => v.label === l).x;
+    ok(y('r') < y('a') && y('a') === y('b') && y('a') < y('c'), 'layered: one row per BFS level from the start');
+    ok(Math.abs(x('a') - (x('c') + x('d')) / 2) < 1 && Math.abs(x('r') - (x('a') + x('b')) / 2) < 1, 'layered: parents sit above the middle of their children'); }
+  { const g = parseGraph('a b\nb c\nc d\nd a\na c\ne f'); layoutGraph(g, 'shells', box, { root: 0 }); const c = g.nodes[0], d = v => Math.hypot(v.x - c.x, v.y - c.y);
+    ok(d(g.nodes[1]) > 1 && d(g.nodes[4]) > d(g.nodes[1]), 'shells: start in the middle, other components further out'); }
+  { const g = parseGraph('a b\nb c\nc d\nd e\ne f\nf g\ng h'); layoutGraph(g, 'stress', box); const len = () => { const e = g.edges[0], a = g.nodes[e.u], b = g.nodes[e.v]; return Math.hypot(a.x - b.x, a.y - b.y); }, L0 = len();
+    for (let k = 0; k < 4; k++) rotateGraph(g, 90, box); ok(inBox(g) && Math.abs(len() - L0) < 1e-6, 'four quarter turns: back in the box at the original size');
+    const before = g.nodes.map(v => [v.x, v.y]); rotateGraph(g, 0, box, true); rotateGraph(g, 0, box, true); ok(g.nodes.every((v, i) => Math.abs(v.x - before[i][0]) < 1e-6 && Math.abs(v.y - before[i][1]) < 1e-6), 'mirroring twice is the identity');
+    rotateGraph(g, 15, box); const p = g.nodes.map(v => [v.x, v.y]); const d01 = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]); ok(inBox(g) && d01 <= L0 + 1e-6, 'a 15° turn keeps the drawing in the box and never enlarges it'); }
+}
+
 /* --- the assembled page compiles: no clashing top-level names between source files --- */
 { const order = ORDER.concat(['app']); let err = null; try { new vm.Script(order.map(f => fs.readFileSync(path.join(SRC, f + '.js'), 'utf8')).join('\n')); } catch (e) { err = e.message; } ok(!err, 'all sources compile together' + (err ? ': ' + err : '')); }
 

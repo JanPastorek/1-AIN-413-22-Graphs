@@ -283,6 +283,54 @@ footer p { margin: 0 0 6px; }
 .defhead .note { margin: 0; }
 .defhead .textsize { margin: 0 0 0 auto; align-self: center; }
 .defs { --dz: 1; }
+/* session 05: which shortest-path algorithm */
+.guide { background: var(--sheet); border: 1.5px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.ghead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.ghead h2 { margin: 0 auto 0 0; }
+.gseg { display: inline-flex; border: 1.5px solid var(--line); border-radius: 8px; overflow: hidden; }
+.gseg button { border: 0; background: var(--sheet); padding: 5px 11px; font: inherit; font-size: 13px; font-weight: 650; color: var(--ink2); cursor: pointer; }
+.gseg button + button { border-left: 1.5px solid var(--line); }
+.gseg button[aria-selected="true"] { background: var(--accent); color: var(--on-accent); }
+.gbtn { border: 1.5px solid var(--line); background: var(--sheet); border-radius: 7px; padding: 5px 10px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink); }
+.gbtn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.guide > .note { margin: 0; }
+.gwarn { background: var(--mag-soft); border-left: 4px solid var(--mag); padding: 8px 12px; border-radius: 6px; font-size: 14px; }
+.gflow { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+.gstep { display: grid; grid-template-columns: minmax(0, 1.25fr) 56px minmax(0, 1fr); align-items: center; gap: 0; position: relative; padding-bottom: 26px; }
+.gstep:last-child { padding-bottom: 0; }
+.gstep:not(:last-child)::after { content: "No"; position: absolute; left: 26px; bottom: 3px; font-size: 12px; font-weight: 700; color: var(--muted); padding-left: 14px; border-left: 2px solid var(--line); height: 22px; line-height: 26px; }
+.gstep.path.no:not(:last-child)::after { color: var(--accent); border-left-color: var(--accent); }
+.gq { background: var(--accent-soft); border: 1.5px solid color-mix(in srgb, var(--accent) 35%, var(--line)); border-radius: 10px; padding: 9px 12px; display: flex; flex-direction: column; gap: 6px; opacity: .55; }
+.gq.gnone { visibility: hidden; padding: 0; border: 0; }
+.gstep.path .gq { opacity: 1; }
+.gstep.open .gq { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
+.gq p { margin: 0; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.gq .gwhy, .gresult .gwhy { font-weight: 500; font-size: 13px; color: var(--ink2); }
+.gbtns { display: flex; gap: 6px; }
+.gbtns button { border: 1.5px solid var(--line); background: var(--sheet); border-radius: 6px; padding: 2px 12px; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; color: var(--ink); }
+.gbtns button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.garrow { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); position: relative; }
+.garrow:not(:empty)::after { content: ""; display: block; height: 2px; margin: 2px 6px 0; background: var(--line); }
+.gstep.path.yes .garrow { color: var(--accent); }
+.gstep.path.yes .garrow::after { background: var(--accent); }
+.gleaf { background: var(--amber-soft); border: 1.5px solid color-mix(in srgb, var(--amber) 45%, var(--line)); border-radius: 8px; padding: 8px 11px; display: flex; flex-direction: column; gap: 2px; opacity: .6; }
+.gleaf b { font-size: 14.5px; color: var(--ink); }
+.gleaf span { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink2); }
+.gleaf .glab { font-family: inherit; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.gleaf.on { opacity: 1; border-color: var(--amber); box-shadow: 0 0 0 3px color-mix(in srgb, var(--amber) 40%, transparent); }
+.gsplit { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.gend .gleaf { grid-column: 3; }
+.gneed { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: var(--accent-soft); border-radius: 10px; padding: 8px 12px; }
+.gneed p { margin: 0; font-weight: 600; }
+.gresult { border-left: 4px solid var(--amber); background: var(--paper); border-radius: 6px; padding: 10px 14px; }
+.gresult h3 { margin: 0 0 4px; font-size: 17px; }
+.gtime { font-family: var(--f-mono); font-size: 12.5px; font-weight: 500; color: var(--ink2); margin-left: 6px; }
+.gresult p { margin: 0 0 8px; max-width: 75ch; }
+.gprompt { margin: 0; }
+.gmore summary { cursor: pointer; font-weight: 650; color: var(--ink2); }
+.gmore ul { margin: 6px 0 0; padding-left: 20px; max-width: 80ch; }
+.gmore li { margin: 3px 0; }
+@media (max-width: 640px) { .gstep { grid-template-columns: 1fr; gap: 6px; } .garrow { text-align: left; } .garrow:not(:empty)::after { display: none; } .garrow:not(:empty)::before { content: "↓ "; } .gstep:not(:last-child)::after { left: 12px; } .gend .gleaf { grid-column: 1; } }
 .defcards { display: grid; grid-auto-flow: column; grid-auto-columns: var(--dcw, min(calc(100vw - 48px), clamp(290px, calc(240px + 90px * var(--dz)), 560px))); gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
 .dcard { position: relative; scroll-snap-align: start; background: var(--sheet); border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .dresize { position: absolute; top: 10px; bottom: 10px; right: -7px; width: 12px; cursor: col-resize; touch-action: none; outline: none; z-index: 2; }
@@ -479,6 +527,8 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
       <span id="score" class="score" aria-live="polite"></span>
     </div>
 
+    <section id="guide" class="guide" aria-label="Which shortest-path algorithm" hidden></section>
+
     <section id="stage" class="stage" aria-label="Algorithm stage">
       <div class="board">
         <div class="boardbar">
@@ -496,8 +546,9 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
           <label><span>Vertices</span><input type="range" id="sz-n" min="0.5" max="2.5" step="0.1" value="1"><output for="sz-n">100%</output></label>
           <label><span>Edges</span><input type="range" id="sz-e" min="0.5" max="3" step="0.1" value="1"><output for="sz-e">100%</output></label>
           <label><span>Labels</span><input type="range" id="sz-l" min="0.5" max="2.5" step="0.1" value="1"><output for="sz-l">100%</output></label>
+          <label title="Spread the vertices of this drawing apart or pull them together (edges get longer or shorter); the view zooms out if the drawing outgrows the board"><span>Edge length</span><input type="range" id="sz-len" min="0.4" max="2.5" step="0.05" value="1"><output for="sz-len">100%</output></label>
           <button type="button" id="szreset">Reset</button>
-          <span class="note">Applies to the board, the definition cards and exit tickets in every session.</span>
+          <span class="note">Vertices, edges and labels apply to the board, the definition cards and exit tickets in every session. Edge length spreads the current drawing; a new layout starts again at 100%.</span>
         </div>
         <svg id="svg" viewBox="0 0 800 520" role="img" aria-label="Graph drawing for the current step"></svg>
         <div id="bhandle" class="hsplit" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Height of the drawing (drag, or use the up and down arrow keys; double-click to reset)" title="Drag to make the drawing taller or shorter. Double-click to reset."><span class="grip"></span></div>

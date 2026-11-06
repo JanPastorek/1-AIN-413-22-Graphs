@@ -63,6 +63,7 @@ function renderParams() {
 /* ---------- run ---------- */
 function run(keepIndex = false) {
   const m = ST.mod, s = modState(m), a = currentAlgo(); stopPlay(); hideError(); ST.asking = null; ST.feedback = null;
+  if (GUIDE.autoOn) try { renderGuide(m); } catch (e) { }
   try {
     ensureGraph(m, s);
     for (const p of a.params) { const ui = document.getElementById(`p-${m.key}-${a.key}-${p.id}`); if (ui) s.params[s.algo + '.' + p.id] = ui.value; }
@@ -129,6 +130,7 @@ function certFrame() {
   return F;
 }
 function draw() {
+  syncEdgeLength();
   const m = ST.mod, s = modState(m);
   const certMode = ST.mode === 'cert';
   let F, g;
@@ -395,6 +397,27 @@ function loadPreset(key) { const p = PRESETS[key]; if (!p) return; const s = mod
 
 /* ---------- definitions strip ---------- */
 const ANIMS = [];
+/* ---------- edge length: spread the drawing about its centre ---------- */
+function boardGraphs() { const s = modState(ST.mod); return [...new Set([s.graph, s.ownGraph, ...(s.frames || []).map(F => F && F.graph)].filter(Boolean))]; }
+function spreadBase() { const s = modState(ST.mod); return s.graph || s.ownGraph || displayedGraph(); }
+function syncEdgeLength() { const g = spreadBase(), f = (g && g._spread) || 1, inp = $('#sz-len'); if (!inp) return; inp.value = f; inp.nextElementSibling.textContent = Math.round(f * 100) + '%'; }
+function setEdgeLength(f) {
+  const base = spreadBase(), g0 = displayedGraph(); if (!base || !g0 || !g0.nodes.length) return;
+  const k = f / (base._spread || 1), cx = g0.nodes.reduce((a, v) => a + v.x, 0) / g0.nodes.length, cy = g0.nodes.reduce((a, v) => a + v.y, 0) / g0.nodes.length;
+  for (const g of new Set(boardGraphs().concat([g0]))) g.nodes.forEach(v => { v.x = cx + (v.x - cx) * k; v.y = cy + (v.y - cy) * k; });
+  base._spread = f;
+  // keep everything visible: zoom out to the drawing when it outgrows the board, back to the normal view when it fits again
+  const b = baseView(), pad = 34; let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  g0.nodes.forEach(v => { x0 = Math.min(x0, v.x - pad); x1 = Math.max(x1, v.x + pad); y0 = Math.min(y0, v.y - pad); y1 = Math.max(y1, v.y + pad); });
+  if (x0 < b[0] || y0 < b[1] || x1 > b[0] + b[2] || y1 > b[1] + b[3]) {
+    const A = b[2] / b[3]; let w = x1 - x0, h = y1 - y0; if (w / h < A) w = h * A; else h = w / A;
+    w = Math.max(w, b[2]); h = Math.max(h, b[3]); ST.spreadView = true; setViewFree([(x0 + x1 - w) / 2, (y0 + y1 - h) / 2, w, h]);
+  } else if (ST.spreadView) { ST.spreadView = false; setView(null); }
+  draw(); syncEdgeLength();
+}
+/* a view wider than the base one (zoomed out past Fit), used only by the edge-length control */
+function setViewFree(v) { ST.zoomed = true; ST.view = v; $('#svg').setAttribute('viewBox', v.map(x => x.toFixed(1)).join(' ')); $('#zfit').disabled = false; }
+
 /* ---------- draggable height of the board's drawing ---------- */
 const BH_MIN = 200, BH_MAX = 1600;
 function applyBoardHeight() {
@@ -488,7 +511,7 @@ function openModule(key) {
   m.algos.forEach(a => { const b = document.createElement('button'); b.type = 'button'; b.textContent = a.name; b.setAttribute('aria-pressed', a.key === s.algo); b.onclick = () => { s.algo = a.key; tabs.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderLegend(); renderParams(); syncEditor(); run(); }; tabs.appendChild(b); });
   renderLegend();
   $('#modes [data-mode="cert"]').disabled = !(CERTS[m.key] || []).length; $('#modes [data-mode="ticket"]').disabled = !TICKETS[m.key];
-  renderTasks(m); renderDefs(m);
+  renderTasks(m); renderDefs(m); GUIDE.ans = {}; GUIDE.autoOn = false; renderGuide(m);
   try { ensureGraph(m, s); } catch (e) { }
   renderParams(); syncEditor();
   if ((ST.mode === 'cert' && !(CERTS[m.key] || []).length) || (ST.mode === 'ticket' && !TICKETS[m.key])) ST.mode = 'watch';
@@ -590,7 +613,7 @@ function boot() {
     const g = displayedGraph(); if (!g) return; const kind = $('#laysel').value, seed = fresh ? Math.floor(Math.random() * 1e6) : 7;
     if (kind === 'auto') { (g.parts || 1) > 1 ? partsLayout(g) : forceLayout(g, layoutBox(), 350, seed); g._scale = 1; }
     else if (!layoutGraph(g, kind, layoutBox(), { seed, root: layRoot(g) })) return showError(new Error('This graph is not bipartite, so there is no two-column layout.'));
-    hideError(); setView(null); draw();
+    hideError(); const b = spreadBase(); if (b) b._spread = 1; ST.spreadView = false; setView(null); draw();
   };
   $('#laysel').onchange = () => relayout(false);
   $('#lay-force').onclick = () => relayout(true);
@@ -611,7 +634,8 @@ function boot() {
     if (rebuild) { const box = $('#defcards'), x = box.scrollLeft; renderDefs(ST.mod); box.scrollLeft = x; }
   };
   ['n', 'e', 'l'].forEach(k => { const inp = $('#sz-' + k); inp.oninput = () => setSizes(Object.assign({}, SZ, { [k]: +inp.value }), false); inp.onchange = () => setSizes(SZ, true); });
-  $('#szreset').onclick = () => setSizes({ n: 1, e: 1, l: 1 }, true);
+  $('#szreset').onclick = () => { setSizes({ n: 1, e: 1, l: 1 }, true); setEdgeLength(1); };
+  $('#sz-len').oninput = () => setEdgeLength(+$('#sz-len').value);
   $('#sizebtn').onclick = () => { const b = $('#sizebtn'), on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); $('#sizebar').hidden = !on; };
   $('#state').addEventListener('toggle', e => { const d = e.target; if (d.matches && d.matches('details[data-fold]')) saveStore({ folds: Object.assign({}, loadStore().folds, { [d.dataset.fold]: d.open }) }); }, true);
   $('#state').addEventListener('click', e => { // copy buttons inside panels (e.g. the ILP as an LP file)

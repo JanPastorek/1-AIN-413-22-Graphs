@@ -48,7 +48,7 @@ a { color: var(--accent); }
 :focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
 code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
 
-:root { --sz-n: 1; --sz-e: 1; --sz-l: 1; }
+:root { --sz-n: 1; --sz-e: 1; --sz-l: 1; --guide: color-mix(in srgb, var(--accent) 38%, transparent); }
 .app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100%; }
 .side { border-right: 1px solid var(--line); background: var(--sheet); padding: 20px 14px; position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
 .app.noside { grid-template-columns: minmax(0, 1fr); }
@@ -348,7 +348,11 @@ body.resizing { cursor: col-resize; user-select: none; }
 .psplit:hover .grip, .psplit:focus-visible .grip, .psplit.drag .grip { border-color: var(--accent); background: var(--accent); }
 .pseudo li { padding: 2px 6px; border-radius: 4px; white-space: pre-wrap; }
 .pseudo li::marker { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
-.pseudo li.on { background: var(--amber-soft); box-shadow: inset 3px 0 0 var(--amber); }
+.pseudo li.on { background-color: var(--amber-soft); box-shadow: inset 3px 0 0 var(--amber); }
+/* indentation: each level is one 1.7em step with a vertical guide, wrapped lines keep the indent */
+.pseudo li { --iw: 1.7em; font-size: 12px; }
+.pseudo li code { display: block; padding-left: calc(var(--lv, 0) * var(--iw)); }
+.pseudo li.ind { background-image: repeating-linear-gradient(to right, var(--guide) 0 1.5px, transparent 1.5px var(--iw)); background-size: calc(var(--lv) * var(--iw)) 100%; background-position: calc(6px + 0.35em) 0; background-repeat: no-repeat; }
 .pseudo code { font-family: var(--f-mono); font-size: 12px; white-space: pre-wrap; }
 .pyhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .pyhead button { border: 1.5px solid var(--line); background: var(--sheet); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 12px; font-weight: 600; }
@@ -3923,7 +3927,7 @@ function renderTabs(F) {
   const codeHTML = (withIdea = true) => {
     const lines = PSEUDO[m.key + '.' + a.key]; if (!lines) return (withIdea ? idea : '') + '<p class="note">This view compares algorithms or runs a search; it has no single pseudocode.</p>';
     const cur = ST.mode === 'cert' ? -1 : F.line;
-    return (withIdea ? idea : '') + `<ol class="pseudo" start="0">${lines.map((l, i) => `<li class="${i === cur ? 'on' : ''}"><code>${esc(l)}</code></li>`).join('')}</ol><p class="note">${cur !== undefined && cur >= 0 ? 'The highlighted line produced this step.' : 'Step through the run to follow the highlighted line.'}</p>`;
+    return (withIdea ? idea : '') + `<ol class="pseudo" start="0">${lines.map((l, i) => { const lv = Math.round((l.length - l.trimStart().length) / 2); return `<li class="${i === cur ? 'on' : ''}${lv ? ' ind' : ''}" style="--lv:${lv}"><code>${esc(l.trimStart())}</code></li>`; }).join('')}</ol><p class="note">${cur !== undefined && cur >= 0 ? 'The highlighted line produced this step.' : 'Step through the run to follow the highlighted line.'}</p>`;
   };
   if (ST.tab === 'state') { box.innerHTML = stateHTML(); return; }
   if (ST.tab === 'code') { box.innerHTML = codeHTML(); return; }

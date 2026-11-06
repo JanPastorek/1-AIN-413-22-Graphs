@@ -261,7 +261,7 @@ function renderTabs(F) {
   const codeHTML = (withIdea = true) => {
     const lines = PSEUDO[m.key + '.' + a.key]; if (!lines) return (withIdea ? idea : '') + '<p class="note">This view compares algorithms or runs a search; it has no single pseudocode.</p>';
     const cur = ST.mode === 'cert' ? -1 : F.line;
-    return (withIdea ? idea : '') + `<ol class="pseudo" start="0">${lines.map((l, i) => `<li class="${i === cur ? 'on' : ''}"><code>${esc(l)}</code></li>`).join('')}</ol><p class="note">${cur !== undefined && cur >= 0 ? 'The highlighted line produced this step.' : 'Step through the run to follow the highlighted line.'}</p>`;
+    return (withIdea ? idea : '') + `<ol class="pseudo" start="0">${lines.map((l, i) => { const lv = Math.round((l.length - l.trimStart().length) / 2); return `<li class="${i === cur ? 'on' : ''}${lv ? ' ind' : ''}" style="--lv:${lv}"><code>${esc(l.trimStart())}</code></li>`; }).join('')}</ol><p class="note">${cur !== undefined && cur >= 0 ? 'The highlighted line produced this step.' : 'Step through the run to follow the highlighted line.'}</p>`;
   };
   if (ST.tab === 'state') { box.innerHTML = stateHTML(); return; }
   if (ST.tab === 'code') { box.innerHTML = codeHTML(); return; }

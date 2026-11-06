@@ -101,6 +101,10 @@ button:disabled { opacity: 0.45; cursor: default; }
 .lg { display: inline-flex; gap: 5px; align-items: center; }
 .tools { display: flex; flex-wrap: wrap; gap: 6px; }
 .tools button { padding: 4px 9px; font-size: 12px; }
+.laygrp { display: inline-flex; }
+.laygrp select { font: inherit; font-size: 12px; padding: 3px 6px; border: 1.5px solid var(--line); border-right: 0; border-radius: 6px 0 0 6px; background: var(--sheet); color: var(--ink); max-width: 13em; }
+.laygrp button { border-radius: 0 6px 6px 0 !important; }
+#rotl, #rotr, #flipx, #flipy { font-size: 15px; line-height: 1; padding: 3px 8px; }
 #svg { display: block; width: 100%; height: auto; aspect-ratio: 800 / 520; max-width: 100%; touch-action: none; user-select: none;
   background-color: var(--paper);
   background-image: linear-gradient(var(--grid2) 1px, transparent 1px), linear-gradient(90deg, var(--grid2) 1px, transparent 1px), linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
@@ -465,9 +469,8 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
           <div id="legend" class="legend"></div>
           <div class="tools">
             <button type="button" id="resid" aria-pressed="false" hidden>Residual view</button>
-            <button type="button" id="lay-force">Re-layout</button>
-            <button type="button" id="lay-circle">Circle</button>
-            <button type="button" id="lay-cols">Two columns</button>
+            <span class="laygrp" role="group" aria-label="Layout"><select id="laysel" aria-label="Layout method" title="How to place the vertices. Spring: edges as springs. Stress: drawn distances follow hop distances. Shells: rings by distance from the start vertex. Layered: one row per BFS level from the start. Spectral: coordinates from Laplacian eigenvectors. Two columns: the two sides of a bipartite graph."></select><button type="button" id="lay-force" title="Lay the graph out again with the chosen method (a fresh random start where the method uses one)">Re-layout</button></span>
+            <span class="zoom" role="group" aria-label="Rotate and mirror"><button type="button" id="rotl" aria-label="Rotate anticlockwise" title="Rotate 15° anticlockwise (Shift: 90°)">⟲</button><button type="button" id="rotr" aria-label="Rotate clockwise" title="Rotate 15° clockwise (Shift: 90°)">⟳</button><button type="button" id="flipx" aria-label="Mirror left to right" title="Mirror left ↔ right">⇋</button><button type="button" id="flipy" aria-label="Mirror top to bottom" title="Mirror top ↕ bottom">⇵</button></span>
             <button type="button" id="editbtn" aria-pressed="false">Edit</button>
             <button type="button" id="sizebtn" aria-pressed="false" aria-controls="sizebar" title="Change the size of vertices, edges and labels in every session">Sizes</button>
             <span class="zoom" role="group" aria-label="Zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">−</button><button type="button" id="zfit" disabled>Fit</button><button type="button" id="zstart">Zoom to start</button></span>

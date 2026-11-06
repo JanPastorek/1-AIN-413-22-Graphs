@@ -581,9 +581,21 @@ function boot() {
   $('#preset').onchange = e => { if (e.target.value) { try { hideError(); loadPreset(e.target.value); } catch (er) { showError(er); } e.target.value = ''; } };
   $('#g6in').onclick = () => { try { hideError(); const g = decodeGraph6($('#g6').value); const s = modState(ST.mod); s.graph = null; s.presetKey = null; setGraphText(graphToText(g), 'force'); } catch (e) { showError(e); } };
   $('#g6out').onclick = async () => { const g = displayedGraph(); if (!g) return; const code = encodeGraph6(g); $('#g6').value = code; const btn = $('#g6out'); try { await navigator.clipboard.writeText(code); btn.textContent = 'Copied'; } catch (e) { $('#g6').select(); btn.textContent = 'Selected'; } setTimeout(() => btn.textContent = 'Export and copy', 1400); };
-  $('#lay-force').onclick = () => { const g = displayedGraph(); if (!g) return; (g.parts || 1) > 1 ? partsLayout(g) : forceLayout(g, layoutBox(), 350, Math.floor(Math.random() * 1e6)); draw(); };
-  $('#lay-circle').onclick = () => { const g = displayedGraph(); if (g) { circleLayout(g); draw(); } };
-  $('#lay-cols').onclick = () => { const g = displayedGraph(); if (!g) return; const col = twoColoring(g); if (!col) return showError(new Error('Not bipartite, so there is no two-column layout.')); hideError(); columnsLayout(g, new Set(col.map((c, i) => c === 0 ? i : -1).filter(i => i >= 0))); draw(); };
+  { const sel = $('#laysel'); sel.innerHTML = '<option value="auto">Automatic</option>' + Object.entries(LAYOUTS).map(([k, t]) => `<option value="${k}">${t}</option>`).join(''); }
+  const layRoot = g => { const s = modState(ST.mod), p = currentAlgo().params.find(q => q.type === 'vertex'); return p && g === s.graph ? paramValue(p, s, g) : -1; };
+  const relayout = fresh => {
+    const g = displayedGraph(); if (!g) return; const kind = $('#laysel').value, seed = fresh ? Math.floor(Math.random() * 1e6) : 7;
+    if (kind === 'auto') { (g.parts || 1) > 1 ? partsLayout(g) : forceLayout(g, layoutBox(), 350, seed); g._scale = 1; }
+    else if (!layoutGraph(g, kind, layoutBox(), { seed, root: layRoot(g) })) return showError(new Error('This graph is not bipartite, so there is no two-column layout.'));
+    hideError(); setView(null); draw();
+  };
+  $('#laysel').onchange = () => relayout(false);
+  $('#lay-force').onclick = () => relayout(true);
+  const turn = (deg, mx, my) => { const g = displayedGraph(); if (!g) return; if (my) { rotateGraph(g, 180, layoutBox(), true); } else rotateGraph(g, deg, layoutBox(), mx); draw(); };
+  $('#rotl').onclick = e => turn(e.shiftKey ? -90 : -15);
+  $('#rotr').onclick = e => turn(e.shiftKey ? 90 : 15);
+  $('#flipx').onclick = () => turn(0, true);
+  $('#flipy').onclick = () => turn(0, false, true);
   $('#zin').onclick = () => { const [x, y, w, h] = ST.view || [0, 0, W, H]; zoomAt(x + w / 2, y + h / 2, 0.7); };
   $('#zout').onclick = () => { const [x, y, w, h] = ST.view || [0, 0, W, H]; zoomAt(x + w / 2, y + h / 2, 1 / 0.7); };
   $('#zfit').onclick = () => setView(null);

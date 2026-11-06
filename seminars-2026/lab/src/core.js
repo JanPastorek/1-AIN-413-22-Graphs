@@ -228,8 +228,10 @@ function fitInto(g, P, box, clamp = true) {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   for (const [x, y] of P) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
   const sx = (box.x1 - box.x0) / Math.max(1e-6, x1 - x0), sy = (box.y1 - box.y0) / Math.max(1e-6, y1 - y0); const s = Math.min(sx, sy);
-  const ox = box.x0 + ((box.x1 - box.x0) - s * (x1 - x0)) / 2, oy = box.y0 + ((box.y1 - box.y0) - s * (y1 - y0)) / 2;
-  g.nodes.forEach((v, i) => { v.x = ox + (P[i][0] - x0) * s; v.y = oy + (P[i][1] - y0) * s; });
+  // box.stretch (a board the user made taller or wider): a force layout has no natural shape, so let it fill up to 2× more in one direction
+  const tx = box.stretch ? Math.min(sx, 2 * s) : s, ty = box.stretch ? Math.min(sy, 2 * s) : s;
+  const ox = box.x0 + ((box.x1 - box.x0) - tx * (x1 - x0)) / 2, oy = box.y0 + ((box.y1 - box.y0) - ty * (y1 - y0)) / 2;
+  g.nodes.forEach((v, i) => { v.x = ox + (P[i][0] - x0) * tx; v.y = oy + (P[i][1] - y0) * ty; });
 }
 function columnsLayout(g, leftSet) {
   const L = [], Rr = []; g.nodes.forEach((v, i) => (leftSet.has(i) ? L : Rr).push(i));

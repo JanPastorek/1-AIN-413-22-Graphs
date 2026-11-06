@@ -10,7 +10,7 @@ function loadStore() { try { return JSON.parse(localStorage.getItem('graphlab') 
 function saveStore(o) { try { localStorage.setItem('graphlab', JSON.stringify(Object.assign(loadStore(), o))); } catch (e) { } }
 
 /* ---------- layouts by preset ---------- */
-function applyLayout(g, kind, preset) {
+function applyLayout(g, kind, preset, fixedBox) {
   if (kind === 'pos' && preset && preset.pos) { const at = v => preset.pos[v.id] || preset.pos[v.label]; g.nodes.forEach(v => { const p = at(v); if (p) { v.x = p[0]; v.y = p[1]; } }); if (g.nodes.every(at)) return; }
   if (kind === 'petersen') { g.nodes.forEach(v => { const k = +v.label, a = -Math.PI / 2 + 2 * Math.PI * (k % 5) / 5, r = k < 5 ? 205 : 100; v.x = W / 2 + r * Math.cos(a); v.y = H / 2 + 10 + r * Math.sin(a); }); return; }
   if (kind === 'cube') { const P = { '000': [220, 400], '001': [580, 400], '010': [220, 120], '011': [580, 120], '100': [320, 330], '101': [480, 330], '110': [320, 190], '111': [480, 190] }; g.nodes.forEach(v => { const p = P[v.label]; if (p) [v.x, v.y] = p; }); if (g.nodes.some(v => !P[v.label])) forceLayout(g); return; }
@@ -19,7 +19,7 @@ function applyLayout(g, kind, preset) {
   if (kind === 'circle') return circleLayout(g);
   if (kind === 'columns') { const col = twoColoring(g); if (col) return columnsLayout(g, new Set(col.map((c, i) => c === 0 ? i : -1).filter(i => i >= 0))); }
   if ((g.parts || 1) > 1) return partsLayout(g);
-  forceLayout(g);
+  forceLayout(g, !fixedBox && typeof document !== 'undefined' && $('#svg') ? layoutBox() : undefined);
 }
 
 /* ---------- module state ---------- */
@@ -335,7 +335,7 @@ function renderTicket() {
   if (!gen) { box.innerHTML = '<p class="note">No exit ticket for this session.</p>'; return; }
   let t; try { t = gen(s.ticketSeed); } catch (e) { box.innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
   let fig = '';
-  if (t.text) { const g = parseGraph(t.text); if (m.weighted) g.weighted = true; applyLayout(g, t.layout || 'force'); fig = `<svg class="tsvg" viewBox="0 0 800 520" role="img" aria-label="Ticket graph">${renderGraph({ nc: {}, ec: {}, ntag: {}, elab: {} }, g, { weighted: g.weighted })}</svg>`; }
+  if (t.text) { const g = parseGraph(t.text); if (m.weighted) g.weighted = true; applyLayout(g, t.layout || 'force', undefined, true); fig = `<svg class="tsvg" viewBox="0 0 800 520" role="img" aria-label="Ticket graph">${renderGraph({ nc: {}, ec: {}, ntag: {}, elab: {} }, g, { weighted: g.weighted })}</svg>`; }
   else if (t.seq) fig = `<p class="tseq">( ${esc(t.seq.split(' ').join(', '))} )</p>`;
   box.innerHTML = `<div class="trow"><label class="field"><span>Seed (e.g. the student’s number)</span><input id="tseed" type="number" min="1" max="99999" value="${s.ticketSeed}"></label><button type="button" id="tgen" class="primary">Generate</button><button type="button" id="tnext">Next seed</button>${t.text ? '<button type="button" id="tload">Open in the lab</button>' : ''}${SHOW_KEYS ? '<button type="button" id="tkeys">Copy answer keys for seeds 1–30</button>' : ''}</div>
     <div class="tbody"><div class="tfig">${fig}</div><div class="ttext"><h3>Exit ticket · seed ${s.ticketSeed}</h3><p>${t.task}</p><p class="note">Work on paper with the lab closed. The same seed always gives the same instance.</p>${SHOW_KEYS ? `<details><summary>Answer key (for the teacher)</summary><p class="mono">${esc(t.answer)}</p></details>` : '<p class="note">Answer keys are only in the teacher’s copy of the lab.</p>'}</div></div>`;
@@ -392,6 +392,40 @@ function loadPreset(key) { const p = PRESETS[key]; if (!p) return; const s = mod
 
 /* ---------- definitions strip ---------- */
 const ANIMS = [];
+/* ---------- draggable height of the board's drawing ---------- */
+const BH_MIN = 200, BH_MAX = 1600;
+function applyBoardHeight() {
+  const svg = $('#svg'), h = +loadStore().bh;
+  svg.classList.toggle('customh', !!h); if (h) svg.style.setProperty('--bh', Math.round(h) + 'px'); else svg.style.removeProperty('--bh');
+  const hd = $('#bhandle'); if (hd) hd.setAttribute('aria-valuenow', Math.round(svg.clientHeight));
+}
+function setBoardHeight(h) { saveStore({ bh: h == null ? null : Math.min(BH_MAX, Math.max(BH_MIN, h)) }); applyBoardHeight(); }
+function initBoardHeight() {
+  const hd = $('#bhandle'), svg = $('#svg'); applyBoardHeight();
+  hd.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault(); hd.setPointerCapture(e.pointerId); hd.classList.add('drag'); document.body.classList.add('resizing-v');
+    const k = svg.getBoundingClientRect().height / Math.max(1, svg.clientHeight), y0 = e.clientY, h0 = svg.clientHeight;
+    const move = ev => setBoardHeight(h0 + (ev.clientY - y0) / k);
+    const up = () => { hd.releasePointerCapture(e.pointerId); hd.classList.remove('drag'); document.body.classList.remove('resizing-v'); hd.removeEventListener('pointermove', move); hd.removeEventListener('pointerup', up); hd.removeEventListener('pointercancel', up); };
+    hd.addEventListener('pointermove', move); hd.addEventListener('pointerup', up); hd.addEventListener('pointercancel', up);
+  });
+  hd.addEventListener('dblclick', () => setBoardHeight(null));
+  hd.addEventListener('keydown', e => {
+    const step = e.shiftKey ? 80 : 24, h = svg.clientHeight;
+    if (e.key === 'ArrowDown') setBoardHeight(h + step);
+    else if (e.key === 'ArrowUp') setBoardHeight(h - step);
+    else if (e.key === 'Enter' || e.key === 'Escape') setBoardHeight(null);
+    else return;
+    e.preventDefault(); e.stopPropagation();
+  });
+  /* keep the unzoomed view matched to the board's shape; a zoomed view keeps its centre and width */
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => {
+    if (!ST.zoomed) return setView(null);
+    const [x, y, w, h] = ST.view, b = baseView(), nh = w * b[3] / b[2]; setView([x, y + (h - nh) / 2, w, nh]);
+  }).observe(svg);
+}
+
 /* ---------- draggable width of the definition cards (one width for all cards) ---------- */
 const DCW_MIN = 240, DCW_MAX = 900;
 function applyCardWidth() {
@@ -489,8 +523,18 @@ function applySetup(su) {
 /* ---------- pointer: drag, edit, pick ---------- */
 function svgPoint(evt) { const svg = $('#svg'); const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); }
 function displayedGraph() { const s = modState(ST.mod); if (ST.mode === 'cert') return s.graph; const F = s.frames[s.fi]; return (F && F.graph) || s.ownGraph || s.graph; }
-function setView(v) { ST.view = v || [0, 0, W, H]; $('#svg').setAttribute('viewBox', ST.view.map(x => x.toFixed(1)).join(' ')); $('#zfit').disabled = !v; }
-function zoomAt(px, py, f) { const [x, y, w, h] = ST.view || [0, 0, W, H]; const nw = Math.max(W / 8, Math.min(W, w * f)), k = nw / w; if (nw >= W - 0.5) return setView(null); setView([px - (px - x) * k, py - (py - y) * k, nw, h * k]); }
+/* the unzoomed view: the 800 × 520 drawing area, widened or heightened to the board's shape when the user has dragged its height */
+function baseView() {
+  const svg = $('#svg'), w = svg.clientWidth, h = svg.clientHeight;
+  if (!loadStore().bh || !w || !h) return [0, 0, W, H];
+  const A = w / h;
+  if (A < W / H) { const vh = W / A; return [0, -(vh - H) / 2, W, vh]; }
+  const vw = H * A; return [-(vw - W) / 2, 0, vw, H];
+}
+/* where fresh force layouts go: the visible area minus the usual margin */
+function layoutBox() { const [x, y, w, h] = baseView(); return { x0: x + PAD, x1: x + w - PAD, y0: y + PAD, y1: y + h - PAD, stretch: !!loadStore().bh }; }
+function setView(v) { ST.zoomed = !!v; ST.view = v || baseView(); $('#svg').setAttribute('viewBox', ST.view.map(x => x.toFixed(1)).join(' ')); $('#zfit').disabled = !v; }
+function zoomAt(px, py, f) { const [x, y, w, h] = ST.view || baseView(), bw = baseView()[2]; const nw = Math.max(bw / 8, Math.min(bw, w * f)), k = nw / w; if (nw >= bw - 0.5) return setView(null); setView([px - (px - x) * k, py - (py - y) * k, nw, h * k]); }
 function initPointer() {
   const svg = $('#svg'); let drag = null, moved = false, raf = 0, pan = null;
   svg.addEventListener('wheel', e => { e.preventDefault(); const p = svgPoint(e); zoomAt(p.x, p.y, e.deltaY < 0 ? 0.85 : 1 / 0.85); }, { passive: false });
@@ -537,7 +581,7 @@ function boot() {
   $('#preset').onchange = e => { if (e.target.value) { try { hideError(); loadPreset(e.target.value); } catch (er) { showError(er); } e.target.value = ''; } };
   $('#g6in').onclick = () => { try { hideError(); const g = decodeGraph6($('#g6').value); const s = modState(ST.mod); s.graph = null; s.presetKey = null; setGraphText(graphToText(g), 'force'); } catch (e) { showError(e); } };
   $('#g6out').onclick = async () => { const g = displayedGraph(); if (!g) return; const code = encodeGraph6(g); $('#g6').value = code; const btn = $('#g6out'); try { await navigator.clipboard.writeText(code); btn.textContent = 'Copied'; } catch (e) { $('#g6').select(); btn.textContent = 'Selected'; } setTimeout(() => btn.textContent = 'Export and copy', 1400); };
-  $('#lay-force').onclick = () => { const g = displayedGraph(); if (!g) return; (g.parts || 1) > 1 ? partsLayout(g) : forceLayout(g, undefined, 350, Math.floor(Math.random() * 1e6)); draw(); };
+  $('#lay-force').onclick = () => { const g = displayedGraph(); if (!g) return; (g.parts || 1) > 1 ? partsLayout(g) : forceLayout(g, layoutBox(), 350, Math.floor(Math.random() * 1e6)); draw(); };
   $('#lay-circle').onclick = () => { const g = displayedGraph(); if (g) { circleLayout(g); draw(); } };
   $('#lay-cols').onclick = () => { const g = displayedGraph(); if (!g) return; const col = twoColoring(g); if (!col) return showError(new Error('Not bipartite, so there is no two-column layout.')); hideError(); columnsLayout(g, new Set(col.map((c, i) => c === 0 ? i : -1).filter(i => i >= 0))); draw(); };
   $('#zin').onclick = () => { const [x, y, w, h] = ST.view || [0, 0, W, H]; zoomAt(x + w / 2, y + h / 2, 0.7); };
@@ -554,7 +598,7 @@ function boot() {
   ['n', 'e', 'l'].forEach(k => { const inp = $('#sz-' + k); inp.oninput = () => setSizes(Object.assign({}, SZ, { [k]: +inp.value }), false); inp.onchange = () => setSizes(SZ, true); });
   $('#szreset').onclick = () => setSizes({ n: 1, e: 1, l: 1 }, true);
   $('#sizebtn').onclick = () => { const b = $('#sizebtn'), on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); $('#sizebar').hidden = !on; };
-  initSplitter(); initPaneSplit(); initTextSize(); initCardResize();
+  initSplitter(); initPaneSplit(); initTextSize(); initCardResize(); initBoardHeight();
   const setSide = (show, focus) => {
     $('#app').classList.toggle('noside', !show); $('#sideshow').hidden = show;
     $('#sidehide').setAttribute('aria-expanded', show); $('#sideshow').setAttribute('aria-expanded', show);

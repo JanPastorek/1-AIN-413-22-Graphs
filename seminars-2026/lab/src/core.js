@@ -357,7 +357,9 @@ const chips = (arr, cls = '') => arr.length ? `<div class="chips">${arr.map(x =>
 function table(head, rows, cls = '') { return `<div class="tw"><table class="${cls}"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr${r.cls ? ` class="${r.cls}"` : ''}>${(r.cells || r).map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`; }
 const cert = (kind, title, body) => `<div class="cert ${kind}"><div class="cert-h">${title}</div>${body}</div>`;
 const h4 = t => `<h4>${t}</h4>`;
+/* a collapsible block; the viewer's open/closed choice is remembered per key across steps */
+const fold = (key, title, html) => `<details class="fold" data-fold="${key}" open><summary><h4>${title}</h4></summary>${html}</details>`;
 const fmt = x => x === Infinity ? '∞' : x === -Infinity ? '−∞' : (Number.isInteger(x) ? String(x).replace('-', '−') : (+x.toFixed(3)).toString().replace('-', '−'));
 function edgeName(g, i) { const e = g.edges[i]; return `${lab(g, e.u)}${g.directed ? '→' : '–'}${lab(g, e.v)}`; }
 
-if (typeof module !== 'undefined') Object.assign(globalThis, { MAXF, rng, newGraph, addNode, parseGraph, graphToText, cloneGraph, decodeGraph6, encodeGraph6, adjOut, adjUnd, adjMatrix, simpleNbrSets, components, bfsDist, triangleCount, diameterInfo, circleLayout, partsLayout, forceLayout, LAYOUTS, bfsLevels, layoutPositions, layoutGraph, rotateGraph, fitInto, columnsLayout, twoColoring, Rec, esc, lab, N, chips, table, cert, h4, fmt, edgeName, W, H, PAD });
+if (typeof module !== 'undefined') Object.assign(globalThis, { MAXF, rng, newGraph, addNode, parseGraph, graphToText, cloneGraph, decodeGraph6, encodeGraph6, adjOut, adjUnd, adjMatrix, simpleNbrSets, components, bfsDist, triangleCount, diameterInfo, circleLayout, partsLayout, forceLayout, LAYOUTS, bfsLevels, layoutPositions, layoutGraph, rotateGraph, fitInto, columnsLayout, twoColoring, Rec, esc, lab, N, chips, table, cert, h4, fold, fmt, edgeName, W, H, PAD });

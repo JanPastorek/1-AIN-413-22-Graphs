@@ -188,6 +188,15 @@ body.resizing-v { cursor: row-resize; user-select: none; }
 .statepanel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-family: var(--f-body); font-stretch: 100%; font-weight: 700; }
 #state h4 { margin: 14px 0 6px; font-size: 12px; font-weight: 700; color: var(--ink2); text-transform: uppercase; letter-spacing: 0.06em; }
 #state h4:first-child { margin-top: 0; }
+details.fold { margin: 14px 0 0; }
+details.fold:first-child { margin-top: 0; }
+details.fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary::before { content: "▸"; font-size: 11px; color: var(--muted); transition: transform .15s; }
+details.fold[open] > summary::before { transform: rotate(90deg); }
+details.fold > summary h4 { margin: 0 !important; }
+details.fold > summary:hover h4, details.fold > summary:focus-visible h4 { color: var(--accent); }
+details.fold:not([open]) > summary::after { content: "show"; font-size: 11px; color: var(--muted); margin-left: 4px; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip { font-family: var(--f-mono); font-size: 12px; padding: 2px 7px; border-radius: 4px; background: var(--paper); border: 1px solid var(--line); display: inline-flex; align-items: center; gap: 4px; }
 .empty { font-size: 12px; color: var(--muted); font-style: italic; }
@@ -405,6 +414,13 @@ body.resizing { cursor: col-resize; user-select: none; }
 .psplit .grip { position: sticky; top: 40%; display: block; margin: 28px auto 0; width: 7px; height: 34px; border-radius: 4px; border: 1.5px solid var(--line); background: var(--sheet); }
 .psplit:hover::before, .psplit:focus-visible::before, .psplit.drag::before { background: var(--accent); width: 2px; left: 7.5px; }
 .psplit:hover .grip, .psplit:focus-visible .grip, .psplit.drag .grip { border-color: var(--accent); background: var(--accent); }
+pre.model { font-size: 11.5px; line-height: 1.5; white-space: pre; overflow-x: auto; }
+pre.model sub { font-size: 0.78em; }
+details.lpfile { margin-top: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; }
+details.lpfile summary { cursor: pointer; font-weight: 650; font-size: 12.5px; color: var(--ink2); }
+details.lpfile pre { max-height: 22em; overflow: auto; }
+pre.lpsrc { font-family: var(--f-mono); font-size: 11px; line-height: 1.45; white-space: pre; background: var(--paper); border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; }
+.copybtn { border: 1.5px solid var(--line); background: var(--sheet); border-radius: 6px; padding: 2px 8px; cursor: pointer; font-size: 12px; font-weight: 600; margin: 2px 0 6px; }
 .pseudo li { padding: 2px 6px; border-radius: 4px; white-space: pre-wrap; }
 .pseudo li::marker { font-family: var(--f-mono); font-size: 11px; color: var(--muted); }
 .pseudo li.on { background-color: var(--amber-soft); box-shadow: inset 3px 0 0 var(--amber); }

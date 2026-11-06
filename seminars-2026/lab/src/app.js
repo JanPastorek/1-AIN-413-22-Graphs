@@ -153,7 +153,7 @@ function draw() {
   $('#zstart').hidden = !(g === s.graph && currentAlgo().params.some(p => p.type === 'vertex'));
   $('#resid').hidden = !m.residual || certMode; $('#resid').setAttribute('aria-pressed', ST.residual);
   $('#score').textContent = ST.mode === 'predict' ? `Predictions: ${s.score.right} / ${s.score.total}` : '';
-  renderTabs(F);
+  renderTabs(F); applyFolds($('#state'));
 }
 
 /* ---------- resizable split between the board and the side panel ---------- */
@@ -253,6 +253,9 @@ function textSizer(p, key, target) {
   apply();
 }
 function initTextSize() { textSizer('tz', 'tz', '#state'); textSizer('dz', 'dz', '#defs'); textSizer('pz', 'pz', '#app'); }
+
+/* collapsible blocks in the panel keep the viewer's choice from step to step */
+function applyFolds(box) { const f = loadStore().folds || {}; box.querySelectorAll('details[data-fold]').forEach(d => { if (f[d.dataset.fold] === false) d.open = false; }); }
 
 /* ---------- state / pseudocode / python tabs ---------- */
 function renderTabs(F) {
@@ -634,6 +637,14 @@ function boot() {
   $('#szreset').onclick = () => { setSizes({ n: 1, e: 1, l: 1 }, true); setEdgeLength(1); };
   $('#sz-len').oninput = () => setEdgeLength(+$('#sz-len').value);
   $('#sizebtn').onclick = () => { const b = $('#sizebtn'), on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); $('#sizebar').hidden = !on; };
+  $('#state').addEventListener('toggle', e => { const d = e.target; if (d.matches && d.matches('details[data-fold]')) saveStore({ folds: Object.assign({}, loadStore().folds, { [d.dataset.fold]: d.open }) }); }, true);
+  $('#state').addEventListener('click', e => { // copy buttons inside panels (e.g. the ILP as an LP file)
+    const b = e.target.closest('.copybtn'); if (!b) return;
+    const pre = b.parentElement.querySelector(`pre[data-kind="${b.dataset.copy}"]`); if (!pre) return;
+    const done = ok => { const t = b.textContent; b.textContent = ok ? 'Copied' : 'Select the text and copy'; setTimeout(() => { b.textContent = t; }, 1600); };
+    const show = () => { b.parentElement.querySelectorAll('pre.lpsrc').forEach(p => { p.hidden = p !== pre; }); const r = document.createRange(); r.selectNodeContents(pre); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); };
+    show(); try { navigator.clipboard.writeText(pre.textContent).then(() => done(true), () => done(false)); } catch (err) { done(false); }
+  });
   initSplitter(); initPaneSplit(); initTextSize(); initCardResize(); initBoardHeight();
   const setSide = (show, focus) => {
     $('#app').classList.toggle('noside', !show); $('#sideshow').hidden = show;

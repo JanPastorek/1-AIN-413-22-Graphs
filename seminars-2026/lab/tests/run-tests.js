@@ -190,6 +190,19 @@ for (const m of MODULES) { ok(m.tasks[0] && m.tasks[0].tag === 'Motivation', `${
     rotateGraph(g, 15, box); const p = g.nodes.map(v => [v.x, v.y]); const d01 = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]); ok(inBox(g) && d01 <= L0 + 1e-6, 'a 15° turn keeps the drawing in the box and never enlarges it'); }
 }
 
+/* --- the tour ILP written out for the graph on the board --- */
+{
+  const g = parseGraph('a b 3\nb c 4\nc a 5\nc d 1\nd a 2'); g.weighted = true;
+  const r = algTourILP(g, { goal: 'tsp' }), f = r.frames.find(x => x.panel && x.panel.includes('ILP of this graph'));
+  ok(!!f && /x<sub>a,?b<\/sub>/.test(f.panel) && f.panel.includes('3·x') && f.panel.includes('out d') && f.panel.includes('0 ≤ x<sub>ij</sub> ≤ 1') && /\n {7}\+ \d·x/.test(f.panel), 'model frame lists this graph\'s variables, weights, degree rows and the LP bounds');
+  ok(r.frames[0].panel.includes('ILP of the graph on the board') && r.frames[0].panel.includes('data-kind="ilpfile"'), 'the first ILP step already shows this graph\'s model');
+  const M = tourModel(g, [{ i: 0, j: 1, w: 3 }, { i: 1, j: 0, w: 3 }], true, [[0]]);
+  ok(/^Minimize$/m.test(M.ilpFile) && /^Subject To$/m.test(M.ilpFile) && /^Binary$/m.test(M.ilpFile) && !/^Binary$/m.test(M.lpFile) && /sec1: +x_a_b >= 1/.test(M.ilpFile), 'LP file has the CPLEX sections; Binary only in the ILP version');
+  const last = r.frames[r.frames.length - 1].panel, rows = (last.match(/data-kind="ilpfile">([\s\S]*?)<\/pre>/) || ['', ''])[1];
+  ok((rows.match(/^ (out|in)_/gm) || []).length === 8 && (rows.match(/^ sec\d+:/gm) || []).length === r.cuts, 'final LP file: 2n degree rows and one row per subtour constraint added');
+  const odd = parseGraph('1 x\n2 x'); const m2 = tourModel(odd, [{ i: 0, j: 1, w: 1 }, { i: 1, j: 0, w: 1 }], false); ok(/out_v1:/.test(m2.ilpFile) && /obj: 0/.test(m2.ilpFile), 'labels starting with a digit become valid LP names; Hamilton objective is 0');
+}
+
 /* --- session 05: DAG shortest paths, Johnson, and the "which algorithm" guide --- */
 {
   const R = rng(11), rnd = k => Math.floor(R() * k);

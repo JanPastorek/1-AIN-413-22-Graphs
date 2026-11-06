@@ -269,8 +269,12 @@ footer p { margin: 0 0 6px; }
 .defhead .note { margin: 0; }
 .defhead .textsize { margin: 0 0 0 auto; align-self: center; }
 .defs { --dz: 1; }
-.defcards { display: grid; grid-auto-flow: column; grid-auto-columns: min(calc(100vw - 48px), clamp(290px, calc(240px + 90px * var(--dz)), 560px)); gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
-.dcard { scroll-snap-align: start; background: var(--sheet); border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.defcards { display: grid; grid-auto-flow: column; grid-auto-columns: var(--dcw, min(calc(100vw - 48px), clamp(290px, calc(240px + 90px * var(--dz)), 560px))); gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
+.dcard { position: relative; scroll-snap-align: start; background: var(--sheet); border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.dresize { position: absolute; top: 10px; bottom: 10px; right: -7px; width: 12px; cursor: col-resize; touch-action: none; outline: none; z-index: 2; }
+.dresize::before { content: ""; position: absolute; top: 50%; left: 3px; width: 6px; height: 42px; margin-top: -21px; border-radius: 3px; border: 1.5px solid var(--line); background: var(--sheet); opacity: 0; transition: opacity .15s, background .15s, border-color .15s; }
+.dcard:hover .dresize::before { opacity: 1; }
+.dresize:hover::before, .dresize:focus-visible::before, .dresize.drag::before { opacity: 1; background: var(--accent); border-color: var(--accent); }
 .dcard h3 { margin: 0; font-size: calc(17px * var(--dz)); color: var(--ink); }
 .dtext { margin: 0; font-size: calc(14.5px * var(--dz)); color: var(--ink); line-height: 1.5; }
 .dwhy { margin: 0; font-size: calc(14px * var(--dz)); line-height: 1.5; padding: 6px 9px; background: var(--amber-soft); border-radius: 6px; color: var(--ink); }
@@ -395,7 +399,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
 .rb { height: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
 .rb span { display: block; height: 100%; background: var(--accent); }
 .rv { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
-@media (max-width: 820px) { .tbody { grid-template-columns: 1fr; } .defcards { grid-auto-columns: minmax(260px, 86vw); } }
+@media (max-width: 820px) { .tbody { grid-template-columns: 1fr; } .defcards { grid-auto-columns: var(--dcw, minmax(260px, 86vw)); } }
 
 @media (max-width: 1100px) { .stage, .stage.both { grid-template-columns: 1fr; gap: 18px; } .splitter { display: none; } .statepanel { position: static; max-height: none; } }
 @media (max-width: 820px) {
@@ -433,7 +437,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
     </header>
 
     <section id="defs" class="defs" aria-label="Definitions">
-      <div class="defhead"><h2>Definitions</h2><p class="note">Press Play on a card, or step through it with the dots.</p>
+      <div class="defhead"><h2>Definitions</h2><p class="note">Press Play on a card, or step through it with the dots. Drag the right edge of a card to make all cards wider or narrower.</p>
         <div class="textsize" role="group" aria-label="Text size in the definition cards"><button type="button" id="dzdown" title="Smaller text in the cards" aria-label="Smaller text">A<sup>−</sup></button><button type="button" id="dzval" title="Text size in the cards. Click to reset to 100%.">100%</button><button type="button" id="dzup" title="Bigger text in the cards" aria-label="Bigger text">A<sup>+</sup></button></div></div>
       <div id="defcards" class="defcards"></div>
     </section>
@@ -4060,10 +4064,39 @@ function loadPreset(key) { const p = PRESETS[key]; if (!p) return; const s = mod
 
 /* ---------- definitions strip ---------- */
 const ANIMS = [];
+/* ---------- draggable width of the definition cards (one width for all cards) ---------- */
+const DCW_MIN = 240, DCW_MAX = 900;
+function applyCardWidth() {
+  const w = +loadStore().dcw, d = $('#defs');
+  if (w) d.style.setProperty('--dcw', `min(${Math.round(w)}px, calc(100vw - 48px))`); else d.style.removeProperty('--dcw');
+}
+function setCardWidth(w) { saveStore({ dcw: w == null ? null : Math.min(DCW_MAX, Math.max(DCW_MIN, w)) }); applyCardWidth(); }
+function initCardResize() {
+  const box = $('#defcards'); applyCardWidth();
+  box.addEventListener('pointerdown', e => {
+    const h = e.target.closest('.dresize'); if (!h || e.button !== 0) return;
+    e.preventDefault(); const card = h.closest('.dcard'), x0 = e.clientX, w0 = card.getBoundingClientRect().width, left0 = card.offsetLeft - box.scrollLeft;
+    h.classList.add('drag'); document.body.classList.add('resizing');
+    const move = ev => { setCardWidth(w0 + ev.clientX - x0); const nl = card.offsetLeft - box.scrollLeft; if (nl !== left0) box.scrollLeft += nl - left0; };
+    const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up); h.classList.remove('drag'); document.body.classList.remove('resizing'); };
+    document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+  });
+  box.addEventListener('dblclick', e => { if (e.target.closest('.dresize')) setCardWidth(null); });
+  box.addEventListener('keydown', e => {
+    const h = e.target.closest('.dresize'); if (!h) return;
+    const w = h.closest('.dcard').getBoundingClientRect().width, step = e.shiftKey ? 80 : 24;
+    if (e.key === 'ArrowRight') setCardWidth(w + step);
+    else if (e.key === 'ArrowLeft') setCardWidth(w - step);
+    else if (e.key === 'Enter' || e.key === 'Escape') setCardWidth(null);
+    else return;
+    e.preventDefault(); e.stopPropagation();
+  });
+}
+
 function renderDefs(m) {
   ANIMS.forEach(a => a.stop()); ANIMS.length = 0;
   const defs = DEFS[m.key] || []; const box = $('#defcards');
-  box.innerHTML = defs.map((d, k) => { const vid = MANIM[m.key + ':' + d.term]; return `<article class="dcard" data-k="${k}"><h3>${esc(d.term)}</h3>${d.why ? `<p class="dwhy"><b>Why we need it.</b> ${d.why}</p>` : ''}<p class="dtext">${d.text}</p>${d.practice ? `<p class="dpractice">Practice: ${sheetRefs(d.practice)}</p>` : ''}<div class="dfig"><svg class="defsvg" viewBox="0 0 300 190" role="img" aria-label="Animation: ${esc(d.term)}"></svg>${vid ? `<video class="dvideo" hidden controls playsinline preload="none" aria-label="Manim animation: ${esc(d.term)}"><source src="videos/${vid}.webm" type="video/webm"><source src="videos/${vid}.mp4" type="video/mp4"></video>` : ''}</div><p class="dcap" aria-live="polite"></p><div class="dctl"><button type="button" class="dplay">Play</button><span class="ddots"></span>${d.gen ? '<button type="button" class="dboard">Use the board’s graph</button>' : ''}${vid ? '<button type="button" class="dvid">Manim version</button>' : ''}</div><p class="dmsg note" hidden></p></article>`; }).join('');
+  box.innerHTML = defs.map((d, k) => { const vid = MANIM[m.key + ':' + d.term]; return `<article class="dcard" data-k="${k}"><h3>${esc(d.term)}</h3>${d.why ? `<p class="dwhy"><b>Why we need it.</b> ${d.why}</p>` : ''}<p class="dtext">${d.text}</p>${d.practice ? `<p class="dpractice">Practice: ${sheetRefs(d.practice)}</p>` : ''}<div class="dfig"><svg class="defsvg" viewBox="0 0 300 190" role="img" aria-label="Animation: ${esc(d.term)}"></svg>${vid ? `<video class="dvideo" hidden controls playsinline preload="none" aria-label="Manim animation: ${esc(d.term)}"><source src="videos/${vid}.webm" type="video/webm"><source src="videos/${vid}.mp4" type="video/mp4"></video>` : ''}</div><p class="dcap" aria-live="polite"></p><div class="dctl"><button type="button" class="dplay">Play</button><span class="ddots"></span>${d.gen ? '<button type="button" class="dboard">Use the board’s graph</button>' : ''}${vid ? '<button type="button" class="dvid">Manim version</button>' : ''}</div><p class="dmsg note" hidden></p><div class="dresize" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Card width (drag, or use the arrow keys; double-click to reset)" title="Drag to make all cards wider or narrower. Double-click to reset."></div></article>`; }).join('');
   box.querySelectorAll('.dcard').forEach(card => {
     const d = defs[+card.dataset.k]; let A;
     try { A = new DefAnim(card, d); } catch (e) { card.querySelector('.dcap').textContent = 'Animation failed: ' + e.message; return; }
@@ -4193,7 +4226,7 @@ function boot() {
   ['n', 'e', 'l'].forEach(k => { const inp = $('#sz-' + k); inp.oninput = () => setSizes(Object.assign({}, SZ, { [k]: +inp.value }), false); inp.onchange = () => setSizes(SZ, true); });
   $('#szreset').onclick = () => setSizes({ n: 1, e: 1, l: 1 }, true);
   $('#sizebtn').onclick = () => { const b = $('#sizebtn'), on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); $('#sizebar').hidden = !on; };
-  initSplitter(); initPaneSplit(); initTextSize();
+  initSplitter(); initPaneSplit(); initTextSize(); initCardResize();
   const setSide = (show, focus) => {
     $('#app').classList.toggle('noside', !show); $('#sideshow').hidden = show;
     $('#sidehide').setAttribute('aria-expanded', show); $('#sideshow').setAttribute('aria-expanded', show);

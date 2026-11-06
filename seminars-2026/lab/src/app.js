@@ -391,10 +391,39 @@ function loadPreset(key) { const p = PRESETS[key]; if (!p) return; const s = mod
 
 /* ---------- definitions strip ---------- */
 const ANIMS = [];
+/* ---------- draggable width of the definition cards (one width for all cards) ---------- */
+const DCW_MIN = 240, DCW_MAX = 900;
+function applyCardWidth() {
+  const w = +loadStore().dcw, d = $('#defs');
+  if (w) d.style.setProperty('--dcw', `min(${Math.round(w)}px, calc(100vw - 48px))`); else d.style.removeProperty('--dcw');
+}
+function setCardWidth(w) { saveStore({ dcw: w == null ? null : Math.min(DCW_MAX, Math.max(DCW_MIN, w)) }); applyCardWidth(); }
+function initCardResize() {
+  const box = $('#defcards'); applyCardWidth();
+  box.addEventListener('pointerdown', e => {
+    const h = e.target.closest('.dresize'); if (!h || e.button !== 0) return;
+    e.preventDefault(); const card = h.closest('.dcard'), x0 = e.clientX, w0 = card.getBoundingClientRect().width, left0 = card.offsetLeft - box.scrollLeft;
+    h.classList.add('drag'); document.body.classList.add('resizing');
+    const move = ev => { setCardWidth(w0 + ev.clientX - x0); const nl = card.offsetLeft - box.scrollLeft; if (nl !== left0) box.scrollLeft += nl - left0; };
+    const up = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', up); h.classList.remove('drag'); document.body.classList.remove('resizing'); };
+    document.addEventListener('pointermove', move); document.addEventListener('pointerup', up); document.addEventListener('pointercancel', up);
+  });
+  box.addEventListener('dblclick', e => { if (e.target.closest('.dresize')) setCardWidth(null); });
+  box.addEventListener('keydown', e => {
+    const h = e.target.closest('.dresize'); if (!h) return;
+    const w = h.closest('.dcard').getBoundingClientRect().width, step = e.shiftKey ? 80 : 24;
+    if (e.key === 'ArrowRight') setCardWidth(w + step);
+    else if (e.key === 'ArrowLeft') setCardWidth(w - step);
+    else if (e.key === 'Enter' || e.key === 'Escape') setCardWidth(null);
+    else return;
+    e.preventDefault(); e.stopPropagation();
+  });
+}
+
 function renderDefs(m) {
   ANIMS.forEach(a => a.stop()); ANIMS.length = 0;
   const defs = DEFS[m.key] || []; const box = $('#defcards');
-  box.innerHTML = defs.map((d, k) => { const vid = MANIM[m.key + ':' + d.term]; return `<article class="dcard" data-k="${k}"><h3>${esc(d.term)}</h3>${d.why ? `<p class="dwhy"><b>Why we need it.</b> ${d.why}</p>` : ''}<p class="dtext">${d.text}</p>${d.practice ? `<p class="dpractice">Practice: ${sheetRefs(d.practice)}</p>` : ''}<div class="dfig"><svg class="defsvg" viewBox="0 0 300 190" role="img" aria-label="Animation: ${esc(d.term)}"></svg>${vid ? `<video class="dvideo" hidden controls playsinline preload="none" aria-label="Manim animation: ${esc(d.term)}"><source src="videos/${vid}.webm" type="video/webm"><source src="videos/${vid}.mp4" type="video/mp4"></video>` : ''}</div><p class="dcap" aria-live="polite"></p><div class="dctl"><button type="button" class="dplay">Play</button><span class="ddots"></span>${d.gen ? '<button type="button" class="dboard">Use the board’s graph</button>' : ''}${vid ? '<button type="button" class="dvid">Manim version</button>' : ''}</div><p class="dmsg note" hidden></p></article>`; }).join('');
+  box.innerHTML = defs.map((d, k) => { const vid = MANIM[m.key + ':' + d.term]; return `<article class="dcard" data-k="${k}"><h3>${esc(d.term)}</h3>${d.why ? `<p class="dwhy"><b>Why we need it.</b> ${d.why}</p>` : ''}<p class="dtext">${d.text}</p>${d.practice ? `<p class="dpractice">Practice: ${sheetRefs(d.practice)}</p>` : ''}<div class="dfig"><svg class="defsvg" viewBox="0 0 300 190" role="img" aria-label="Animation: ${esc(d.term)}"></svg>${vid ? `<video class="dvideo" hidden controls playsinline preload="none" aria-label="Manim animation: ${esc(d.term)}"><source src="videos/${vid}.webm" type="video/webm"><source src="videos/${vid}.mp4" type="video/mp4"></video>` : ''}</div><p class="dcap" aria-live="polite"></p><div class="dctl"><button type="button" class="dplay">Play</button><span class="ddots"></span>${d.gen ? '<button type="button" class="dboard">Use the board’s graph</button>' : ''}${vid ? '<button type="button" class="dvid">Manim version</button>' : ''}</div><p class="dmsg note" hidden></p><div class="dresize" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Card width (drag, or use the arrow keys; double-click to reset)" title="Drag to make all cards wider or narrower. Double-click to reset."></div></article>`; }).join('');
   box.querySelectorAll('.dcard').forEach(card => {
     const d = defs[+card.dataset.k]; let A;
     try { A = new DefAnim(card, d); } catch (e) { card.querySelector('.dcap').textContent = 'Animation failed: ' + e.message; return; }
@@ -524,7 +553,7 @@ function boot() {
   ['n', 'e', 'l'].forEach(k => { const inp = $('#sz-' + k); inp.oninput = () => setSizes(Object.assign({}, SZ, { [k]: +inp.value }), false); inp.onchange = () => setSizes(SZ, true); });
   $('#szreset').onclick = () => setSizes({ n: 1, e: 1, l: 1 }, true);
   $('#sizebtn').onclick = () => { const b = $('#sizebtn'), on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); $('#sizebar').hidden = !on; };
-  initSplitter(); initPaneSplit(); initTextSize();
+  initSplitter(); initPaneSplit(); initTextSize(); initCardResize();
   const setSide = (show, focus) => {
     $('#app').classList.toggle('noside', !show); $('#sideshow').hidden = show;
     $('#sidehide').setAttribute('aria-expanded', show); $('#sideshow').setAttribute('aria-expanded', show);

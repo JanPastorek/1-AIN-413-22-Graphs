@@ -154,12 +154,52 @@ function draw() {
   renderTabs(F);
 }
 
+/* ---------- resizable split between the board and the side panel ---------- */
+const PW_MIN = 240, BOARD_MIN = 280;
+function panelKey() { return ST.tab === 'both' ? 'both' : 'one'; }
+function applyPanelWidth() {
+  const st = $('#stage'), w = (loadStore().pw || {})[panelKey()];
+  if (w) st.style.setProperty('--pw', `min(${Math.round(w)}px, max(${PW_MIN}px, calc(100% - ${BOARD_MIN + 18}px)))`); else st.style.removeProperty('--pw');
+  const sp = $('#splitter'), pan = st.querySelector('.statepanel');
+  if (sp && pan) { sp.setAttribute('aria-valuenow', Math.round(pan.getBoundingClientRect().width)); sp.setAttribute('aria-valuemin', PW_MIN); sp.setAttribute('aria-valuemax', Math.max(PW_MIN, Math.round(st.clientWidth - BOARD_MIN - 18))); }
+}
+function setPanelWidth(w) {
+  const st = $('#stage'), max = Math.max(PW_MIN, st.clientWidth - BOARD_MIN - 18);
+  const pw = Object.assign({}, loadStore().pw || {});
+  if (w == null) delete pw[panelKey()]; else pw[panelKey()] = Math.min(max, Math.max(PW_MIN, w));
+  saveStore({ pw }); applyPanelWidth();
+}
+function initSplitter() {
+  const sp = $('#splitter'), st = $('#stage');
+  const panelW = () => st.querySelector('.statepanel').getBoundingClientRect().width;
+  sp.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    e.preventDefault(); sp.setPointerCapture(e.pointerId); sp.classList.add('drag'); document.body.classList.add('resizing');
+    const move = ev => { const r = st.getBoundingClientRect(); setPanelWidth(r.right - ev.clientX - 9); };
+    const up = () => { sp.releasePointerCapture(e.pointerId); sp.classList.remove('drag'); document.body.classList.remove('resizing'); sp.removeEventListener('pointermove', move); sp.removeEventListener('pointerup', up); sp.removeEventListener('pointercancel', up); };
+    sp.addEventListener('pointermove', move); sp.addEventListener('pointerup', up); sp.addEventListener('pointercancel', up);
+  });
+  sp.addEventListener('dblclick', () => setPanelWidth(null));
+  sp.addEventListener('keydown', e => {
+    const step = e.shiftKey ? 80 : 24;
+    if (e.key === 'ArrowLeft') setPanelWidth(panelW() + step);
+    else if (e.key === 'ArrowRight') setPanelWidth(panelW() - step);
+    else if (e.key === 'Home') setPanelWidth(10000);
+    else if (e.key === 'End') setPanelWidth(PW_MIN);
+    else if (e.key === 'Enter' || e.key === 'Escape') setPanelWidth(null);
+    else return;
+    e.preventDefault(); e.stopPropagation();
+  });
+  window.addEventListener('resize', applyPanelWidth);
+}
+
 /* ---------- state / pseudocode / python tabs ---------- */
 function renderTabs(F) {
   const m = ST.mod, s = modState(m), a = currentAlgo();
   document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === ST.tab));
   const box = $('#state');
   $('#stage').classList.toggle('both', ST.tab === 'both');
+  applyPanelWidth();
   const stateHTML = () => ST.mode === 'cert' ? (ST.certRes ? cert(ST.certRes.ok ? 'yes' : 'no', ST.certRes.ok ? 'Certificate accepted' : 'Not accepted', ST.certRes.msg) : '<p class="note">Select, then press Check.</p>') : (F.panel || '<p class="note">Nothing to show for this step.</p>');
   const idea = IDEAS[m.key + '.' + a.key] ? `<p class="idea"><b>How it works.</b> ${IDEAS[m.key + '.' + a.key].replace(/ Idea: (.)/, (x, c) => `</p><p class="idea idea2"><b>Idea.</b> ${c.toUpperCase()}`)}</p>` : '';
   const codeHTML = (withIdea = true) => {
@@ -426,6 +466,7 @@ function boot() {
   ['n', 'e', 'l'].forEach(k => { const inp = $('#sz-' + k); inp.oninput = () => setSizes(Object.assign({}, SZ, { [k]: +inp.value }), false); inp.onchange = () => setSizes(SZ, true); });
   $('#szreset').onclick = () => setSizes({ n: 1, e: 1, l: 1 }, true);
   $('#sizebtn').onclick = () => { const b = $('#sizebtn'), on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); $('#sizebar').hidden = !on; };
+  initSplitter();
   const setSide = (show, focus) => {
     $('#app').classList.toggle('noside', !show); $('#sideshow').hidden = show;
     $('#sidehide').setAttribute('aria-expanded', show); $('#sideshow').setAttribute('aria-expanded', show);

@@ -50,7 +50,7 @@ code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
 .sideshow { position: absolute; z-index: 20; top: 10px; left: 10px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--sheet); color: var(--ink2); font: inherit; font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 8px; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
 .sideshow:hover, .sideshow:focus-visible { color: var(--ink); border-color: var(--ink2); }
 .app.noside main { padding-top: 54px; }
-@media (min-width: 1101px) { .app.noside .stage.both { grid-template-columns: minmax(0, 1fr) clamp(300px, calc(40vw - 40px), 720px); } }
+@media (min-width: 1101px) { .app.noside .stage.both { grid-template-columns: minmax(0, 1fr) 18px var(--pw, clamp(300px, calc(40vw - 40px), 720px)); } }
 .brand { display: flex; gap: 10px; align-items: center; padding-inline: 6px; }
 .brand svg { flex: none; }
 .brand b { display: block; font-family: var(--f-display); font-stretch: 118%; font-weight: 780; font-size: 17px; letter-spacing: -0.01em; line-height: 1.1; }
@@ -91,7 +91,7 @@ h3 { font-family: var(--f-display); font-stretch: 108%; font-weight: 700; font-s
 button:disabled { opacity: 0.45; cursor: default; }
 .tools button[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
-.stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); gap: 18px; align-items: start; scroll-margin-top: 12px; }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 18px var(--pw, minmax(280px, 360px)); gap: 0; align-items: start; scroll-margin-top: 12px; }
 .board { border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--paper); min-width: 0; }
 .boardbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 12px; padding: 8px 10px; border-bottom: 1px solid var(--line); background: var(--sheet); }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--ink2); }
@@ -305,7 +305,13 @@ footer p { margin: 0 0 6px; }
 .idea2 { border-radius: 0 0 6px 6px; padding-top: 3px; }
 /* State + pseudocode together: the panel widens on large screens and splits into two columns once it is wide enough */
 .statepanel { container-type: inline-size; }
-.stage.both { grid-template-columns: minmax(0, 1fr) clamp(300px, calc(44vw - 120px), 660px); }
+.stage.both { grid-template-columns: minmax(0, 1fr) 18px var(--pw, clamp(300px, calc(44vw - 120px), 660px)); }
+.splitter { align-self: stretch; position: relative; cursor: col-resize; touch-action: none; outline: none; }
+.splitter::before { content: ""; position: absolute; top: 0; bottom: 0; left: 8px; width: 2px; border-radius: 2px; background: transparent; transition: background .15s; }
+.splitter .grip { position: sticky; top: calc(50vh - 22px); display: block; margin: 40px auto 0; width: 8px; height: 44px; border-radius: 4px; border: 1.5px solid var(--line); background: var(--sheet); }
+.splitter:hover::before, .splitter:focus-visible::before, .splitter.drag::before { background: var(--accent); }
+.splitter:hover .grip, .splitter:focus-visible .grip, .splitter.drag .grip { border-color: var(--accent); background: var(--accent); }
+body.resizing { cursor: col-resize; user-select: none; }
 .both2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .pane { min-width: 0; }
 .paneh { margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
@@ -360,7 +366,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
 .rv { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
 @media (max-width: 820px) { .tbody { grid-template-columns: 1fr; } .defcards { grid-auto-columns: minmax(260px, 86vw); } }
 
-@media (max-width: 1100px) { .stage, .stage.both { grid-template-columns: 1fr; } .statepanel { position: static; max-height: none; } }
+@media (max-width: 1100px) { .stage, .stage.both { grid-template-columns: 1fr; gap: 18px; } .splitter { display: none; } .statepanel { position: static; max-height: none; } }
 @media (max-width: 820px) {
   .app { grid-template-columns: 1fr; }
   .side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 14px 16px 10px; gap: 10px; }
@@ -386,7 +392,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
       <div><b>Graph Studio Lab</b><span>1-AIN-413 · Graphs, Graph Algorithms and Optimization</span></div>
     </div>
     <nav id="nav" aria-label="Seminar sessions"></nav>
-    <p class="side-note">Step with <kbd>←</kbd> <kbd>→</kbd>, play with <kbd>Space</kbd>, hide this menu with <kbd>M</kbd>. Drag vertices to tidy a drawing; scroll on the board to zoom, drag the paper to pan.</p>
+    <p class="side-note">Step with <kbd>←</kbd> <kbd>→</kbd>, play with <kbd>Space</kbd>, hide this menu with <kbd>M</kbd>. Drag vertices to tidy a drawing; scroll on the board to zoom, drag the paper to pan. Drag the bar between the board and the side panel to resize them.</p>
   </aside>
 
   <main>
@@ -453,6 +459,7 @@ table.mat td.asg { outline: 2px solid var(--accent); outline-offset: -2px; font-
           <select id="speed" aria-label="Playback speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option></select>
         </div>
       </div>
+      <div id="splitter" class="splitter" role="separator" aria-orientation="vertical" aria-controls="stage" aria-label="Resize the board and the side panel (drag, or use the arrow keys; double-click to reset)" title="Drag to give the figure or the pseudocode more room. Double-click to reset." tabindex="0"><span class="grip"></span></div>
       <aside class="statepanel" aria-label="Data structures, pseudocode and code">
         <div id="tabs" class="tabs" role="tablist"><button type="button" role="tab" data-tab="both" aria-selected="true">State + pseudocode</button><button type="button" role="tab" data-tab="state" aria-selected="false">State</button><button type="button" role="tab" data-tab="code" aria-selected="false">Pseudocode</button><button type="button" role="tab" data-tab="py" aria-selected="false">Python</button></div>
         <div id="state" role="tabpanel"></div>

@@ -1496,7 +1496,7 @@ function tourModel(g, A, tsp, cuts = []) {
   const safe = new Map(), used = new Set();
   const id = i => { if (!safe.has(i)) { let t = String(name(i)).replace(/[^A-Za-z0-9_]/g, '_') || 'v' + i; if (/^[0-9]/.test(t)) t = 'v' + t; while (used.has(t)) t += '_'; used.add(t); safe.set(i, t); } return safe.get(i); };
   const fv = a => `x_${id(a.i)}_${id(a.j)}`;
-  const wrap = (terms, lead, cont, width = 46) => { const out = []; let cur = lead; terms.forEach((t, k) => { const piece = (k ? ' + ' : '') + t; if (cur.length + piece.length > width && cur.trim().length > lead.trim().length) { out.push(cur); cur = cont + '+ ' + t; } else cur += piece; }); out.push(cur); return out.join('\n'); };
+  const wrap = (terms, lead, cont, width = 40) => { const out = []; let cur = lead; terms.forEach((t, k) => { const piece = (k ? ' + ' : '') + t; if (cur.length + piece.length > width && cur.trim().length > lead.trim().length) { out.push(cur); cur = cont + '+ ' + t; } else cur += piece; }); out.push(cur); return out.join('\n'); };
   const coef = a => (a.w === 1 ? '' : fmt(a.w) + '·');
   const obj = tsp ? wrap(A.map(a => coef(a) + vn(a)), 'min  ', '       ') : 'min  0        (only feasibility matters)';
   const rows = [];
@@ -1544,7 +1544,7 @@ function algTourILP(g, P) {
 subject to Σ aₖ·xₖ ≤ b
            (also = or ≥)
 ILP:       xₖ ∈ {0, 1}
-LP:        0 ≤ xₖ ≤ 1</pre><p class="note">A linear program (LP) allows fractional values and is solvable in polynomial time; its optimum is a bound for the ILP. Requiring whole numbers makes the problem NP-hard in general, so solvers combine LP bounds with branching (branch and bound) and add constraints only when they are violated (cutting planes).</p>` });
+LP:        0 ≤ xₖ ≤ 1</pre><p class="note">A linear program (LP) allows fractional values and is solvable in polynomial time; its optimum is a bound for the ILP. Requiring whole numbers makes the problem NP-hard in general, so solvers combine LP bounds with branching (branch and bound) and add constraints only when they are violated (cutting planes).</p>` + (n >= 2 && n <= 14 ? modelPanel(tourModel(g, A, tsp), `${tsp ? 'TSP' : 'Hamilton cycle'} ILP of the graph on the board`) + '<p class="note">Rebuilt whenever the graph changes. The next steps explain it piece by piece; the last step adds the subtour constraints the solver needed.</p>' : '') });
   if (n < 2) { R.snap('A cycle needs at least two vertices.', { panel: '' }, true); return { frames: R.frames }; }
   if (n > 14) { R.snap('This browser search is limited to 14 vertices. The Python tab solves the same ILP with SciPy’s MILP solver.', { panel: '' }, true); return { frames: R.frames }; }
   R.line = 0; R.snap(`Variables: one per arc, ${A.length} in total (${g.directed ? 'one per arc' : 'each edge uv gives x<sub>uv</sub> and x<sub>vu</sub>'}). x = 1 means the arc is used.${note}`, { panel: h4(`${A.length} binary variables`) + `<p class="mono">${A.slice(0, 40).map(xv).join(', ')}${A.length > 40 ? ', …' : ''}</p>` });

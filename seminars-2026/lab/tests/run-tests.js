@@ -195,6 +195,7 @@ for (const m of MODULES) { ok(m.tasks[0] && m.tasks[0].tag === 'Motivation', `${
   const g = parseGraph('a b 3\nb c 4\nc a 5\nc d 1\nd a 2'); g.weighted = true;
   const r = algTourILP(g, { goal: 'tsp' }), f = r.frames.find(x => x.panel && x.panel.includes('ILP of this graph'));
   ok(!!f && /x<sub>a,?b<\/sub>/.test(f.panel) && f.panel.includes('3·x') && f.panel.includes('out d') && f.panel.includes('0 ≤ x<sub>ij</sub> ≤ 1') && /\n {7}\+ \d·x/.test(f.panel), 'model frame lists this graph\'s variables, weights, degree rows and the LP bounds');
+  ok(r.frames[0].panel.includes('ILP of the graph on the board') && r.frames[0].panel.includes('data-kind="ilpfile"'), 'the first ILP step already shows this graph\'s model');
   const M = tourModel(g, [{ i: 0, j: 1, w: 3 }, { i: 1, j: 0, w: 3 }], true, [[0]]);
   ok(/^Minimize$/m.test(M.ilpFile) && /^Subject To$/m.test(M.ilpFile) && /^Binary$/m.test(M.ilpFile) && !/^Binary$/m.test(M.lpFile) && /sec1: +x_a_b >= 1/.test(M.ilpFile), 'LP file has the CPLEX sections; Binary only in the ILP version');
   const last = r.frames[r.frames.length - 1].panel, rows = (last.match(/data-kind="ilpfile">([\s\S]*?)<\/pre>/) || ['', ''])[1];

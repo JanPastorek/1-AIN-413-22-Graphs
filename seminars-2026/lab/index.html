@@ -369,6 +369,9 @@ footer p { margin: 0 0 6px; }
 .blob { fill: var(--accent-soft); stroke: var(--accent-soft); stroke-width: 34; stroke-linejoin: round; stroke-linecap: round; opacity: .9; transition: opacity .45s; }
 .blob.sB { fill: var(--amber-soft); stroke: var(--amber-soft); }
 .face { stroke: none; opacity: .55; }
+.hull { stroke-width: 2px; stroke-dasharray: 6 4; stroke-linejoin: round; }
+.hull.blossom { fill: color-mix(in srgb, var(--amber) 22%, transparent); stroke: var(--amber); }
+.hull.oddcomp { fill: color-mix(in srgb, var(--teal) 18%, transparent); stroke: var(--teal); }
 .face.fc0 { fill: var(--k0); } .face.fc1 { fill: var(--k1); } .face.fc2 { fill: var(--k2); } .face.fc3 { fill: var(--k3); } .face.fc4 { fill: var(--k4); } .face.fc5 { fill: var(--k5); } .face.fc6 { fill: var(--k6); } .face.fc7 { fill: var(--k7); }
 .face.outer { fill: none; }
 .ed.dual { stroke: var(--hot); stroke-width: calc(2.2px * var(--sz-e)); stroke-dasharray: 5 4; } .ah.dual { fill: var(--hot); }
@@ -1739,7 +1742,7 @@ function algFlow(g, P) {
 /* ---------- matchings ---------- */
 function algKuhn(g, P) {
   const n = g.nodes.length, R = new Rec(); const col = twoColoring(g);
-  if (!col) { const r = algBFS(g, { source: 0 }); const last = r.frames[r.frames.length - 1]; last.msg = 'The graph is not bipartite (odd cycle shown). Augmenting-path matching for general graphs needs Edmonds’ blossoms.'; return { frames: [last] }; }
+  if (!col) { const r = algBFS(g, { source: 0 }); const last = r.frames[r.frames.length - 1]; last.msg = 'The graph is not bipartite (odd cycle shown). This algorithm is for bipartite graphs; run <b>Edmonds’ blossom</b> for general graphs.'; return { frames: [last] }; }
   const L = g.nodes.map((v, i) => i).filter(i => col[i] === 0), A = adjUnd(g);
   const mL = Array(n).fill(-1), mR = Array(n).fill(-1), mE = Array(n).fill(-1); let size = 0;
   g.nodes.forEach((v, i) => R.ntag[i] = col[i] ? 'R' : 'L');
@@ -1773,6 +1776,117 @@ function algKuhn(g, P) {
   if (size < L.length) { const NS = g.nodes.map((v, i) => i).filter(i => col[i] === 1 && Z.has(i)); c += cert('no', 'Hall violator', `S = {${Sh.map(i => lab(g, i)).join(', ')}} has only ${NS.length} neighbour${NS.length === 1 ? '' : 's'} N(S) = {${NS.map(i => lab(g, i)).join(', ')}} &lt; |S| = ${Sh.length}. So L cannot be fully matched.`); }
   R.line = 7; R.snap('Done. Red vertices: a vertex cover of the same size as the matching.', { panel: c + panel() }, true);
   return { frames: R.frames, truncated: R.truncated };
+}
+
+/* ---------- Edmonds' blossom algorithm: maximum matching in any graph ---------- */
+/* plain version (no frames): returns mate[] */
+function blossomMatching(n, A, skip = -1) {
+  const match = Array(n).fill(-1);
+  for (let r = 0; r < n; r++) {
+    if (r === skip || match[r] >= 0) continue;
+    const res = blossomSearch(n, A, match, r, skip);
+    if (res.found >= 0) blossomAugment(match, res.p, res.found);
+  }
+  return match;
+}
+function blossomSearch(n, A, match, root, skip = -1, ev = null) {
+  const used = Array(n).fill(false), p = Array(n).fill(-1), base = Array.from({ length: n }, (_, i) => i);
+  used[root] = true; const q = [root];
+  const lca = (a, b) => { const mark = Array(n).fill(false); for (;;) { a = base[a]; mark[a] = true; if (match[a] < 0) break; a = p[match[a]]; } for (;;) { b = base[b]; if (mark[b]) return b; b = p[match[b]]; } };
+  const markPath = (v, b, child, bl) => { while (base[v] !== b) { bl[base[v]] = bl[base[match[v]]] = true; p[v] = child; child = match[v]; v = p[match[v]]; } };
+  for (let h = 0; h < q.length; h++) {
+    const v = q[h]; if (ev) ev('scan', { v, used, p, base });
+    for (const { to, e } of A[v]) {
+      if (to === skip || to === v || base[v] === base[to] || match[v] === to) continue;
+      if (to === root || (match[to] >= 0 && p[match[to]] >= 0)) { // both ends even: an odd cycle
+        const b = lca(v, to), bl = Array(n).fill(false);
+        if (ev) ev('blossom', { v, to, e, b, used, p, base });
+        markPath(v, b, to, bl); markPath(to, b, v, bl);
+        for (let i = 0; i < n; i++) if (bl[base[i]]) { base[i] = b; if (!used[i]) { used[i] = true; q.push(i); } }
+        if (ev) ev('shrunk', { b, used, p, base });
+      } else if (p[to] < 0) {
+        p[to] = v;
+        if (match[to] < 0) { if (ev) ev('augment', { v, to, e, used, p, base }); return { found: to, p, used, base }; }
+        used[match[to]] = true; q.push(match[to]);
+        if (ev) ev('grow', { v, to, e, w: match[to], used, p, base });
+      }
+    }
+  }
+  return { found: -1, p, used, base };
+}
+function blossomPath(match, p, v) { const path = []; while (v >= 0) { const pv = p[v], ppv = match[pv]; path.push([v, pv]); v = ppv; } return path; }
+function blossomAugment(match, p, v) { while (v >= 0) { const pv = p[v], ppv = match[pv]; match[v] = pv; match[pv] = v; v = ppv; } }
+/* Gallai–Edmonds: D = vertices missed by some maximum matching, A = N(D) ∖ D; U = A is a Tutte–Berge set */
+function tutteBerge(g, A0) {
+  const n = g.nodes.length, A = A0 || adjUnd(g), M = blossomMatching(n, A), nu = M.filter(x => x >= 0).length / 2;
+  const D = []; for (let v = 0; v < n; v++) { const Mv = blossomMatching(n, A, v); if (Mv.filter((x, i) => x >= 0 && i !== v).length / 2 === nu) D.push(v); }
+  const inD = new Set(D), U = [...new Set(D.flatMap(v => A[v].map(x => x.to)))].filter(x => !inD.has(x)).sort((a, b) => a - b), inU = new Set(U);
+  const comp = Array(n).fill(-1), comps = [];
+  for (let s = 0; s < n; s++) { if (inU.has(s) || comp[s] >= 0) continue; const c = [s]; comp[s] = comps.length; for (let h = 0; h < c.length; h++) for (const { to } of A[c[h]]) if (!inU.has(to) && comp[to] < 0) { comp[to] = comps.length; c.push(to); } comps.push(c); }
+  const odd = comps.filter(c => c.length % 2 === 1);
+  return { M, nu, D, U, odd, comps, bound: (n + U.length - odd.length) / 2 };
+}
+function algBlossom(g, P) {
+  const n = g.nodes.length, R = new Rec(), A = adjUnd(g), match = Array(n).fill(-1), mE = Array(n).fill(-1);
+  const edgeOf = (a, b) => { const x = A[a].find(y => y.to === b); return x ? x.e : -1; };
+  let size = 0, blossoms = 0, augments = 0;
+  const groups = base => { const by = new Map(); base.forEach((b, i) => { if (!by.has(b)) by.set(b, []); by.get(b).push(i); }); return [...by.values()].filter(c => c.length >= 3); };
+  const paint = (st) => {
+    R.ec = {}; for (let v = 0; v < n; v++) if (match[v] > v) R.ec[mE[v]] = 'match';
+    R.nc = {}; R.ntag = {};
+    if (!st) return;
+    for (let v = 0; v < n; v++) {
+      if (st.used[v]) { R.nc[v] = 'done'; R.ntag[v] = 'even'; }
+      else if (st.p[v] >= 0) { R.nc[v] = 'front'; R.ntag[v] = 'odd'; if (R.ec[edgeOf(v, st.p[v])] !== 'match') R.ec[edgeOf(v, st.p[v])] = 'cand'; }
+    }
+    for (let v = 0; v < n; v++) if (st.used[v] && st.base[v] !== v && R.ntag[v]) R.ntag[v] = 'in ' + lab(g, st.base[v]);
+  };
+  const matchedList = () => g.nodes.map((v, i) => i).filter(i => match[i] > i).map(i => `${lab(g, i)}–${lab(g, match[i])}`);
+  const panel = (extra = '') => extra + h4(`Matching (size ${size})`) + chips(matchedList()) + h4('Exposed vertices') + chips(g.nodes.map((v, i) => i).filter(i => match[i] < 0).map(i => lab(g, i))) + `<p class="note">Augmentations ${augments} · blossoms shrunk ${blossoms}</p>`;
+  const hulls = base => groups(base).map(c => ({ v: c, cls: 'blossom' }));
+  R.line = 0; R.snap(`Start with the empty matching. From each exposed vertex grow an alternating tree; an odd cycle (a blossom) gets shrunk into one vertex so the search can go on.`, { panel: panel() });
+  for (let r = 0; r < n; r++) {
+    if (match[r] >= 0 || !A[r].length) continue;
+    paint({ used: Array.from({ length: n }, (_, i) => i === r), p: Array(n).fill(-1), base: g.nodes.map((v, i) => i) }); R.nc[r] = 'cur'; R.ntag[r] = 'root';
+    R.line = 2; R.snap(`${N(g, r)} is exposed: it is the root of a new alternating tree, labelled even.`, { panel: panel() });
+    let lastBase = null;
+    const res = blossomSearch(n, A, match, r, -1, (kind, st) => {
+      if (kind === 'grow') { paint(st); R.nc[st.v] = 'cur'; R.ec[st.e] = 'cand'; R.line = 5; R.snap(`${lab(g, st.to)} is matched to ${lab(g, st.w)}: add both to the tree. ${lab(g, st.to)} is odd, ${lab(g, st.w)} is even and will be scanned.`, { panel: panel(), hulls: hulls(st.base) }); }
+      else if (kind === 'blossom') {
+        paint(st); R.nc[st.v] = 'cur'; R.ec[st.e] = 'path';
+        // the cycle: tree paths from v and to up to the base
+        const up = x => { const out = []; let y = x; for (let k = 0; k < 2 * n && st.base[y] !== st.b; k++) { const m = match[y], pm = p0(st, m); if (m < 0) break; out.push(edgeOf(y, m)); if (pm < 0) break; out.push(edgeOf(m, pm)); y = pm; } return out; };
+        const cyc = up(st.v).concat(up(st.to)); cyc.forEach(e => { if (e >= 0) R.ec[e] = 'path'; });
+        R.line = 6; R.snap(`Edge ${edgeName(g, st.e)} joins two even vertices of the same tree: it closes an odd cycle, a <b>blossom</b>. Which vertex is its base (where the two tree paths meet)?`, { panel: panel(), hulls: hulls(st.base), ask: { type: 'vertex', answer: [st.b], prompt: 'Click the base of the blossom.' } });
+      }
+      else if (kind === 'shrunk') { blossoms++; paint(st); R.line = 6; R.snap(`Shrink the blossom into its base ${N(g, st.b)}: every vertex in it is now even, so the search continues from all of them. An augmenting path through the shrunk vertex lifts to one in G (the cycle can be walked either way round).`, { panel: panel(), hulls: hulls(st.base) }); lastBase = st.base; }
+      else if (kind === 'augment') { paint(st); R.nc[st.to] = 'cur'; R.ec[st.e] = 'cand'; lastBase = st.base; }
+    });
+    if (res.found >= 0) {
+      const path = blossomPath(match, res.p, res.found), pe = [];
+      path.forEach(([v, pv]) => { pe.push(edgeOf(v, pv)); if (match[pv] >= 0) pe.push(mE[pv]); });
+      pe.forEach(e => { if (e >= 0) R.ec[e] = 'path'; });
+      const verts = []; path.forEach(([v, pv]) => verts.push(v, pv));
+      R.line = 7; R.snap(`${N(g, res.found)} is exposed and outside the tree: an <b>augmenting path</b> ${verts.map(i => lab(g, i)).join(' – ')} (through any blossoms, walked the right way round).`, { panel: panel(), hulls: hulls(res.base), ask: { type: 'number', answer: [size + 1], prompt: 'Size of the matching after flipping this path?' } });
+      blossomAugment(match, res.p, res.found); for (let v = 0; v < n; v++) mE[v] = match[v] >= 0 ? edgeOf(v, match[v]) : -1;
+      size++; augments++; paint(null);
+      R.line = 7; R.snap(`Flip the path: matched and unmatched edges swap. |M| = ${size}. Blossoms are forgotten; the next search starts fresh.`, { panel: panel() });
+    } else {
+      paint({ used: res.used, p: res.p, base: res.base });
+      R.line = 8; R.snap(`The tree from ${N(g, r)} cannot grow and holds no augmenting path, so ${lab(g, r)} stays exposed (Edmonds: it will never become part of one later either).`, { panel: panel(), hulls: hulls(res.base) });
+    }
+  }
+  // certificate: Tutte–Berge set from the Gallai–Edmonds decomposition
+  const T = tutteBerge(g, A); paint(null);
+  T.U.forEach(v => { R.nc[v] = 'cut'; R.ntag[v] = 'U'; });
+  const odd = T.odd, def = odd.length - T.U.length;
+  const ok = T.nu === size && T.bound === size;
+  const body = T.U.length === 0 && odd.length === 0
+    ? `Every vertex is matched: a perfect matching is trivially maximum.`
+    : `Remove U = {${T.U.map(i => lab(g, i)).join(', ') || '∅'}} (red). G − U has ${odd.length} odd component${odd.length === 1 ? '' : 's'} (shaded). Each odd component leaves a vertex unmatched unless it is matched into U, and U can absorb at most |U| of them, so <b>at least ${odd.length} − ${T.U.length} = ${def} vertices stay exposed</b> in every matching: ν(G) ≤ (n − ${def}) / 2 = (${n} − ${def}) / 2 = ${fmt(T.bound)}. The matching found has ${size} edges, so it is maximum (Tutte–Berge formula).`;
+  R.line = 9; R.snap(`Done: |M| = ${size}. The red set U is a Tutte–Berge witness that no larger matching exists.`, { panel: (ok ? cert('yes', `Maximum: |M| = ${size} = (n + |U| − odd(G − U)) / 2`, body) : cert('no', 'Mismatch', `Tutte–Berge bound ${fmt(T.bound)}, matching ${size}.`)) + panel(), hulls: odd.filter(c => c.length >= 1).map(c => ({ v: c, cls: 'oddcomp' })) }, true);
+  return { frames: R.frames, size, match, blossoms, U: T.U, truncated: R.truncated };
+  function p0(st, m) { return m >= 0 ? st.p[m] : -1; }
 }
 
 function parsePrefs(text) {
@@ -2756,6 +2870,7 @@ const PRESETS = Object.assign({}, REPO_PRESETS, {
   streets: { name: 'Snowplough streets (4 odd corners)', text: 'A B 3\nB C 2\nC D 4\nD A 3\nA E 2\nE C 3\nB E 1\nD E 2', group: 'Routing' },
   clrs: { name: 'CLRS Fig. 26.1 flow network', text: 'directed\ns v1 16\ns v2 13\nv2 v1 4\nv1 v3 12\nv3 v2 9\nv2 v4 14\nv4 v3 7\nv3 t 20\nv4 t 4', group: 'Flows' },
   zigzag: { name: 'Bad case for DFS augmenting', text: 'directed\ns a 1000\ns b 1000\na b 1\na t 1000\nb t 1000', group: 'Flows' },
+  roommates: { name: 'Dorm roommates (not bipartite)', text: 'Ana Ben\nBen Cyril\nCyril Ana\nDana Eva\nEva Filip\nFilip Dana\nGabi Hugo\nHugo Ivan\nIvan Gabi\nHana Ana\nHana Dana\nHana Gabi\nHana Ben\nHana Eva', group: 'Matchings' },
   hall: { name: 'Placement shortfall (Hall fails)', text: 'Ana Bank\nBen Bank\nBen Lab\nCid Bank\nCid Lab\nDan Lab\nDan Mill\nDan Port\nEva Bank\nEva Lab', layout: 'columns', group: 'Matchings' },
   rebate: { name: 'Transit with a rebate (negative edge)', text: 'directed\nS A 2\nS B 4\nB A -3\nA C 1\nC T 2\nB T 7', group: 'Shortest paths' },
   arbitrage: { name: 'Currency loop (negative cycle)', text: 'directed\nEUR USD 1\nUSD JPY -2\nJPY GBP 1\nGBP EUR -1\nUSD CHF 2\nCHF EUR 1', group: 'Shortest paths' },
@@ -2915,19 +3030,22 @@ const MODULES = [
       { key: 'kuhn', name: 'Augmenting paths (bipartite)', run: algKuhn, params: [] },
       { key: 'hk', name: 'Hopcroft–Karp', run: algHopcroftKarp, params: [] },
       { key: 'hung', name: 'Hungarian (min-cost assignment)', run: algHungarian, own: true, params: [{ id: 'cost', type: 'area', label: 'Cost matrix (rows: workers; first line: jobs)', def: 'jobs: Bank Lab Mill Port\nAna: 9 2 7 8\nBen: 6 4 3 7\nCid: 5 8 1 8\nDan: 7 6 9 4' }] },
+      { key: 'blossom', name: 'Edmonds’ blossom (any graph)', run: algBlossom, params: [], legend: [['e', 'match', 'matched'], ['e', 'cand', 'alternating-tree edge'], ['e', 'path', 'blossom cycle / augmenting path'], ['n', 'cur', 'root / current vertex'], ['n', 'done', 'even (outer)'], ['n', 'front', 'odd (inner)'], ['a', 'blossom', 'shrunk blossom'], ['n', 'cut', 'Tutte–Berge set U'], ['a', 'oddcomp', 'odd component of G − U']] },
       { key: 'race', name: 'Race', run: algRaceMatch, params: [] },
       { key: 'gs', name: 'Gale–Shapley stable matching', run: algGaleShapley, own: true, params: [{ id: 'prefs', type: 'area', label: 'Preferences (proposers, ---, receivers)', def: 'a: x y z\nb: y x z\nc: x y z\n---\nx: b a c\ny: a b c\nz: a b c' }] },
     ],
     legend: [['e', 'match', 'matched'], ['e', 'cand', 'explored'], ['e', 'path', 'matched edge being re-routed'], ['e', 'rej', 'rejected'], ['n', 'cut', 'vertex cover']],
     tasks: [
       { tag: 'Lab', text: 'Placement shortfall: the lab finds a maximum matching, a vertex cover of the same size and a Hall violator S. Check by hand that |N(S)| &lt; |S|. Which single new edge would make everyone placeable?', setup: { preset: 'hall', algo: 'kuhn' } },
+      { tag: 'Lab', text: 'Dorm roommates: any two compatible students can share a double room, so the graph has triangles and is not bipartite. Run <b>Edmonds’ blossom</b>. Predict the base of each blossom before it is shrunk. At the end, use the red set U to explain why two students must stay without a roommate, then confirm in <b>Check a certificate → Tutte–Berge set</b>.', setup: { preset: 'roommates', algo: 'blossom' } },
+      { tag: 'Proof', text: 'Why the bipartite search fails on odd cycles: on the roommates graph start an alternating search from an exposed vertex and find an even vertex reached by two alternating paths of different parity. Then prove the Tutte–Berge bound ν(G) ≤ (n + |U| − o(G − U)) / 2 for every U ⊆ V (count the exposed vertices of each odd component).' },
       { tag: 'Proof', text: 'From the lab’s construction (Z = vertices reachable by alternating paths from unmatched left vertices) prove that C = (L∖Z) ∪ (R∩Z) is a vertex cover with |C| = |M|.' },
       { tag: 'Lab', text: 'Run Gale–Shapley, then swap the two blocks so that x, y, z propose. Compare both stable matchings. Who is better off in each, and why does “the proposers get their best stable partner” explain it?', setup: { algo: 'gs' } },
       { tag: HOG, text: 'Search Bipartite = true, Regular = true, Number of Vertices = 8. Check that Matching Number = 4 for every result, and prove with Hall’s condition that every k-regular bipartite graph (k ≥ 1) has a perfect matching.' },
       { tag: 'Lab', text: 'Run Hopcroft–Karp on the crown graph from session 9 (paste it in the graph box). How many phases? Compare edge scans with the one-path-at-a-time algorithm in the Race, then argue why the number of phases is O(√n).', setup: { preset: 'crown', algo: 'hk' } },
       { tag: 'ILP', text: 'Hungarian method: step through the potentials. At the end, check the dual certificate by hand: every reduced cost is ≥ 0 and Σu + Σv equals the assignment cost. Why does that prove optimality without comparing all 4! assignments?', setup: { algo: 'hung' } },
     ],
-    refs: [['W', '§3.1–3.2'], ['C', '§26.3'], ['G', '§13.4']],
+    refs: [['W', '§3.1–3.3'], ['C', '§26.3'], ['G', '§13.4']],
   },
   {
     key: 'color', num: 9, title: 'Planarity, duality and colouring', studio: 'Circuit-board inspectors', anchor: 'Greedy orders, DSatur, exact χ, Euler-formula bounds', preset: 'crown',
@@ -3026,6 +3144,7 @@ const PSEUDO = {
   'route.ham': ['EXTEND(path)', '  if |path| = n: success if last(path) ~ first(path)', '  for each neighbour v of last(path) with v ∉ path', '    EXTEND(path + v)', '  backtrack'],
   'route.tsp': ['nearest neighbour: walk to the closest unvisited vertex', 'T ← minimum spanning tree            ▹ OPT ≥ w(T)', 'double tree: preorder walk of T, skip repeats   ▹ ≤ 2·OPT', 'Christofides: M ← min-weight perfect matching on odd vertices of T', '  Euler circuit of T + M, skip repeats   ▹ ≤ 1.5·OPT', 'Held–Karp: C(S, j) = min over i of C(S ∖ {j}, i) + d(i, j)'],
   'flow.ek': ['EDMONDS-KARP(G, s, t)', '  f ← 0', '  while the residual network G_f has an s–t path', '    p ← a shortest such path (BFS);  b ← min residual capacity on p', '    push b along p   (forward arcs +b, backward arcs −b)', '  S ← vertices reachable from s in G_f;  (S, V ∖ S) is a minimum cut'],
+  'match.blossom': ['EDMONDS(G)', '  M ← ∅', '  for each exposed vertex r', '    grow an alternating tree T from r (BFS); r is even', '    scan an edge v–w with v even:', '      w matched and not in T: w odd, mate(w) even', '      w even in T: odd cycle (blossom), shrink it to its base', '      w exposed, not in T: augmenting path; flip it, |M| += 1', '    no augmenting path: r stays exposed for good', '  certificate: Tutte–Berge set U (Gallai–Edmonds)'],
   'match.kuhn': ['for each left vertex u', '  AUGMENT(u)  with an empty visited set', 'AUGMENT(u)', '  for each neighbour v of u not yet visited', '    mark v;  if v is free or AUGMENT(match[v])', '      match u with v;  return true', '  return false', 'Z ← reachable from free left vertices by alternating paths;  C ← (L ∖ Z) ∪ (R ∩ Z)'],
   'match.hk': ['repeat   ▹ one phase', '  BFS from all free left vertices along alternating paths → layers', '  DFS: a maximal set of vertex-disjoint shortest augmenting paths', '  augment along all of them', 'until no augmenting path exists;  a König cover certifies |M|'],
   'match.hung': ['u ← 0, v ← 0     ▹ keep c(i, j) − u(i) − v(j) ≥ 0', 'for each row i', '  grow an alternating tree from i on tight edges; if stuck, shift potentials by δ', '  augment along the tight path to a free column', 'certificate: Σu + Σv = cost of the assignment'],
@@ -3070,6 +3189,7 @@ const IDEAS = {
   'route.tsp': 'Compares nearest neighbour, the double-tree and Christofides tours with the exact Held–Karp optimum. Idea: a minimum spanning tree is a lower bound on any tour, and shortcutting a walk around it (plus a matching, for Christofides) costs at most 2 (or 1.5) times that bound.',
   'flow.ek': 'Repeatedly push as much flow as possible along a shortest path in the residual network, whose backward arcs let earlier choices be undone. Idea: when no augmenting path is left, the vertices still reachable from s form a cut whose capacity equals the flow, proving it is maximum.',
   'flow.race': 'Runs Ford–Fulkerson with different rules for choosing the augmenting path. Idea: the choice does not change the final value but can change the number of augmentations from a handful to thousands.',
+  'match.blossom': 'Grow alternating trees from exposed vertices as in the bipartite search; when an edge joins two even vertices it closes an odd cycle, which is shrunk into a single vertex and the search goes on, until an augmenting path is found and flipped. Idea: shrinking a blossom keeps augmenting paths (Edmonds), so odd cycles stop hiding them, and a Tutte–Berge set U proves the result optimal.',
   'match.kuhn': 'For each left vertex, search for an augmenting path: an alternating path between two unmatched vertices; flipping it enlarges the matching by one. Idea: a matching is maximum exactly when no augmenting path exists (Berge), and the vertices this search reaches give a König cover of the same size.',
   'match.hk': 'In each phase, find many shortest augmenting paths at once with one BFS and augment along a maximal set of disjoint ones. Idea: shortest augmenting paths grow longer after every phase, so only about √n phases are needed.',
   'match.hung': 'Keep prices on rows and columns so that reduced costs stay non-negative, and grow a matching using only zero-cost edges, changing the prices when stuck. Idea: when the matching is perfect, the prices are a dual solution with the same total, which proves the assignment is cheapest.',
@@ -3132,6 +3252,7 @@ function pythonSnippet(modKey, algoKey, g, P) {
     case 'route.ham': return head + G + `def hamilton_cycle(G, s):\n    n, path = G.number_of_nodes(), [s]\n    def extend():\n        if len(path) == n:\n            return G.has_edge(path[-1], s)\n        for v in G[path[-1]]:\n            if v not in path:\n                path.append(v)\n                if extend():\n                    return True\n                path.pop()\n        return False\n    return path if extend() else None\n\nprint(hamilton_cycle(G, ${L(P.source)}))`;
     case 'route.tsp': return head + G + `from networkx.algorithms import approximation as approx\nfor name, method in [("christofides", approx.christofides), ("greedy", approx.greedy_tsp)]:\n    tour = approx.traveling_salesman_problem(G, cycle=True, method=method)\n    length = sum(nx.dijkstra_path_length(G, a, b) for a, b in zip(tour, tour[1:]))\n    print(name, tour, length)`;
     case 'flow.ek': case 'flow.race': return head + G + `from networkx.algorithms.flow import edmonds_karp\nvalue, flow = nx.maximum_flow(G, ${L(P.source)}, ${L(P.sink)}, capacity="weight", flow_func=edmonds_karp)\ncut_value, (S, T) = nx.minimum_cut(G, ${L(P.source)}, ${L(P.sink)}, capacity="weight")\nprint(value, cut_value, sorted(S))`;
+    case 'match.blossom': return head + G + `M = nx.max_weight_matching(G, maxcardinality=True, weight=None)   # Edmonds' blossom algorithm\nprint(len(M), "pairs:", sorted(tuple(sorted(e)) for e in M))\nprint("perfect" if nx.is_perfect_matching(G, M) else f"{G.number_of_nodes() - 2 * len(M)} vertices exposed")`;
     case 'match.kuhn': case 'match.hk': case 'match.race': return head + G + `top = {v for v, c in nx.bipartite.color(G).items() if c == 0}\nM = nx.bipartite.hopcroft_karp_matching(G, top_nodes=top)\nC = nx.bipartite.to_vertex_cover(G, M, top_nodes=top)\nprint(len(M) // 2, "matched;  cover:", sorted(C))`;
     case 'match.hung': { let pc; try { pc = parseCost(P.cost); } catch (e) { pc = null; } return 'import numpy as np\nfrom scipy.optimize import linear_sum_assignment\n\n' + (pc ? `rows = ${JSON.stringify(pc.rows)}\ncols = ${JSON.stringify(pc.cols)}\nC = np.array(${JSON.stringify(pc.C)})\n` : 'C = np.array([[...]])\n') + `r, c = linear_sum_assignment(C)\nprint([(rows[i], cols[j]) for i, j in zip(r, c)], C[r, c].sum())`; }
     case 'match.gs': return `def gale_shapley(P, R):\n    """P, R: dict name -> preference list. Proposers in P."""\n    rank = {r: {p: i for i, p in enumerate(R[r])} for r in R}\n    nxt, holds, free = {p: 0 for p in P}, {}, list(P)\n    while free:\n        p = free.pop(0)\n        if nxt[p] >= len(P[p]):\n            continue\n        r = P[p][nxt[p]]; nxt[p] += 1\n        cur = holds.get(r)\n        if p not in rank[r]:\n            free.append(p)\n        elif cur is None or rank[r][p] < rank[r][cur]:\n            holds[r] = p\n            if cur is not None:\n                free.append(cur)\n        else:\n            free.append(p)\n    return {p: r for r, p in holds.items()}\n\n# fill in from the preference box:\nP = {"a": ["x", "y", "z"], "b": ["y", "x", "z"], "c": ["x", "y", "z"]}\nR = {"x": ["b", "a", "c"], "y": ["a", "b", "c"], "z": ["a", "b", "c"]}\nprint(gale_shapley(P, R))`;
@@ -3240,7 +3361,8 @@ const CERTS = {
       return Math.abs(cap - mf) < 1e-9 ? { ok: true, msg: `Cut capacity ${fmt(cap)} equals the maximum flow value ${fmt(mf)}: this cut is minimum and certifies that no flow can exceed ${fmt(mf)}.`, ec } : { ok: false, msg: `A valid cut of capacity ${fmt(cap)}: every flow is at most ${fmt(cap)}. The maximum flow is ${fmt(mf)}, so a smaller cut exists.`, ec }; } },
   ],
   match: [
-    { key: 'matching', name: 'Maximum matching', sel: 'e', hint: 'Click the edges of your matching.', check(g, S) { const seen = new Map(); for (const i of S) for (const v of [g.edges[i].u, g.edges[i].v]) { if (seen.has(v)) return { ok: false, msg: `${lab(g, v)} is covered twice.`, nc: { [v]: 'cut' } }; seen.set(v, i); } const k = kuhnCount(g); const opt = k ? k.size : null; return opt === null ? { ok: true, msg: `A matching of size ${S.size}.` } : S.size === opt ? { ok: true, msg: `A matching of size ${S.size} = ν(G): maximum (a vertex cover of the same size exists).` } : { ok: false, msg: `A valid matching of size ${S.size}, but ν(G) = ${opt}: look for an augmenting path.` }; } },
+    { key: 'matching', name: 'Maximum matching', sel: 'e', hint: 'Click the edges of your matching.', check(g, S) { const seen = new Map(); for (const i of S) for (const v of [g.edges[i].u, g.edges[i].v]) { if (seen.has(v)) return { ok: false, msg: `${lab(g, v)} is covered twice.`, nc: { [v]: 'cut' } }; seen.set(v, i); } const k = kuhnCount(g), opt = k ? k.size : tutteBerge(g).nu; return S.size === opt ? { ok: true, msg: `A matching of size ${S.size} = ν(G): maximum (${k ? 'a vertex cover' : 'a Tutte–Berge set'} of the matching size exists).` } : { ok: false, msg: `A valid matching of size ${S.size}, but ν(G) = ${opt}: look for an augmenting path${k ? '' : ' (it may run through an odd cycle)'}.` }; } },
+    { key: 'tutte', name: 'Tutte–Berge set (upper bound on ν, any graph)', sel: 'v', hint: 'Click a set U. Removing it should leave many odd components.', check(g, S) { const n = g.nodes.length, A = adjUnd(g), seen = Array(n).fill(-1), comps = []; for (let s = 0; s < n; s++) { if (S.has(s) || seen[s] >= 0) continue; const c = [s]; seen[s] = comps.length; for (let h = 0; h < c.length; h++) for (const { to } of A[c[h]]) if (!S.has(to) && seen[to] < 0) { seen[to] = comps.length; c.push(to); } comps.push(c); } const odd = comps.filter(c => c.length % 2), bound = Math.floor((n + S.size - odd.length) / 2), nu = tutteBerge(g).nu; const nc = {}; odd.forEach((c, k) => c.forEach(v => { nc[v] = 'k' + (k % 6); })); const txt = `G − U has ${odd.length} odd component${odd.length === 1 ? '' : 's'} (coloured), so at least ${odd.length} − ${S.size} vertices stay exposed: ν(G) ≤ (${n} + ${S.size} − ${odd.length}) / 2 = ${bound}.`; return bound === nu ? { ok: true, msg: `${txt} A matching of size ${nu} exists, so this bound is tight: U proves ν(G) = ${nu}.`, nc } : { ok: false, msg: `${txt} Valid, but ν(G) = ${nu}, so the bound is not tight: look for a set whose removal leaves more odd components.`, nc }; } },
     { key: 'cover', name: 'Vertex cover', sel: 'v', hint: 'Click a set of vertices touching every edge.', check(g, S) { const un = g.edges.map((e, i) => i).filter(i => !S.has(g.edges[i].u) && !S.has(g.edges[i].v)); if (un.length) return { ok: false, msg: `${un.length} edge${un.length > 1 ? 's are' : ' is'} not covered.`, ec: Object.fromEntries(un.map(i => [i, 'cut'])) }; const k = kuhnCount(g); return k && k.size === S.size ? { ok: true, msg: `A vertex cover of size ${S.size} = ν(G). Together with a matching of that size it proves both are optimal (König).` } : { ok: true, msg: `A valid vertex cover of size ${S.size}: every matching has at most ${S.size} edges.${k ? ` (ν(G) = ${k.size}.)` : ''}` }; } },
     { key: 'hall', name: 'Hall violator', sel: 'v', hint: 'Click a set S on one side with fewer than |S| neighbours.', check(g, S) { const col = twoColoring(g); if (!col) return { ok: false, msg: 'The graph is not bipartite.' }; const sides = new Set([...S].map(v => col[v])); if (sides.size !== 1) return { ok: false, msg: 'Choose S inside one side of the bipartition.' }; const N = new Set(); g.edges.forEach(e => { if (S.has(e.u)) N.add(e.v); if (S.has(e.v)) N.add(e.u); }); const nc = {}; N.forEach(v => nc[v] = 'front'); return N.size < S.size ? { ok: true, msg: `|N(S)| = ${N.size} < |S| = ${S.size}: no matching covers S (Hall).`, nc } : { ok: false, msg: `|N(S)| = ${N.size} ≥ |S| = ${S.size}: Hall’s condition holds for this S.`, nc }; } },
   ],
@@ -3593,6 +3715,18 @@ const DEFS = {
     { term: 'Stable matching', text: 'A matching is <b>stable</b> if no pair prefers each other to their assigned partners (a <b>blocking pair</b>). Gale–Shapley always finds one.',
       g: 'a x\na y\nb x\nb y', pos: colsPos(['a', 'b'], ['x', 'y']),
       steps: [['a, b both prefer x to y; x prefers b, y prefers a.', {}], ['Match a–x and b–y.', { e: ec('match', 'a-x', 'b-y') }], ['b and x prefer each other: a blocking pair.', { e: { 'b-x': 'cut' }, n: nc('cut', 'b', 'x') }], ['a–y and b–x: no blocking pair. Stable.', { e: Object.assign(ec('', 'a-x', 'b-y'), ec('match', 'a-y', 'b-x')), n: nc('', 'b', 'x') }]] },
+    { term: 'Blossom (Edmonds)', text: 'In an alternating tree, an edge joining two <b>even</b> vertices closes an odd cycle, a <b>blossom</b>. <b>Edmonds:</b> shrink it to its base vertex; the shrunk graph has an augmenting path iff the original does, so the search can continue. This makes augmenting paths work in every graph, not only bipartite ones.',
+      g: 'r s\ns t\nt u\nu v\nv t\nu f', pos: { r: [30, 97], s: [92, 97], t: [154, 97], u: [214, 42], v: [214, 152], f: [276, 42] },
+      steps: [['M = {s–t, u–v}; r and f are exposed.', { e: ec('match', 's-t', 'u-v'), n: { r: 'cur', f: 'cut' }, t: { r: 'root' } }],
+        ['Alternating tree from r: s odd, t even, then u odd, v even.', { n: { s: 'front', t: 'done', u: 'front', v: 'done' }, e: ec('cand', 'r-s', 't-u') }],
+        ['u is odd, so the bipartite search may not leave it along u–f.', { e: { 'u-f': 'rej' } }],
+        ['Edge v–t joins two even vertices: the odd cycle t–u–v is a blossom with base t.', { e: Object.assign(ec('path', 'v-t'), { 'u-f': '' }), blob: [[['t', 'u', 'v'], 'sA']] }],
+        ['Shrink it into t: u is now even too.', { p: { u: [186, 74], v: [186, 120] }, n: { u: 'done' }, blob: [[['t', 'u', 'v'], 'sA']] }],
+        ['Augmenting path r–s–t–v–u–f.', { e: ec('path', 'r-s', 's-t', 'v-t', 'u-v', 'u-f') }],
+        ['Flip it: |M| = 3, a perfect matching.', { p: { u: [214, 42], v: [214, 152] }, e: Object.assign(ec('match', 'r-s', 'v-t', 'u-f'), ec('', 's-t', 'u-v')), n: { r: '', s: '', t: '', u: '', v: '', f: '' }, t: { r: '' }, blob: [] }]] },
+    { term: 'Tutte–Berge formula', text: 'For every vertex set U, each odd component of G − U leaves a vertex exposed unless it is matched into U, so ν(G) ≤ (n + |U| − o(G − U)) / 2. <b>Tutte–Berge:</b> some U attains it. With U = ∅ and o = 0 this is Tutte’s perfect-matching condition.',
+      g: 'h x\nh y\nh z\nx x2\nx2 x3\nx3 x', pos: { h: [150, 97], y: [150, 30], z: [240, 160], x: [70, 135], x2: [30, 75], x3: [96, 60] },
+      steps: [['n = 6. Is there a perfect matching?', {}], ['Take U = {h}.', { n: { h: 'cut' } }], ['G − U: components {y}, {z}, {x, x2, x3}: three odd ones.', { blob: [[['y'], 'sA'], [['z'], 'sB'], [['x', 'x2', 'x3'], 'sA']] }], ['ν ≤ (6 + 1 − 3) / 2 = 2: no perfect matching.', {}], ['A matching of size 2 exists: the bound is tight.', { e: ec('match', 'h-y', 'x2-x3'), blob: [] }]] },
   ],
   color: [
     { term: 'Proper colouring and χ', text: 'A proper k-colouring gives each vertex one of k colours so adjacent vertices differ. The <b>chromatic number</b> χ(G) is the least such k.',
@@ -3728,6 +3862,8 @@ const WHY = {
     'What is the smallest number of inspectors at road junctions that can watch every road? It also proves that a matching cannot be larger.',
     'The dean wants proof that the internships cannot all be filled. A group of students who together accept too few firms is a short, checkable proof.',
     'Hospitals and residents, schools and pupils: if some pair prefers each other to their assigned partners, they defect. Stable matchings (used in the US medical residency match) prevent this.',
+    'Pairing students into double rooms, players into doubles teams or kidney donors with recipients: anyone may pair with anyone compatible, so the graph is not bipartite, and odd cycles of compatibility can hide a better pairing from the bipartite search.',
+    'The dorm office must explain why two students get no roommate however the rooms are assigned. Removing a few “bridge” students and counting the odd groups left over is such a proof.',
   ],
   color: [
     'Two exams that share a student cannot be in the same time slot. The fewest slots needed is the chromatic number of the conflict graph. Radio frequencies for nearby towers work the same way.',
@@ -3907,7 +4043,7 @@ const SHEETS = {
   ],
   match: [
     { ps: 8, items: [
-      { p: 'P1', title: 'Maximum matching, and a maximal one that is not maximum (Stanoyevitch ex. 19)', page: 2, note: 'G has triangles, so the bipartite methods do not apply: check your matching in <b>Check a certificate</b> mode. H is bipartite.', runs: [sheetRun('G', { preset: 'ps8_19g' }), sheetRun('H', { preset: 'ps8_19h', algo: 'kuhn' })] },
+      { p: 'P1', title: 'Maximum matching, and a maximal one that is not maximum (Stanoyevitch ex. 19)', page: 2, note: 'G has triangles, so the bipartite methods do not apply: run <b>Edmonds’ blossom</b> (it shrinks the odd cycles), or check your own matching in <b>Check a certificate</b> mode. H is bipartite.', runs: [sheetRun('G: Edmonds’ blossom', { preset: 'ps8_19g', algo: 'blossom' }), sheetRun('H', { preset: 'ps8_19h', algo: 'kuhn' })] },
       { p: 'P2.1–2.2', title: 'Smallest maximal matching in Cₙ; perfect matchings in trees (West 3.1.2, 3.1.8)', page: 2 },
       { p: 'P2.3', title: 'Augmenting paths on two marriage problems; X-saturated? (Stanoyevitch Fig. 9.69)', page: '2–3', note: 'The lab scans the left side in the order listed in the edge list. Reorder the lines to start “from the bottom”.', runs: [sheetRun('(a)', { preset: 'ps8_969a', algo: 'kuhn' }), sheetRun('(b)', { preset: 'ps8_969b', algo: 'kuhn' })] },
       { p: 'P2.4', title: 'Maximum matching with a vertex cover as proof (West 3.1.1)', page: 3, runs: [sheetRun('Graph 1', { preset: 'ps8_311a', algo: 'kuhn' }), sheetRun('Graph 2', { preset: 'ps8_311b', algo: 'kuhn' }), sheetRun('Graph 3', { preset: 'ps8_311c', algo: 'kuhn' })] },
@@ -3947,7 +4083,7 @@ const SHEET_DEFS = {
   sp: { 'Weighted distance': [[4, 'P4', '2–3']], 'Relaxation': [[6, 'P1', '2–3']], 'Negative cycle': [[6, 'P2', '3–5']] },
   route: { 'Euler circuit': [[5, 'P1', '1–2'], [5, 'P1.8 (Fleury)', 2]], 'Hamilton cycle': [[5, 'P2', 3]], 'Subtour elimination': [[5, 'P2(a)', 3], [6, 'P−1', 1]], 'Triangle inequality and shortcuts': [[6, 'P−1', 1]] },
   flow: { 'Flow network and flow': [[7, 'flows', '1–2']], 'Residual network': [[7, 'FF / EK', '3–4']], 'Augmenting path': [[7, 'FF / EK', '3–4']], 's–t cut': [[7, 'cuts', 2]] },
-  match: { 'Matching: maximal vs maximum': [[8, 'P1', 2], [8, 'P2.1', 2]], 'Augmenting path': [[8, 'P2.3', '2–3']], 'Vertex cover and König': [[8, 'P2.4', 3]], 'Hall’s condition': [[8, 'P2.6', 3]], 'Stable matching': [[8, 'P3', '3–4']] },
+  match: { 'Matching: maximal vs maximum': [[8, 'P1', 2], [8, 'P2.1', 2]], 'Augmenting path': [[8, 'P2.3', '2–3']], 'Vertex cover and König': [[8, 'P2.4', 3]], 'Hall’s condition': [[8, 'P2.6', 3]], 'Blossom (Edmonds)': [[8, 'P1', 2]], 'Tutte–Berge formula': [[8, 'P2.7', 3]], 'Stable matching': [[8, 'P3', '3–4']] },
   color: { 'Proper colouring and χ': [[9, 'P3', '3–4']], 'Planar graph and faces': [[9, 'P1', 2]], 'Euler’s formula': [[9, 'P2', 3]], 'Dual graph': [[9, 'P1.2, P1.4', 2]] },
   random: { 'G(n, p)': [[10, 'P1.1', 1]], 'Indicator variables': [[10, 'P1', 1]] },
   dom: { 'Dominating set': [[11, 'P1', 1]] },
@@ -4209,6 +4345,7 @@ function hideError() { $('#err').hidden = true; }
 /* ---------- SVG rendering (shared by board and tickets) ---------- */
 function renderGraph(F, g, opt = {}) {
   const n = g.nodes.length; const big = n > 40; const r0 = (big ? 7 : (n > 20 ? 15 : 20)) * SZ.n, r = r0 * (big ? 1 : nodeGrow()); const dir = g.directed; const out = [];
+  if (F.hulls) out.push(`<g class="hulls">${F.hulls.map(h => { const pts = []; h.v.forEach(i => { const v = g.nodes[i]; if (!v) return; for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; pts.push([v.x + (r + 10) * Math.cos(a), v.y + (r + 10) * Math.sin(a)]); } }); const H = pts.length ? convexHull(pts) : []; return H.length > 2 ? `<polygon class="hull ${h.cls || ''}" points="${H.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ')}"/>` : ''; }).join('')}</g>`);
   if (F.polys) out.push(`<g class="faces">${F.polys.map(p => `<polygon class="face ${p.cls || ''}" points="${p.pts.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ')}"/>`).join('')}</g>`);
   const items = [];
   if (!F.hideBase) g.edges.forEach((e, i) => { if (F.edgeLimit !== undefined && i >= F.edgeLimit) return; const c = (F.ec && F.ec[i]) || ''; if (c === 'hide') return; items.push({ u: e.u, v: e.v, cls: c, label: (F.elab && F.elab[i]) ?? (opt.weighted && !big ? fmt(e.w) : ''), dir, key: 'e' + i, base: i }); });
@@ -4620,7 +4757,7 @@ function renderDefs(m) {
 /* legend: the algorithm's own, if it has one, else the session's */
 function renderLegend() {
   const m = ST.mod, a = currentAlgo(), L = (a && a.legend) || m.legend;
-  $('#legend').innerHTML = L.map(([kind, cls, txt]) => txt ? `<span class="lg"><svg width="${kind === 'n' ? 16 : 26}" height="16" aria-hidden="true">${kind === 'n' ? `<g class="nd ${cls}" transform="translate(8,8)"><circle r="6"/></g>` : `<path class="ed ${cls}" d="M2,8L24,8"/>`}</svg>${txt}</span>` : '').join('');
+  $('#legend').innerHTML = L.map(([kind, cls, txt]) => txt ? `<span class="lg"><svg width="${kind === 'n' ? 16 : 26}" height="16" aria-hidden="true">${kind === 'n' ? `<g class="nd ${cls}" transform="translate(8,8)"><circle r="6"/></g>` : kind === 'a' ? `<rect class="hull ${cls}" x="2" y="2" width="22" height="12" rx="6"/>` : `<path class="ed ${cls}" d="M2,8L24,8"/>`}</svg>${txt}</span>` : '').join('');
 }
 
 /* ---------- module switch ---------- */

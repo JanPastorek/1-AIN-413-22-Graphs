@@ -110,7 +110,8 @@ House of Graphs and PHOEG hand you graphs as graph6 strings. Decode `Dhc` with p
 3. **Proof.** From the lab’s construction (Z = vertices reachable by alternating paths from unmatched left vertices) prove that (L ∖ Z) ∪ (R ∩ Z) is a vertex cover of size |M|.
 4. **Lab.** Run Gale–Shapley, then swap the two blocks of the preference box so the other side proposes. Compare the two stable matchings and explain who gains.
 5. **Lab — phases and potentials.** Run Hopcroft–Karp on the crown graph (session 9) and compare its edge scans with one-path-at-a-time in the *Race*. Then run the Hungarian method and check its dual certificate by hand: all reduced costs ≥ 0 and Σu + Σv equals the cost.
-6. **HoG — Petersen’s theorem.** Every bridgeless cubic graph has a perfect matching. Search *Regular* = true, *Maximum Degree* = 3 and *Matching Number* below half the order. Find the smallest such graph, paste it into the lab, and show it has a bridge (session 2 tool). Explain why it must.
+6. **Lab — roommates and blossoms.** In the *Dorm roommates* graph anyone may share a room with anyone compatible, so the graph has triangles and the bipartite search does not apply. Run *Edmonds’ blossom* in Predict mode and name the base of each blossom before it is shrunk. At the end the lab shows a set U (red): explain with the odd components of G − U why two students stay without a roommate, then find such a set yourself in *Check a certificate → Tutte–Berge set*. Repeat on graph G of [Problem set 8](https://github.com/JanPastorek/1-AIN-413-22-Graphs/blob/main/exercises%20and%20projects/Exercise%208%20Problem%20Set.pdf) P1.
+7. **HoG — Petersen’s theorem.** Every bridgeless cubic graph has a perfect matching. Search *Regular* = true, *Maximum Degree* = 3 and *Matching Number* below half the order. Find the smallest such graph, paste it into the lab, and show it has a bridge (session 2 tool). Explain why it must.
 
 ## 9 · Planarity, duality and colouring
 

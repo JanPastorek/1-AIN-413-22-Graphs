@@ -126,7 +126,7 @@ const SHEETS = {
   ],
   match: [
     { ps: 8, items: [
-      { p: 'P1', title: 'Maximum matching, and a maximal one that is not maximum (Stanoyevitch ex. 19)', page: 2, note: 'G has triangles, so the bipartite methods do not apply: check your matching in <b>Check a certificate</b> mode. H is bipartite.', runs: [sheetRun('G', { preset: 'ps8_19g' }), sheetRun('H', { preset: 'ps8_19h', algo: 'kuhn' })] },
+      { p: 'P1', title: 'Maximum matching, and a maximal one that is not maximum (Stanoyevitch ex. 19)', page: 2, note: 'G has triangles, so the bipartite methods do not apply: run <b>Edmonds’ blossom</b> (it shrinks the odd cycles), or check your own matching in <b>Check a certificate</b> mode. H is bipartite.', runs: [sheetRun('G: Edmonds’ blossom', { preset: 'ps8_19g', algo: 'blossom' }), sheetRun('H', { preset: 'ps8_19h', algo: 'kuhn' })] },
       { p: 'P2.1–2.2', title: 'Smallest maximal matching in Cₙ; perfect matchings in trees (West 3.1.2, 3.1.8)', page: 2 },
       { p: 'P2.3', title: 'Augmenting paths on two marriage problems; X-saturated? (Stanoyevitch Fig. 9.69)', page: '2–3', note: 'The lab scans the left side in the order listed in the edge list. Reorder the lines to start “from the bottom”.', runs: [sheetRun('(a)', { preset: 'ps8_969a', algo: 'kuhn' }), sheetRun('(b)', { preset: 'ps8_969b', algo: 'kuhn' })] },
       { p: 'P2.4', title: 'Maximum matching with a vertex cover as proof (West 3.1.1)', page: 3, runs: [sheetRun('Graph 1', { preset: 'ps8_311a', algo: 'kuhn' }), sheetRun('Graph 2', { preset: 'ps8_311b', algo: 'kuhn' }), sheetRun('Graph 3', { preset: 'ps8_311c', algo: 'kuhn' })] },
@@ -166,7 +166,7 @@ const SHEET_DEFS = {
   sp: { 'Weighted distance': [[4, 'P4', '2–3']], 'Relaxation': [[6, 'P1', '2–3']], 'Negative cycle': [[6, 'P2', '3–5']] },
   route: { 'Euler circuit': [[5, 'P1', '1–2'], [5, 'P1.8 (Fleury)', 2]], 'Hamilton cycle': [[5, 'P2', 3]], 'Subtour elimination': [[5, 'P2(a)', 3], [6, 'P−1', 1]], 'Triangle inequality and shortcuts': [[6, 'P−1', 1]] },
   flow: { 'Flow network and flow': [[7, 'flows', '1–2']], 'Residual network': [[7, 'FF / EK', '3–4']], 'Augmenting path': [[7, 'FF / EK', '3–4']], 's–t cut': [[7, 'cuts', 2]] },
-  match: { 'Matching: maximal vs maximum': [[8, 'P1', 2], [8, 'P2.1', 2]], 'Augmenting path': [[8, 'P2.3', '2–3']], 'Vertex cover and König': [[8, 'P2.4', 3]], 'Hall’s condition': [[8, 'P2.6', 3]], 'Stable matching': [[8, 'P3', '3–4']] },
+  match: { 'Matching: maximal vs maximum': [[8, 'P1', 2], [8, 'P2.1', 2]], 'Augmenting path': [[8, 'P2.3', '2–3']], 'Vertex cover and König': [[8, 'P2.4', 3]], 'Hall’s condition': [[8, 'P2.6', 3]], 'Blossom (Edmonds)': [[8, 'P1', 2]], 'Tutte–Berge formula': [[8, 'P2.7', 3]], 'Stable matching': [[8, 'P3', '3–4']] },
   color: { 'Proper colouring and χ': [[9, 'P3', '3–4']], 'Planar graph and faces': [[9, 'P1', 2]], 'Euler’s formula': [[9, 'P2', 3]], 'Dual graph': [[9, 'P1.2, P1.4', 2]] },
   random: { 'G(n, p)': [[10, 'P1.1', 1]], 'Indicator variables': [[10, 'P1', 1]] },
   dom: { 'Dominating set': [[11, 'P1', 1]] },

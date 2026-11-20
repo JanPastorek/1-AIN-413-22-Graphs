@@ -337,7 +337,7 @@ function algFlow(g, P) {
 /* ---------- matchings ---------- */
 function algKuhn(g, P) {
   const n = g.nodes.length, R = new Rec(); const col = twoColoring(g);
-  if (!col) { const r = algBFS(g, { source: 0 }); const last = r.frames[r.frames.length - 1]; last.msg = 'The graph is not bipartite (odd cycle shown). Augmenting-path matching for general graphs needs Edmonds’ blossoms.'; return { frames: [last] }; }
+  if (!col) { const r = algBFS(g, { source: 0 }); const last = r.frames[r.frames.length - 1]; last.msg = 'The graph is not bipartite (odd cycle shown). This algorithm is for bipartite graphs; run <b>Edmonds’ blossom</b> for general graphs.'; return { frames: [last] }; }
   const L = g.nodes.map((v, i) => i).filter(i => col[i] === 0), A = adjUnd(g);
   const mL = Array(n).fill(-1), mR = Array(n).fill(-1), mE = Array(n).fill(-1); let size = 0;
   g.nodes.forEach((v, i) => R.ntag[i] = col[i] ? 'R' : 'L');
@@ -371,6 +371,117 @@ function algKuhn(g, P) {
   if (size < L.length) { const NS = g.nodes.map((v, i) => i).filter(i => col[i] === 1 && Z.has(i)); c += cert('no', 'Hall violator', `S = {${Sh.map(i => lab(g, i)).join(', ')}} has only ${NS.length} neighbour${NS.length === 1 ? '' : 's'} N(S) = {${NS.map(i => lab(g, i)).join(', ')}} &lt; |S| = ${Sh.length}. So L cannot be fully matched.`); }
   R.line = 7; R.snap('Done. Red vertices: a vertex cover of the same size as the matching.', { panel: c + panel() }, true);
   return { frames: R.frames, truncated: R.truncated };
+}
+
+/* ---------- Edmonds' blossom algorithm: maximum matching in any graph ---------- */
+/* plain version (no frames): returns mate[] */
+function blossomMatching(n, A, skip = -1) {
+  const match = Array(n).fill(-1);
+  for (let r = 0; r < n; r++) {
+    if (r === skip || match[r] >= 0) continue;
+    const res = blossomSearch(n, A, match, r, skip);
+    if (res.found >= 0) blossomAugment(match, res.p, res.found);
+  }
+  return match;
+}
+function blossomSearch(n, A, match, root, skip = -1, ev = null) {
+  const used = Array(n).fill(false), p = Array(n).fill(-1), base = Array.from({ length: n }, (_, i) => i);
+  used[root] = true; const q = [root];
+  const lca = (a, b) => { const mark = Array(n).fill(false); for (;;) { a = base[a]; mark[a] = true; if (match[a] < 0) break; a = p[match[a]]; } for (;;) { b = base[b]; if (mark[b]) return b; b = p[match[b]]; } };
+  const markPath = (v, b, child, bl) => { while (base[v] !== b) { bl[base[v]] = bl[base[match[v]]] = true; p[v] = child; child = match[v]; v = p[match[v]]; } };
+  for (let h = 0; h < q.length; h++) {
+    const v = q[h]; if (ev) ev('scan', { v, used, p, base });
+    for (const { to, e } of A[v]) {
+      if (to === skip || to === v || base[v] === base[to] || match[v] === to) continue;
+      if (to === root || (match[to] >= 0 && p[match[to]] >= 0)) { // both ends even: an odd cycle
+        const b = lca(v, to), bl = Array(n).fill(false);
+        if (ev) ev('blossom', { v, to, e, b, used, p, base });
+        markPath(v, b, to, bl); markPath(to, b, v, bl);
+        for (let i = 0; i < n; i++) if (bl[base[i]]) { base[i] = b; if (!used[i]) { used[i] = true; q.push(i); } }
+        if (ev) ev('shrunk', { b, used, p, base });
+      } else if (p[to] < 0) {
+        p[to] = v;
+        if (match[to] < 0) { if (ev) ev('augment', { v, to, e, used, p, base }); return { found: to, p, used, base }; }
+        used[match[to]] = true; q.push(match[to]);
+        if (ev) ev('grow', { v, to, e, w: match[to], used, p, base });
+      }
+    }
+  }
+  return { found: -1, p, used, base };
+}
+function blossomPath(match, p, v) { const path = []; while (v >= 0) { const pv = p[v], ppv = match[pv]; path.push([v, pv]); v = ppv; } return path; }
+function blossomAugment(match, p, v) { while (v >= 0) { const pv = p[v], ppv = match[pv]; match[v] = pv; match[pv] = v; v = ppv; } }
+/* Gallai–Edmonds: D = vertices missed by some maximum matching, A = N(D) ∖ D; U = A is a Tutte–Berge set */
+function tutteBerge(g, A0) {
+  const n = g.nodes.length, A = A0 || adjUnd(g), M = blossomMatching(n, A), nu = M.filter(x => x >= 0).length / 2;
+  const D = []; for (let v = 0; v < n; v++) { const Mv = blossomMatching(n, A, v); if (Mv.filter((x, i) => x >= 0 && i !== v).length / 2 === nu) D.push(v); }
+  const inD = new Set(D), U = [...new Set(D.flatMap(v => A[v].map(x => x.to)))].filter(x => !inD.has(x)).sort((a, b) => a - b), inU = new Set(U);
+  const comp = Array(n).fill(-1), comps = [];
+  for (let s = 0; s < n; s++) { if (inU.has(s) || comp[s] >= 0) continue; const c = [s]; comp[s] = comps.length; for (let h = 0; h < c.length; h++) for (const { to } of A[c[h]]) if (!inU.has(to) && comp[to] < 0) { comp[to] = comps.length; c.push(to); } comps.push(c); }
+  const odd = comps.filter(c => c.length % 2 === 1);
+  return { M, nu, D, U, odd, comps, bound: (n + U.length - odd.length) / 2 };
+}
+function algBlossom(g, P) {
+  const n = g.nodes.length, R = new Rec(), A = adjUnd(g), match = Array(n).fill(-1), mE = Array(n).fill(-1);
+  const edgeOf = (a, b) => { const x = A[a].find(y => y.to === b); return x ? x.e : -1; };
+  let size = 0, blossoms = 0, augments = 0;
+  const groups = base => { const by = new Map(); base.forEach((b, i) => { if (!by.has(b)) by.set(b, []); by.get(b).push(i); }); return [...by.values()].filter(c => c.length >= 3); };
+  const paint = (st) => {
+    R.ec = {}; for (let v = 0; v < n; v++) if (match[v] > v) R.ec[mE[v]] = 'match';
+    R.nc = {}; R.ntag = {};
+    if (!st) return;
+    for (let v = 0; v < n; v++) {
+      if (st.used[v]) { R.nc[v] = 'done'; R.ntag[v] = 'even'; }
+      else if (st.p[v] >= 0) { R.nc[v] = 'front'; R.ntag[v] = 'odd'; if (R.ec[edgeOf(v, st.p[v])] !== 'match') R.ec[edgeOf(v, st.p[v])] = 'cand'; }
+    }
+    for (let v = 0; v < n; v++) if (st.used[v] && st.base[v] !== v && R.ntag[v]) R.ntag[v] = 'in ' + lab(g, st.base[v]);
+  };
+  const matchedList = () => g.nodes.map((v, i) => i).filter(i => match[i] > i).map(i => `${lab(g, i)}–${lab(g, match[i])}`);
+  const panel = (extra = '') => extra + h4(`Matching (size ${size})`) + chips(matchedList()) + h4('Exposed vertices') + chips(g.nodes.map((v, i) => i).filter(i => match[i] < 0).map(i => lab(g, i))) + `<p class="note">Augmentations ${augments} · blossoms shrunk ${blossoms}</p>`;
+  const hulls = base => groups(base).map(c => ({ v: c, cls: 'blossom' }));
+  R.line = 0; R.snap(`Start with the empty matching. From each exposed vertex grow an alternating tree; an odd cycle (a blossom) gets shrunk into one vertex so the search can go on.`, { panel: panel() });
+  for (let r = 0; r < n; r++) {
+    if (match[r] >= 0 || !A[r].length) continue;
+    paint({ used: Array.from({ length: n }, (_, i) => i === r), p: Array(n).fill(-1), base: g.nodes.map((v, i) => i) }); R.nc[r] = 'cur'; R.ntag[r] = 'root';
+    R.line = 2; R.snap(`${N(g, r)} is exposed: it is the root of a new alternating tree, labelled even.`, { panel: panel() });
+    let lastBase = null;
+    const res = blossomSearch(n, A, match, r, -1, (kind, st) => {
+      if (kind === 'grow') { paint(st); R.nc[st.v] = 'cur'; R.ec[st.e] = 'cand'; R.line = 5; R.snap(`${lab(g, st.to)} is matched to ${lab(g, st.w)}: add both to the tree. ${lab(g, st.to)} is odd, ${lab(g, st.w)} is even and will be scanned.`, { panel: panel(), hulls: hulls(st.base) }); }
+      else if (kind === 'blossom') {
+        paint(st); R.nc[st.v] = 'cur'; R.ec[st.e] = 'path';
+        // the cycle: tree paths from v and to up to the base
+        const up = x => { const out = []; let y = x; for (let k = 0; k < 2 * n && st.base[y] !== st.b; k++) { const m = match[y], pm = p0(st, m); if (m < 0) break; out.push(edgeOf(y, m)); if (pm < 0) break; out.push(edgeOf(m, pm)); y = pm; } return out; };
+        const cyc = up(st.v).concat(up(st.to)); cyc.forEach(e => { if (e >= 0) R.ec[e] = 'path'; });
+        R.line = 6; R.snap(`Edge ${edgeName(g, st.e)} joins two even vertices of the same tree: it closes an odd cycle, a <b>blossom</b>. Which vertex is its base (where the two tree paths meet)?`, { panel: panel(), hulls: hulls(st.base), ask: { type: 'vertex', answer: [st.b], prompt: 'Click the base of the blossom.' } });
+      }
+      else if (kind === 'shrunk') { blossoms++; paint(st); R.line = 6; R.snap(`Shrink the blossom into its base ${N(g, st.b)}: every vertex in it is now even, so the search continues from all of them. An augmenting path through the shrunk vertex lifts to one in G (the cycle can be walked either way round).`, { panel: panel(), hulls: hulls(st.base) }); lastBase = st.base; }
+      else if (kind === 'augment') { paint(st); R.nc[st.to] = 'cur'; R.ec[st.e] = 'cand'; lastBase = st.base; }
+    });
+    if (res.found >= 0) {
+      const path = blossomPath(match, res.p, res.found), pe = [];
+      path.forEach(([v, pv]) => { pe.push(edgeOf(v, pv)); if (match[pv] >= 0) pe.push(mE[pv]); });
+      pe.forEach(e => { if (e >= 0) R.ec[e] = 'path'; });
+      const verts = []; path.forEach(([v, pv]) => verts.push(v, pv));
+      R.line = 7; R.snap(`${N(g, res.found)} is exposed and outside the tree: an <b>augmenting path</b> ${verts.map(i => lab(g, i)).join(' – ')} (through any blossoms, walked the right way round).`, { panel: panel(), hulls: hulls(res.base), ask: { type: 'number', answer: [size + 1], prompt: 'Size of the matching after flipping this path?' } });
+      blossomAugment(match, res.p, res.found); for (let v = 0; v < n; v++) mE[v] = match[v] >= 0 ? edgeOf(v, match[v]) : -1;
+      size++; augments++; paint(null);
+      R.line = 7; R.snap(`Flip the path: matched and unmatched edges swap. |M| = ${size}. Blossoms are forgotten; the next search starts fresh.`, { panel: panel() });
+    } else {
+      paint({ used: res.used, p: res.p, base: res.base });
+      R.line = 8; R.snap(`The tree from ${N(g, r)} cannot grow and holds no augmenting path, so ${lab(g, r)} stays exposed (Edmonds: it will never become part of one later either).`, { panel: panel(), hulls: hulls(res.base) });
+    }
+  }
+  // certificate: Tutte–Berge set from the Gallai–Edmonds decomposition
+  const T = tutteBerge(g, A); paint(null);
+  T.U.forEach(v => { R.nc[v] = 'cut'; R.ntag[v] = 'U'; });
+  const odd = T.odd, def = odd.length - T.U.length;
+  const ok = T.nu === size && T.bound === size;
+  const body = T.U.length === 0 && odd.length === 0
+    ? `Every vertex is matched: a perfect matching is trivially maximum.`
+    : `Remove U = {${T.U.map(i => lab(g, i)).join(', ') || '∅'}} (red). G − U has ${odd.length} odd component${odd.length === 1 ? '' : 's'} (shaded). Each odd component leaves a vertex unmatched unless it is matched into U, and U can absorb at most |U| of them, so <b>at least ${odd.length} − ${T.U.length} = ${def} vertices stay exposed</b> in every matching: ν(G) ≤ (n − ${def}) / 2 = (${n} − ${def}) / 2 = ${fmt(T.bound)}. The matching found has ${size} edges, so it is maximum (Tutte–Berge formula).`;
+  R.line = 9; R.snap(`Done: |M| = ${size}. The red set U is a Tutte–Berge witness that no larger matching exists.`, { panel: (ok ? cert('yes', `Maximum: |M| = ${size} = (n + |U| − odd(G − U)) / 2`, body) : cert('no', 'Mismatch', `Tutte–Berge bound ${fmt(T.bound)}, matching ${size}.`)) + panel(), hulls: odd.filter(c => c.length >= 1).map(c => ({ v: c, cls: 'oddcomp' })) }, true);
+  return { frames: R.frames, size, match, blossoms, U: T.U, truncated: R.truncated };
+  function p0(st, m) { return m >= 0 ? st.p[m] : -1; }
 }
 
 function parsePrefs(text) {

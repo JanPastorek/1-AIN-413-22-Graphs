@@ -60,6 +60,8 @@ const WHY = {
     'What is the smallest number of inspectors at road junctions that can watch every road? It also proves that a matching cannot be larger.',
     'The dean wants proof that the internships cannot all be filled. A group of students who together accept too few firms is a short, checkable proof.',
     'Hospitals and residents, schools and pupils: if some pair prefers each other to their assigned partners, they defect. Stable matchings (used in the US medical residency match) prevent this.',
+    'Pairing students into double rooms, players into doubles teams or kidney donors with recipients: anyone may pair with anyone compatible, so the graph is not bipartite, and odd cycles of compatibility can hide a better pairing from the bipartite search.',
+    'The dorm office must explain why two students get no roommate however the rooms are assigned. Removing a few “bridge” students and counting the odd groups left over is such a proof.',
   ],
   color: [
     'Two exams that share a student cannot be in the same time slot. The fewest slots needed is the chromatic number of the conflict graph. Radio frequencies for nearby towers work the same way.',

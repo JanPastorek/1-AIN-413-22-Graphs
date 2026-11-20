@@ -87,6 +87,7 @@ function hideError() { $('#err').hidden = true; }
 /* ---------- SVG rendering (shared by board and tickets) ---------- */
 function renderGraph(F, g, opt = {}) {
   const n = g.nodes.length; const big = n > 40; const r0 = (big ? 7 : (n > 20 ? 15 : 20)) * SZ.n, r = r0 * (big ? 1 : nodeGrow()); const dir = g.directed; const out = [];
+  if (F.hulls) out.push(`<g class="hulls">${F.hulls.map(h => { const pts = []; h.v.forEach(i => { const v = g.nodes[i]; if (!v) return; for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; pts.push([v.x + (r + 10) * Math.cos(a), v.y + (r + 10) * Math.sin(a)]); } }); const H = pts.length ? convexHull(pts) : []; return H.length > 2 ? `<polygon class="hull ${h.cls || ''}" points="${H.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ')}"/>` : ''; }).join('')}</g>`);
   if (F.polys) out.push(`<g class="faces">${F.polys.map(p => `<polygon class="face ${p.cls || ''}" points="${p.pts.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ')}"/>`).join('')}</g>`);
   const items = [];
   if (!F.hideBase) g.edges.forEach((e, i) => { if (F.edgeLimit !== undefined && i >= F.edgeLimit) return; const c = (F.ec && F.ec[i]) || ''; if (c === 'hide') return; items.push({ u: e.u, v: e.v, cls: c, label: (F.elab && F.elab[i]) ?? (opt.weighted && !big ? fmt(e.w) : ''), dir, key: 'e' + i, base: i }); });
@@ -498,7 +499,7 @@ function renderDefs(m) {
 /* legend: the algorithm's own, if it has one, else the session's */
 function renderLegend() {
   const m = ST.mod, a = currentAlgo(), L = (a && a.legend) || m.legend;
-  $('#legend').innerHTML = L.map(([kind, cls, txt]) => txt ? `<span class="lg"><svg width="${kind === 'n' ? 16 : 26}" height="16" aria-hidden="true">${kind === 'n' ? `<g class="nd ${cls}" transform="translate(8,8)"><circle r="6"/></g>` : `<path class="ed ${cls}" d="M2,8L24,8"/>`}</svg>${txt}</span>` : '').join('');
+  $('#legend').innerHTML = L.map(([kind, cls, txt]) => txt ? `<span class="lg"><svg width="${kind === 'n' ? 16 : 26}" height="16" aria-hidden="true">${kind === 'n' ? `<g class="nd ${cls}" transform="translate(8,8)"><circle r="6"/></g>` : kind === 'a' ? `<rect class="hull ${cls}" x="2" y="2" width="22" height="12" rx="6"/>` : `<path class="ed ${cls}" d="M2,8L24,8"/>`}</svg>${txt}</span>` : '').join('');
 }
 
 /* ---------- module switch ---------- */

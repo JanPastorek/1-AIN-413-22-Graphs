@@ -235,6 +235,32 @@ for (const m of MODULES) { ok(m.tasks[0] && m.tasks[0].tag === 'Motivation', `${
   ok(spWalk('sssp', { unw: false, dag: false, nonneg: false, transform: true }).leaf === 'reweight' && spWalk('apsp', { unw: false, dag: false, nonneg: true }).needs === 'dense', 'guide: manual answers (transform → reweight; APSP w ≥ 0 asks dense or sparse)');
 }
 
+/* --- session 08: Edmonds' blossom algorithm and the Tutte–Berge certificate --- */
+{
+  const brute = g => { const E = g.edges.filter(e => e.u !== e.v); let best = 0; const used = new Set(); (function go(i, k) { best = Math.max(best, k); for (let j = i; j < E.length; j++) { const e = E[j]; if (used.has(e.u) || used.has(e.v)) continue; used.add(e.u); used.add(e.v); go(j + 1, k + 1); used.delete(e.u); used.delete(e.v); } })(0, 0); return best; };
+  const R = rng(23); let same = 0, certs = 0, tb = 0, total = 0, blossoms = 0, asks = 0, asksOk = 0;
+  for (let t = 0; t < 250; t++) {
+    const n = 2 + Math.floor(R() * 10), p = 0.15 + R() * 0.5, L = []; for (let i = 0; i < n; i++) L.push('v' + i);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (R() < p) L.push(`v${i} v${j}`);
+    const g = parseGraph(L.join('\n')), r = algBlossom(g, {}), b = brute(g); total++; blossoms += r.blossoms;
+    if (r.size === b) same++;
+    if (r.frames[r.frames.length - 1].panel.includes('cert yes')) certs++;
+    const T = tutteBerge(g), U = new Set(T.U), chk = CERTS.match.find(c => c.key === 'tutte').check(g, U); if (T.bound === b && chk.ok) tb++;
+    const M = new Set(); r.match.forEach((w, v) => { if (w > v) M.add(g.edges.findIndex(e => (e.u === v && e.v === w) || (e.u === w && e.v === v))); });
+    if (!CERTS.match.find(c => c.key === 'matching').check(g, M).ok) same -= 1000;
+    for (const f of r.frames) if (f.ask) { asks++; if (f.ask.answer.length && f.ask.answer.every(x => x !== undefined && x !== null)) asksOk++; }
+  }
+  ok(same === total, `blossom: maximum matching size equals brute force on ${total} random graphs, and passes the matching certificate`);
+  ok(certs === total, 'blossom: every run ends with a Tutte–Berge certificate');
+  ok(tb === total, 'Tutte–Berge set from Gallai–Edmonds is tight and accepted by the certificate checker');
+  ok(blossoms > 50 && asks > 0 && asks === asksOk, `blossoms were shrunk (${blossoms}) and every prediction has an answer`);
+  { const g = parseGraph(PRESETS.roommates.text), r = algBlossom(g, {}); ok(r.size === 4 && r.U.length === 1 && g.nodes[r.U[0]].label === 'Hana' && r.blossoms > 0, 'roommates: 4 pairs, U = {Hana}, at least one blossom'); ok(!twoColoring(g), 'roommates is not bipartite'); }
+  { const g = parseGraph(PRESETS.ps8_19g.text), r = algBlossom(g, {}); ok(r.size === 3 && r.blossoms > 0, 'PS 8 graph G: ν = 3, found through blossoms'); }
+  { const g = parseGraph(PRESETS.petersen.text); ok(algBlossom(g, {}).size === 5, 'Petersen has a perfect matching'); }
+  { const g = parseGraph('a b\nb c\nc a'); const c = CERTS.match.find(x => x.key === 'tutte').check(g, new Set()); ok(c.ok && /≤ \(3 \+ 0 − 1\) \/ 2 = 1/.test(c.msg), 'triangle: U = ∅ leaves one odd component, bound 1 is tight'); }
+  { const g = parseGraph('h x\nh y\nh z'); const c = CERTS.match.find(x => x.key === 'tutte').check(g, new Set()); ok(!c.ok, 'claw: U = ∅ is a valid but loose bound'); }
+}
+
 /* --- the assembled page compiles: no clashing top-level names between source files --- */
 { const order = ORDER.concat(['app']); let err = null; try { new vm.Script(order.map(f => fs.readFileSync(path.join(SRC, f + '.js'), 'utf8')).join('\n')); } catch (e) { err = e.message; } ok(!err, 'all sources compile together' + (err ? ': ' + err : '')); }
 

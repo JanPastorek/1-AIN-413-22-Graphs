@@ -32,7 +32,7 @@ Companion exercises: [Lab and database explorations](../practice/lab-and-databas
 | 5 Shortest paths | “Which shortest-path algorithm?” decision chart (one source / all pairs, answered by hand or for the graph on the board); Dijkstra (cross-checked by Bellman–Ford), Bellman–Ford with negative cycles, BFS, A*, DAG shortest paths, Floyd–Warshall, Johnson; race | PS 4 P4; PS 6 P1–P2 |
 | 6 Euler, Hamilton, postman, TSP | Hierholzer and Chinese postman; Fleury edge by edge, with the bridges of the unused edges marked; Hamilton cycle and TSP as an integer program (arc variables x<sub>ij</sub>, in/out-degree constraints, subtour constraints added round by round); Hamilton backtracking; nearest neighbour, double tree, Christofides and Held–Karp with the DFJ integer program | PS 5; PS 6 P−1; PS 1 P3 |
 | 7 Flows and cuts | Edmonds–Karp with a residual view and min-cut certificate; race of path rules (2 vs 2000 augmentations) | PS 7 |
-| 8 Matchings | Augmenting paths with König cover and Hall violator; Hopcroft–Karp; Hungarian method with dual certificate; Gale–Shapley; race | PS 8 |
+| 8 Matchings | Augmenting paths with König cover and Hall violator; Edmonds’ blossom algorithm for any graph (shrinks odd cycles, ends with a Tutte–Berge set); Hopcroft–Karp; Hungarian method with dual certificate; Gale–Shapley; race | PS 8 |
 | 9 Planarity, duality, colouring | Planarity test (Demoucron–Malgrange–Pertuiset) with plane drawing, faces, Euler’s formula, dual graph or Kuratowski subgraph; greedy, DSatur, exact χ | PS 9 |
 | 10 Random graphs | Erdős–Rényi process with giant-component theory; US airports vs G(n, m) | PS 10 |
 | 11 Domination | Greedy; exact branch and bound; counting bound; ILP and LP relaxation | PS 11 |
@@ -44,15 +44,15 @@ The problem-set links and the instances transcribed from the sheets’ figures a
 
 ## Checks behind the page
 
-`node tests/run-tests.js` runs 3 521 checks without dependencies, among them:
+`node tests/run-tests.js` runs 3 738 checks without dependencies, among them:
 
 - graph counts 1, 2, 4, 11, 34, 156, 1044 from the generator (12 346 for n = 8 in the browser);
 - the planarity test agrees with the known numbers of planar graphs (33, 142, 822 for n = 5, 6, 7), Euler’s formula holds on every embedding, and every 2-connected planar graph on up to 7 vertices is drawn without crossings;
-- Hungarian results against brute force on 40 random matrices, Hopcroft–Karp against the simple algorithm on 30 random graphs;
+- Hungarian results against brute force on 40 random matrices, Hopcroft–Karp against the simple algorithm on 30 random graphs, Edmonds’ blossom against brute force on 250 random general graphs, each run ending in a tight Tutte–Berge set;
 - every pseudocode line reference, prediction question, certificate verifier, exit ticket and definition animation is consistent;
 - every problem-set link points at a PDF in the repository, every problem-set button loads an existing graph and runs, and the transcribed instances have the counts read off the drawings (for example, the three PS 2 graphs are cubic on 10 vertices, and the maximum flows and spanning-tree weights agree with networkx).
 
-All 37 Python exports were run against networkx 3.6, SciPy 1.18 and the lab’s own answers.
+All 42 Python exports were run against networkx 3.6, SciPy 1.18 and the lab’s own answers.
 
 **Colour vision.** The categorical palette was chosen by a farthest-point search in CIELAB and checked with simulated protanopia, deuteranopia and tritanopia (Machado et al. 2009, CIEDE2000). The first six colours stay at least 12.6 apart under all three; all ten at least 8.9 (light) and 7.3 (dark). Colour-coded views also print colour numbers on the vertices, and the main states differ in shape (solid disc, ring, dashed line) as well as hue.
 

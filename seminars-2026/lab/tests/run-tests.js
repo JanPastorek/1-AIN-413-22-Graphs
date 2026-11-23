@@ -289,7 +289,19 @@ for (const m of MODULES) { ok(m.tasks[0] && m.tasks[0].tag === 'Motivation', `${
   { const r = algExtremal(null, { method: 'anneal', goal: 'max', obj: 'm', cond: 'tri == 0', from: 2, n: 7, steps: 2500, seed: 1 }); ok(r.rows.every(row => row[1] === row[2]), 'annealing finds the Mantel optimum for n ≤ 7 (seed 1)'); ok(r.frames.length >= 5 && r.frames.every(f => f.line === 5 || f.line === 6), 'annealing frames point at its pseudocode lines'); }
   { const r = algExtremal(null, { method: 'anneal', goal: 'max', obj: 'm', cond: 'tri == 0', from: 9, n: 10, steps: 1500, seed: 1 }); ok(r.rows.every(row => row[2] === 'n > 8' && row[3] === 'only a bound'), 'annealing beyond 8 vertices is reported as a bound'); }
   { const a = algExtremal(null, { method: 'anneal', goal: 'max', obj: 'gamma', cond: 'dmin >= 1', from: 4, n: 6, steps: 800, seed: 5 }), b = algExtremal(null, { method: 'anneal', goal: 'max', obj: 'gamma', cond: 'dmin >= 1', from: 4, n: 6, steps: 800, seed: 5 }); ok(JSON.stringify(a.rows) === JSON.stringify(b.rows), 'annealing is deterministic for a fixed seed'); }
-  ok(PSEUDO['cagt.ext'].length === 9, 'extremal pseudocode covers the three methods');
+  ok(PSEUDO['cagt.ext'].length === 11, 'extremal pseudocode covers the four methods');
+  for (const [goal, cond, n] of [['max', 'tri == 0', 8], ['max', 'girth >= 5', 8], ['max', 'tri == 0 && alpha <= 2', 6], ['min', 'alpha <= 2', 7], ['max', 'omega <= 3 && dmax <= 3', 7], ['min', 'dmin >= 2', 7], ['max', 'girth >= 6', 7]]) {
+    const r = algExtremal(null, { method: 'sat', goal, obj: 'm', cond, from: 2, n, scope: 'all' }), T = extremalTable({ goal, obj: 'm', cond, from: 2, n, scope: 'all' });
+    ok(r.rows.every((row, i) => (T.rows[i].best === null ? row[1] === 'none' : row[1] === T.rows[i].best) && /✓/.test(row[4])), `SAT = exhaustive: ${goal} m with ${cond}, n ≤ ${n}`);
+  }
+  { // random CNFs: the CDCL solver against brute force, and every SAT model satisfies its formula
+    let bad = 0; for (let s = 1; s <= 200; s++) { const R = rng(500 + s), nv = 4 + s % 7, nc = 3 + Math.floor(R() * nv * 4.5); const cl = []; for (let i = 0; i < nc; i++) { const c = []; for (let j = 0; j < 3; j++) c.push((1 + Math.floor(R() * nv)) * (R() < 0.5 ? -1 : 1)); cl.push(c); }
+      let brute = false; for (let a = 0; a < (1 << nv) && !brute; a++) brute = cl.every(c => c.some(l => ((a >> (Math.abs(l) - 1)) & 1) === (l > 0 ? 1 : 0)));
+      const r = satSolve(nv, cl.map(c => c.slice())); if (r.sat !== brute) bad++; else if (r.sat && !cl.every(c => c.some(l => r.model[Math.abs(l)] === (l > 0 ? 1 : -1)))) bad++; }
+    ok(bad === 0, 'CDCL solver agrees with brute force on 200 random 3-CNFs and its models satisfy them'); }
+  { const cl = [], nv0 = 6; let nv = nv0; atMostK([1, 2, 3, 4, 5, 6], 2, () => ++nv, cl); let good = true; for (let a = 0; a < 64; a++) { const lits = []; for (let i = 0; i < 6; i++) lits.push([(a >> i & 1) ? i + 1 : -(i + 1)]); const r = satSolve(nv, cl.concat(lits)); if (!!r.sat !== (popcnt(a) <= 2)) good = false; } ok(good, 'sequential counter: at most 2 of 6, checked on all 64 assignments'); }
+  { const r = algExtremal(null, { method: 'sat', goal: 'max', obj: 'm', cond: 'tri == 0', from: 5, n: 5 }); ok(/p cnf \d+ \d+/.test(r.frames[0].panel) && /¬x01 ∨ ¬x02 ∨ ¬x12/.test(r.frames[0].panel), 'SAT method shows the CNF and a DIMACS file'); }
+  { const r = algExtremal(null, { method: 'sat', goal: 'max', obj: 'chi', cond: 'conn', from: 2, n: 5 }); ok(r.frames.length === 1 && /Not a SAT question/.test(r.frames[0].panel), 'SAT explains what it cannot encode'); }
   { const r = algExtremal(null, { goal: 'max', obj: 'm', cond: 'tri == 0', from: 1, n: 6, scope: 'all', guess: 'floor(n^2/4)', x: 'alpha' }); ok(r.frames.length >= 3 && r.frames[0].panel.includes('cert yes') && r.frames[0].panel.includes('<svg class="mini scatter"'), 'extremal search: summary with verdict and scatter, then the extremal graphs'); }
   { const r = algExtremal(null, { goal: 'max', obj: 'm', cond: 'm > 100', from: 1, n: 5, scope: 'all', guess: '', x: 'n' }); ok(r.frames.length === 1 && /No graph/.test(r.frames[0].msg), 'an impossible condition is reported, not crashed on'); }
 }

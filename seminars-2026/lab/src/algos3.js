@@ -258,9 +258,17 @@ function invariantsOf(adj, n) {
   if (!conn) { diam = Infinity; rad = Infinity; }
   let tri = 0; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (adj[i] >> j & 1) tri += popcnt(adj[i] & adj[j] & ~((2 << j) - 1));
   let girth = Infinity; for (let s = 0; s < n; s++) { const d = Array(n).fill(-1), p = Array(n).fill(-1); d[s] = 0; const Q = [s]; for (let h = 0; h < Q.length; h++) { const u = Q[h]; for (let v = 0; v < n; v++) if (adj[u] >> v & 1) { if (d[v] < 0) { d[v] = d[u] + 1; p[v] = u; Q.push(v); } else if (p[u] !== v) girth = Math.min(girth, d[u] + d[v] + 1); } } }
-  return { n, m, dmin: n ? Math.min(...deg) : 0, dmax: n ? Math.max(...deg) : 0, alpha, omega, chi, diam, rad, conn, tri, girth };
+  // components, bipartite, matching number ν, domination number γ, vertex connectivity κ (exhaustive; n ≤ 8)
+  let comp = 0; { const seen = Array(n).fill(false); for (let s0 = 0; s0 < n; s0++) if (!seen[s0]) { comp++; const Q = [s0]; seen[s0] = true; for (let h = 0; h < Q.length; h++) for (let v = 0; v < n; v++) if ((adj[Q[h]] >> v & 1) && !seen[v]) { seen[v] = true; Q.push(v); } } }
+  let bip = 1; { const c = Array(n).fill(-1); for (let s0 = 0; s0 < n && bip; s0++) if (c[s0] < 0) { c[s0] = 0; const Q = [s0]; for (let h = 0; h < Q.length && bip; h++) { const u = Q[h]; for (let v = 0; v < n; v++) if (adj[u] >> v & 1) { if (c[v] < 0) { c[v] = 1 - c[u]; Q.push(v); } else if (c[v] === c[u]) { bip = 0; break; } } } } }
+  const memo = new Map(); const nuRec = mask => { if (!mask) return 0; if (memo.has(mask)) return memo.get(mask); let i = 0; while (!(mask >> i & 1)) i++; const rest = mask & ~(1 << i); let best = nuRec(rest); let nb = adj[i] & rest; while (nb) { const j = 31 - Math.clz32(nb & -nb); nb &= nb - 1; best = Math.max(best, 1 + nuRec(rest & ~(1 << j))); } memo.set(mask, best); return best; };
+  const nu = nuRec((1 << n) - 1);
+  let gamma = n; for (let S = 0; S < (1 << n); S++) { const c = popcnt(S); if (c >= gamma) continue; let dom = S; for (let i = 0; i < n; i++) if (S >> i & 1) dom |= adj[i]; if (dom === (1 << n) - 1) gamma = c; }
+  const connectedWithout = X => { const keep = [...Array(n).keys()].filter(i => !(X >> i & 1)); if (keep.length <= 1) return true; const seen = new Set([keep[0]]), Q = [keep[0]]; for (let h = 0; h < Q.length; h++) for (const v of keep) if ((adj[Q[h]] >> v & 1) && !seen.has(v)) { seen.add(v); Q.push(v); } return seen.size === keep.length; };
+  let kappa = 0; if (n && conn) { const complete = deg.every(d => d === n - 1); if (complete) kappa = n - 1; else { kappa = n - 2; for (let S = 1; S < (1 << n); S++) { const c = popcnt(S); if (c < kappa && c <= n - 2 && !connectedWithout(S)) kappa = c; } } }
+  return { n, m, dmin: n ? Math.min(...deg) : 0, dmax: n ? Math.max(...deg) : 0, alpha, omega, chi, diam, rad, conn, tri, girth, comp, bip, nu, gamma, kappa };
 }
-const INV_NAMES = { n: 'order n', m: 'size m', dmin: 'minimum degree δ', dmax: 'maximum degree Δ', alpha: 'independence number α', omega: 'clique number ω', chi: 'chromatic number χ', diam: 'diameter', rad: 'radius', tri: 'triangles', girth: 'girth', conn: 'connected (0/1)' };
+const INV_NAMES = { n: 'order n', m: 'size m', dmin: 'minimum degree δ', dmax: 'maximum degree Δ', alpha: 'independence number α', omega: 'clique number ω', chi: 'chromatic number χ', diam: 'diameter', rad: 'radius', tri: 'triangles', girth: 'girth', conn: 'connected (0/1)', comp: 'components', bip: 'bipartite (0/1)', nu: 'matching number ν', gamma: 'domination number γ', kappa: 'connectivity κ' };
 
 /* tiny safe expression evaluator: numbers, variables, + − * / ^, comparisons, && ||, !, ( ), floor ceil sqrt min max abs */
 function compileExpr(src) {
@@ -310,9 +318,53 @@ function scatterPlot(data, xk, yk, isBad) {
   s += `<text class="tk" x="${(l + w - r) / 2}" y="${h - 3}" text-anchor="middle">${INV_NAMES[xk]}</text><text class="tk" transform="translate(9 ${(t + h - b) / 2}) rotate(-90)" text-anchor="middle">${INV_NAMES[yk]}</text></svg>`;
   return s;
 }
+const INV_CACHE = [];
+function invariantsAll(k) { return INV_CACHE[k] || (INV_CACHE[k] = graphsOfOrder(k).map(a => ({ a, inv: invariantsOf(a, k) }))); }
+/* ---------- extremal search over all small graphs (max or min of an expression under a condition) ---------- */
+function extremalTable(P) {
+  const nmax = Math.max(1, Math.min(8, P.n | 0)), nmin = Math.max(1, Math.min(nmax, (P.from | 0) || 1));
+  const obj = compileExpr(P.obj || 'm'), cond = (P.cond || '').trim() ? compileExpr(P.cond) : () => 1, guess = (P.guess || '').trim() ? compileExpr(P.guess) : null;
+  const max = P.goal !== 'min', rows = [];
+  for (let k = nmin; k <= nmax; k++) {
+    const data = invariantsAll(k).filter(d => (P.scope !== 'connected' || d.inv.conn) && cond(d.inv));
+    const vals = data.map(d => obj(d.inv)).map(v => (typeof v === 'number' && Number.isFinite(v)) ? v : null);
+    const fin = vals.filter(v => v !== null); let best = null, ext = [];
+    if (fin.length) { best = max ? Math.max(...fin) : Math.min(...fin); ext = data.filter((d, i) => vals[i] === best); }
+    const gv = guess ? guess({ n: k }) : null;
+    rows.push({ k, count: data.length, best, ext, data, guess: gv, match: guess ? (best === null ? null : Math.abs(gv - best) < 1e-9) : null });
+  }
+  return { rows, max, nmax, nmin };
+}
+function algExtremal(g0, P) {
+  const R = new Rec(), T = extremalTable(P), last = T.rows[T.rows.length - 1], word = T.max ? 'maximum' : 'minimum';
+  const box = { x0: 150, x1: 650, y0: 70, y1: 450 };
+  const toGraph = (a, k) => { const g = newGraph(false); for (let i = 0; i < k; i++) addNode(g, '0|' + i, String(i)); for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) if (a[i] >> j & 1) g.edges.push({ u: i, v: j, w: 1 }); if (!(g.edges.length && twoColoring(g) && layoutGraph(g, 'columns', box))) forceLayout(g, box, 300, 5); return g; };
+  const sides = g => { const c = g.edges.length ? twoColoring(g) : null, nc = {}; if (c) g.nodes.forEach((v, i) => { nc[i] = 'k' + c[i]; }); return nc; };
+  const snapG = (msg, gg, extra, last) => R.snap(msg, Object.assign({ graph: gg, nc: sides(gg) }, extra), last);
+  const q = `${word} of ${esc(P.obj || 'm')}${(P.cond || '').trim() ? ` over graphs with ${esc(P.cond)}` : ''}${P.scope === 'connected' ? ', connected only' : ''}`;
+  const head = ['n', 'graphs satisfying the condition', `${word} value`, 'extremal graphs'].concat((P.guess || '').trim() ? [`guess ${esc(P.guess)}`] : []);
+  const rows = T.rows.map(r => [r.k, r.count.toLocaleString(), r.best === null ? '—' : fmt(r.best), r.ext.length.toLocaleString()].concat((P.guess || '').trim() ? [r.best === null ? fmt(r.guess) : `${fmt(r.guess)} ${r.match ? '✓' : '✗'}`] : []));
+  const miss = T.rows.find(r => r.match === false);
+  const verdict = !(P.guess || '').trim() ? cert('info', `Extremal values for n = ${T.nmin} … ${T.nmax}`, 'Guess a formula in n from the column of values, enter it as “Guess f(n)”, and the lab compares it on every order. Matching small orders is evidence, not a proof; look at the extremal graphs to find the construction, then prove the bound.')
+    : miss ? cert('no', `Guess fails at n = ${miss.k}`, `${esc(P.guess)} gives ${fmt(miss.guess)}, the true ${word} is ${fmt(miss.best)}.`)
+      : cert('yes', `Guess matches for n = ${T.nmin} … ${T.nmax}`, `${esc(P.guess)} equals the ${word} on every order checked. That is finite evidence: prove it (an extremal construction for one direction, a counting or structural argument for the other).`);
+  const xk = P.x in INV_NAMES ? P.x : 'm', fo = compileExpr(P.obj || 'm');
+  const plot = last.data.length ? h4(`${esc(P.obj || 'm')} against ${INV_NAMES[xk]} (n = ${last.k})`) + scatterPlot(last.data.map(d => { const v = fo(d.inv); return { a: d.a, inv: Object.assign({}, d.inv, { __obj: Number.isFinite(v) ? v : NaN }) }; }), xk, '__obj', d => d.inv.__obj === last.best).replace(/aria-label="[^"]*"/, `aria-label="objective against ${INV_NAMES[xk]}"`).replace('>undefined<', `>${esc(P.obj || 'm')}<`) + '<p class="note">Red points are the extremal graphs of the largest order; the shaded hull shows the region all graphs fill.</p>' : '';
+  const invTable = (d) => table(Object.keys(INV_NAMES).filter(k => k !== 'n'), [Object.keys(INV_NAMES).filter(k => k !== 'n').map(k => fmt(d.inv[k]))], 'compact wide');
+  const summary = `<p class="exq">The ${q.replace(/of (.*?)( over graphs with )(.*?)(, connected only)?$/, (m0, o, w, c, k) => `of <code>${o}</code>${w}<code>${c}</code>${k || ''}`)}</p>` + verdict + table(head, rows, 'compact');
+  R.line = 1;
+  if (last.best === null) { snapG(`No graph on ${last.k} vertices satisfies the condition (or the expression is not finite on them).`, toGraph(graphsOfOrder(last.k)[0], last.k), { panel: summary }, true); return { frames: R.frames, table: T }; }
+  snapG(`The ${word} of ${esc(P.obj || 'm')} for n = ${T.nmin} … ${T.nmax}: ${T.rows.map(r => r.best === null ? '—' : fmt(r.best)).join(', ')}. Shown: an extremal graph on ${last.k} vertices; step on to see all of them and one per smaller order.`, toGraph(last.ext[0].a, last.k), { panel: summary + plot });
+  R.line = 2;
+  last.ext.slice(0, 40).forEach((d, i) => snapG(`Extremal graph ${i + 1} of ${last.ext.length} on ${last.k} vertices: ${esc(P.obj || 'm')} = ${fmt(last.best)}.${last.ext.length > 40 && i === 39 ? ' (first 40 shown)' : ''}`, toGraph(d.a, last.k), { panel: h4('Invariants of this graph') + invTable(d) + `<p class="note mono">graph6: ${esc(encodeGraph6(toGraph(d.a, last.k)))}</p>` }));
+  R.line = 3;
+  T.rows.slice(0, -1).reverse().forEach(r => { if (r.ext.length) snapG(`n = ${r.k}: ${word} ${fmt(r.best)}, attained by ${r.ext.length} graph${r.ext.length > 1 ? 's' : ''}; one of them.`, toGraph(r.ext[0].a, r.k), { panel: h4('Invariants of this graph') + invTable(r.ext[0]) + `<p class="note mono">graph6: ${esc(encodeGraph6(toGraph(r.ext[0].a, r.k)))}</p>` }); });
+  R.line = 4; snapG(`Compare the extremal graphs across orders: what structure do they share? That is the conjectured construction.`, toGraph(last.ext[0].a, last.k), { panel: summary }, true);
+  return { frames: R.frames, table: T };
+}
 function algConjecture(g0, P) {
   const n = Math.max(1, Math.min(8, P.n | 0)), R = new Rec(); const f = compileExpr(P.expr);
-  const t0 = Date.now(); const all = graphsOfOrder(n); const data = all.map(a => ({ a, inv: invariantsOf(a, n) })); const ms = Date.now() - t0;
+  const t0 = Date.now(); const data = invariantsAll(n); const ms = Date.now() - t0;
   const scope = P.scope === 'connected' ? data.filter(d => d.inv.conn) : data;
   const bad = scope.filter(d => !f(d.inv)); const badSet = new Set(bad);
   const toGraph = (a) => { const g = newGraph(false); for (let i = 0; i < n; i++) addNode(g, '0|' + i, String(i)); for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (a[i] >> j & 1) g.edges.push({ u: i, v: j, w: 1 }); forceLayout(g, { x0: 150, x1: 650, y0: 70, y1: 450 }); return g; };

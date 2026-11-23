@@ -335,7 +335,156 @@ function extremalTable(P) {
   }
   return { rows, max, nmax, nmin };
 }
+/* ---------- extremal search, method 2: an integer linear program solved by branch and bound ---------- */
+function kSubsets(n, k) { const out = [], c = []; (function r(s) { if (c.length === k) { out.push(c.slice()); return; } for (let i = s; i < n; i++) { c.push(i); r(i + 1); c.pop(); } })(0); return out; }
+/* Reads a condition such as "tri == 0 && dmax <= 3" into linear constraints on the edge variables x_uv.
+   Returns { atoms: [{kind, k, text}], bad: [unsupported pieces] }. */
+function ilpParseCond(src) {
+  const atoms = [], bad = [];
+  for (const raw of (src || '').split('&&').map(t => t.trim()).filter(Boolean)) {
+    const m = raw.match(/^\(?\s*([a-z]+)\s*(<=|<|==|>=|>)\s*(\d+)\s*\)?$/);
+    if (!m) { bad.push(raw); continue; }
+    let [, v, op, num] = m; let k = +num;
+    const up = op === '<' ? k - 1 : k, lo = op === '>' ? k + 1 : k;
+    if (v === 'tri' && (op === '==' || op === '<=' || op === '<') && (op === '<' ? k <= 1 : k === 0)) atoms.push({ kind: 'clique', k: 3, text: raw });
+    else if (v === 'omega' && (op === '<=' || op === '<') && up >= 1 && up <= 4) atoms.push({ kind: 'clique', k: up + 1, text: raw });
+    else if (v === 'girth' && (op === '>=' || op === '>') && lo <= 6) { for (let c = 3; c < lo; c++) atoms.push({ kind: 'cycle', k: c, text: raw }); }
+    else if (v === 'alpha' && (op === '<=' || op === '<') && up >= 1 && up <= 4) atoms.push({ kind: 'indep', k: up + 1, text: raw });
+    else if (v === 'dmax' && (op === '<=' || op === '<')) atoms.push({ kind: 'dmax', k: up, text: raw });
+    else if (v === 'dmin' && (op === '>=' || op === '>')) atoms.push({ kind: 'dmin', k: lo, text: raw });
+    else if (v === 'm' && (op === '<=' || op === '<' || op === '>=' || op === '>' || op === '==')) atoms.push({ kind: 'size', op: op === '==' ? '=' : op[0] === '<' ? '<=' : '>=', k: op[0] === '<' ? up : op[0] === '>' ? lo : k, text: raw });
+    else bad.push(raw);
+  }
+  return { atoms, bad };
+}
+function ilpModel(n, atoms) {
+  const V = [], id = []; for (let i = 0; i < n; i++) id.push([]); for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { id[i][j] = id[j][i] = V.length; V.push([i, j]); }
+  const C = [], seen = new Set();
+  const add = (vars, sense, rhs, tag) => { const key = vars.slice().sort((a, b) => a - b).join(',') + sense + rhs; if (seen.has(key)) return; seen.add(key); C.push({ vars, sense, rhs, tag }); };
+  const cyclesOf = S => { const [a, ...rest] = S, out = []; const perm = (arr, k) => { if (k === arr.length) { if (arr[0] < arr[arr.length - 1]) out.push([a, ...arr]); return; } for (let i = k; i < arr.length; i++) { [arr[k], arr[i]] = [arr[i], arr[k]]; perm(arr, k + 1); [arr[k], arr[i]] = [arr[i], arr[k]]; } }; perm(rest.slice(), 0); return out; };
+  for (const at of atoms) {
+    if (at.kind === 'clique' || at.kind === 'indep') for (const S of kSubsets(n, at.k)) { const vs = []; for (let a = 0; a < S.length; a++) for (let b = a + 1; b < S.length; b++) vs.push(id[S[a]][S[b]]); if (at.kind === 'clique') add(vs, '<=', vs.length - 1, `no K${at.k}`); else add(vs, '>=', 1, `no independent ${at.k}-set`); }
+    if (at.kind === 'cycle') for (const S of kSubsets(n, at.k)) for (const cyc of cyclesOf(S)) add(cyc.map((u, i) => id[u][cyc[(i + 1) % cyc.length]]), '<=', at.k - 1, `no C${at.k}`);
+    if (at.kind === 'dmax' || at.kind === 'dmin') for (let v = 0; v < n; v++) add([...Array(n).keys()].filter(w => w !== v).map(w => id[v][w]), at.kind === 'dmax' ? '<=' : '>=', at.k, `degree of ${v}`);
+    if (at.kind === 'size') add(V.map((_, i) => i), at.op, at.k, 'size');
+  }
+  return { V, C, id };
+}
+function ilpSolve(n, M, max, limit = 4e6) {
+  const { V, C } = M, nv = V.length;
+  const S = C.map(c => ({ vars: c.vars, sense: c.sense, rhs: c.rhs, one: 0, und: c.vars.length }));
+  const byVar = V.map(() => []); S.forEach((c, ci) => c.vars.forEach(v => byVar[v].push(ci)));
+  const x = new Int8Array(nv).fill(-1); let best = max ? -1 : Infinity, bestX = null, nodes = 0, m = 0, aborted = false;
+  if (S.some(c => (c.sense === '>=' || c.sense === '=') && c.und < c.rhs)) return { best: null, nodes: 0, aborted: false };
+  const okC = c => !((c.sense === '<=' || c.sense === '=') && c.one > c.rhs) && !((c.sense === '>=' || c.sense === '=') && c.one + c.und < c.rhs);
+  (function rec(k) {
+    if (++nodes > limit) { aborted = true; return; }
+    if (max ? m + (nv - k) <= best : m >= best) return;
+    if (k === nv) { best = m; bestX = Array.from(x); return; }
+    for (const val of (max ? [1, 0] : [0, 1])) {
+      const T = byVar[k]; for (const ci of T) { S[ci].und--; if (val) S[ci].one++; }
+      if (T.every(ci => okC(S[ci]))) { x[k] = val; m += val; rec(k + 1); m -= val; x[k] = -1; }
+      for (const ci of T) { S[ci].und++; if (val) S[ci].one--; }
+      if (aborted) return;
+    }
+  })(0);
+  if (bestX === null) return { best: null, nodes, aborted };
+  const adj = Array(n).fill(0); bestX.forEach((b, i) => { if (b) { const [u, v] = V[i]; adj[u] |= 1 << v; adj[v] |= 1 << u; } });
+  return { best, nodes, aborted, adj };
+}
+function ilpText(n, M, max) {
+  const xv = i => `x${M.V[i][0]}${n > 10 ? '_' : ''}${M.V[i][1]}`;
+  const wrap = (terms, lead, width = 34) => { const out = []; let cur = lead; terms.forEach((t, k) => { const piece = (k ? ' + ' : '') + t; if (cur.length + piece.length > width && k) { out.push(cur); cur = ' '.repeat(lead.length) + '+ ' + t; } else cur += piece; }); out.push(cur); return out.join('\n'); };
+  const groups = new Map(); M.C.forEach(c => { if (!groups.has(c.tag)) groups.set(c.tag, []); groups.get(c.tag).push(c); });
+  const lines = [wrap(M.V.map((_, i) => xv(i)), max ? 'max  ' : 'min  '), 's.t.'];
+  for (const [tag, cs] of groups) { cs.slice(0, 3).forEach(c => lines.push(wrap(c.vars.map(xv), '     ') + ` ${c.sense === '<=' ? '≤' : c.sense === '>=' ? '≥' : '='} ${c.rhs}`)); if (cs.length > 3) lines.push(`     … ${cs.length} constraints “${tag}” in total`); }
+  lines.push(`     x ∈ {0, 1}   (${M.V.length} variables, one per vertex pair)`);
+  const L = ['\\ extremal ILP on ' + n + ' vertices', max ? 'Maximize' : 'Minimize', ' obj: ' + M.V.map((_, i) => xv(i)).join(' + '), 'Subject To'];
+  M.C.forEach((c, k) => L.push(` c${k + 1}: ${c.vars.map(xv).join(' + ')} ${c.sense === '=' ? '=' : c.sense} ${c.rhs}`));
+  L.push('Binary', ' ' + M.V.map((_, i) => xv(i)).join(' '), 'End');
+  return { text: lines.join('\n'), lpFile: L.join('\n') };
+}
+/* ---------- extremal search, method 3: simulated annealing on one order at a time ---------- */
+function extremalAnneal(k, P, obj, cond, steps, rand) {
+  const max = P.goal !== 'min', sg = max ? 1 : -1, lam = 2 * k + 2, conn = P.scope === 'connected';
+  const a = Array(k).fill(0); let inv = invariantsOf(a, k);
+  const feas = v => cond(v) && (!conn || v.conn);
+  const val = v => { const o = obj(v); return Number.isFinite(o) ? o : (max ? -1e6 : 1e6); };
+  const score = v => sg * val(v) - (feas(v) ? 0 : lam);
+  let cur = score(inv), best = feas(inv) ? val(inv) : null, bestA = feas(inv) ? a.slice() : null; const snaps = [];
+  if (k < 2) return { best, bestA, snaps };
+  for (let it = 1; it <= steps; it++) {
+    const T = 1.5 * Math.pow(0.02 / 1.5, it / steps);
+    const u = Math.floor(rand() * k); let w = Math.floor(rand() * (k - 1)); if (w >= u) w++;
+    a[u] ^= 1 << w; a[w] ^= 1 << u; const ni = invariantsOf(a, k), ns = score(ni);
+    if (ns >= cur || rand() < Math.exp((ns - cur) / T)) { cur = ns; inv = ni; if (feas(ni) && (best === null || (max ? val(ni) > best : val(ni) < best))) { best = val(ni); bestA = a.slice(); } }
+    else { a[u] ^= 1 << w; a[w] ^= 1 << u; }
+    if (it % Math.max(1, Math.floor(steps / 12)) === 0) snaps.push({ it, T, a: a.slice(), val: val(inv), feas: feas(inv), best });
+  }
+  return { best, bestA, snaps };
+}
+function algExtremalILP(P) {
+  const R = new Rec(), max = P.goal !== 'min', word = max ? 'maximum' : 'minimum';
+  const nmax = Math.max(1, Math.min(9, P.n | 0)), nmin = Math.max(2, Math.min(nmax, (P.from | 0) || 1));
+  const box = { x0: 150, x1: 650, y0: 70, y1: 450 };
+  const toGraph = (a, k) => { const g = newGraph(false); for (let i = 0; i < k; i++) addNode(g, '0|' + i, String(i)); for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) if (a[i] >> j & 1) g.edges.push({ u: i, v: j, w: 1 }); if (!(g.edges.length && twoColoring(g) && layoutGraph(g, 'columns', box))) forceLayout(g, box, 300, 5); return g; };
+  const nc = g => { const c = g.edges.length ? twoColoring(g) : null, o = {}; if (c) g.nodes.forEach((v, i) => { o[i] = 'k' + c[i]; }); return o; };
+  const why = [];
+  if ((P.obj || 'm').trim() !== 'm') why.push(`the objective must be linear in the edge variables; this solver handles <code>m</code> (the number of edges), not <code>${esc(P.obj)}</code>`);
+  if (P.scope === 'connected') why.push('connectivity needs exponentially many cut constraints; choose “all” graphs, or use the exhaustive method');
+  const { atoms, bad } = ilpParseCond(P.cond);
+  if (bad.length) why.push(`these conditions have no linear form here: <code>${bad.map(esc).join('</code>, <code>')}</code>. Supported: <code>tri == 0</code>, <code>omega &lt;= k</code>, <code>girth &gt;= g</code> (g ≤ 6), <code>alpha &lt;= k</code>, <code>dmax &lt;= k</code>, <code>dmin &gt;= k</code>, <code>m &gt;= k</code>, joined by <code>&amp;&amp;</code>`);
+  if (why.length) { R.line = 7; R.snap('This question cannot be written as the integer program used here.', { graph: toGraph([0, 0, 0], 3), panel: cert('info', 'Not an ILP of this form', why.map(w => '• ' + w).join('<br>') + '<br>Switch the method to exhaustive search (exact up to 8 vertices) or simulated annealing (any expression, heuristic).') }, true); return { frames: R.frames }; }
+  const M0 = ilpModel(nmax, atoms), Tx = ilpText(nmax, M0, max);
+  const intro = fold('ext-ilp-model', `The ILP for n = ${nmax}: ${M0.V.length} variables, ${M0.C.length} constraints`, `<pre class="ilp model">${esc(Tx.text)}</pre><p class="note">Each forbidden subgraph gives one linear constraint: a triangle on {a, b, c} becomes x<sub>ab</sub> + x<sub>ac</sub> + x<sub>bc</sub> ≤ 2, an independent 3-set {a, b, c} becomes x<sub>ab</sub> + x<sub>ac</sub> + x<sub>bc</sub> ≥ 1, a degree bound sums the pairs at one vertex.</p><details class="lpfile"><summary>As an LP file for a solver (CPLEX format)</summary><button type="button" class="copybtn" data-copy="ilpfile">Copy ILP file</button><pre class="ilp lpsrc" data-kind="ilpfile">${esc(Tx.lpFile)}</pre></details>`);
+  const cap = (P.n | 0) > 9 ? '<p class="note">The browser solver stops at 9 vertices; the Python tab writes the same ILP for SciPy (HiGHS), which handles larger n.</p>' : '';
+  R.line = 7; R.snap(`One 0/1 variable x<sub>uv</sub> per pair of vertices: x<sub>uv</sub> = 1 means uv is an edge. The objective is m = Σ x<sub>uv</sub>; every condition becomes linear constraints.`, { graph: toGraph(Array(nmax).fill(0), nmax), panel: cap + intro });
+  const T = nmax <= 8 ? extremalTable(Object.assign({}, P, { from: nmin, n: nmax, obj: 'm' })) : null;
+  const rows = []; let lastRes = null;
+  for (let k = nmin; k <= nmax; k++) {
+    const M = ilpModel(k, atoms), t0 = Date.now(), r = ilpSolve(k, M, max), ms = Date.now() - t0;
+    const ex = T ? T.rows.find(x => x.k === k) : null;
+    rows.push([k, M.C.length.toLocaleString(), r.best === null ? (r.aborted ? 'stopped' : 'infeasible') : (r.aborted ? `≥ ${r.best}` : r.best), r.nodes.toLocaleString(), ms + ' ms', ex ? (ex.best === null ? (r.best === null ? '— ✓' : '— ✗') : `${ex.best} ${!r.aborted && ex.best === r.best ? '✓' : '✗'}`) : 'n > 8']);
+    lastRes = { k, r, M };
+    R.line = 8;
+    if (r.adj) R.snap(`n = ${k}: branch and bound fixes x<sub>uv</sub> = ${max ? '1, then 0' : '0, then 1'} pair by pair, abandons a branch as soon as a constraint is violated or the ${max ? 'edges still possible cannot beat' : 'edges already chosen cannot improve on'} the best graph found. ${r.aborted ? 'Node limit reached: the value is only a bound.' : `Optimum m = ${r.best} after ${r.nodes.toLocaleString()} nodes.`}`, { graph: toGraph(r.adj, k), nc: nc(toGraph(r.adj, k)), panel: table(['n', 'constraints', `${word} m`, 'B&B nodes', 'time', 'exhaustive'], rows.slice(), 'compact') });
+    else R.snap(`n = ${k}: ${r.aborted ? 'node limit reached before a feasible graph was found' : 'the ILP is infeasible: no graph on ' + k + ' vertices satisfies the conditions'}.`, { graph: toGraph(Array(k).fill(0), k), panel: table(['n', 'constraints', `${word} m`, 'B&B nodes', 'time', 'exhaustive'], rows.slice(), 'compact') });
+  }
+  const allOk = rows.every(r => !/✗|stopped|≥/.test(String(r[2]) + r[5]));
+  const verdict = cert(allOk ? 'yes' : 'info', allOk ? `Branch and bound proves the ${word} for n = ${nmin} … ${nmax}` : 'Some orders are not settled', allOk ? `Every branch was either explored or cut off by a bound, so each value is exact. ${T ? 'The exhaustive search over all graphs agrees on every order (✓): two independent methods, one answer.' : ''}` : 'A node limit or a disagreement is marked in the table; treat those values as bounds only.');
+  R.line = 8; R.snap(`Summary: ${word} of m under <code>${esc(P.cond || 'no condition')}</code>, solved as an ILP for each order.`, lastRes.r.adj ? { graph: toGraph(lastRes.r.adj, lastRes.k), nc: nc(toGraph(lastRes.r.adj, lastRes.k)), panel: verdict + table(['n', 'constraints', `${word} m`, 'B&B nodes', 'time', 'exhaustive'], rows, 'compact') + intro } : { panel: verdict + table(['n', 'constraints', `${word} m`, 'B&B nodes', 'time', 'exhaustive'], rows, 'compact') + intro }, true);
+  return { frames: R.frames, rows };
+}
+function algExtremalAnneal(P) {
+  const R = new Rec(), max = P.goal !== 'min', word = max ? 'maximum' : 'minimum';
+  const nmax = Math.max(2, Math.min(12, P.n | 0)), nmin = Math.max(2, Math.min(nmax, (P.from | 0) || 1));
+  const steps = Math.max(200, Math.min(20000, (P.steps | 0) || 3000)), rand = rng(P.seed || 1);
+  const obj = compileExpr(P.obj || 'm'), cond = (P.cond || '').trim() ? compileExpr(P.cond) : () => 1;
+  const box = { x0: 150, x1: 650, y0: 70, y1: 450 };
+  const toGraph = (a, k) => { const g = newGraph(false); for (let i = 0; i < k; i++) addNode(g, '0|' + i, String(i)); for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) if (a[i] >> j & 1) g.edges.push({ u: i, v: j, w: 1 }); if (!(g.edges.length && twoColoring(g) && layoutGraph(g, 'columns', box))) forceLayout(g, box, 300, 5); return g; };
+  const nc = g => { const c = g.edges.length ? twoColoring(g) : null, o = {}; if (c) g.nodes.forEach((v, i) => { o[i] = 'k' + c[i]; }); return o; };
+  const T = extremalTable(Object.assign({}, P, { from: nmin, n: Math.min(8, nmax) }));
+  const rows = [], head = ['n', `best ${word} found`, 'exhaustive (exact)', 'verdict'];
+  let lastRun = null;
+  for (let k = nmin; k <= nmax; k++) {
+    const run = extremalAnneal(k, P, obj, cond, steps, rand); lastRun = { k, run };
+    const ex = k <= 8 ? T.rows.find(x => x.k === k) : null;
+    const v = run.best === null ? '—' : fmt(run.best);
+    const verdict = !ex ? 'only a bound' : ex.best === null ? (run.best === null ? '✓ none exists' : '✗') : run.best === ex.best ? '✓ found the optimum' : `missed by ${fmt(Math.abs(ex.best - (run.best ?? ex.best)))}`;
+    rows.push([k, v, ex ? (ex.best === null ? '—' : fmt(ex.best)) : 'n > 8', verdict]);
+  }
+  const { k, run } = lastRun;
+  R.line = 5;
+  run.snaps.forEach(s => { const g = toGraph(s.a, k); R.snap(`n = ${k}, step ${s.it.toLocaleString()} of ${steps.toLocaleString()} (temperature ${s.T.toFixed(2)}): toggle one random pair; keep the change if the score does not drop, otherwise only with probability e<sup>−drop/T</sup>. Current ${esc(P.obj || 'm')} = ${fmt(s.val)}${s.feas ? '' : ', condition violated'}; best feasible ${s.best === null ? '—' : fmt(s.best)}.`, { graph: g, nc: nc(g), panel: h4('Score = objective − λ·[condition fails]') + `<p class="note">λ = ${2 * k + 2}. Infeasible graphs are allowed but penalised, so the walk can cross them while it is hot.</p>` + table(head, rows.slice(0, rows.length), 'compact') }); });
+  const miss = rows.some(r => /missed|✗/.test(r[3]));
+  R.line = 6;
+  const g = run.bestA ? toGraph(run.bestA, k) : toGraph(Array(k).fill(0), k);
+  R.snap(`Best feasible graph found on ${k} vertices: ${esc(P.obj || 'm')} = ${run.best === null ? '— (none found)' : fmt(run.best)}.`, { graph: g, nc: nc(g), panel: cert(miss ? 'no' : 'info', miss ? 'Annealing missed the optimum on some order' : `Annealing found ${nmax > 8 ? 'values for every order; beyond 8 vertices they are only bounds' : 'the exhaustive optimum on every order'}`, `A heuristic only proves what it finds: each graph it returns is a valid example, so its value is a ${max ? 'lower' : 'upper'} bound on the ${word}. A miss is not evidence against a conjecture; rerun with more steps or another seed, or switch to the exhaustive or ILP method for a proof.`) + table(head, rows, 'compact') + (run.bestA ? `<p class="note mono">graph6: ${esc(encodeGraph6(g))}</p>` : '') }, true);
+  return { frames: R.frames, rows };
+}
 function algExtremal(g0, P) {
+  if (P.method === 'ilp') return algExtremalILP(P);
+  if (P.method === 'anneal') return algExtremalAnneal(P);
   const R = new Rec(), T = extremalTable(P), last = T.rows[T.rows.length - 1], word = T.max ? 'maximum' : 'minimum';
   const box = { x0: 150, x1: 650, y0: 70, y1: 450 };
   const toGraph = (a, k) => { const g = newGraph(false); for (let i = 0; i < k; i++) addNode(g, '0|' + i, String(i)); for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) if (a[i] >> j & 1) g.edges.push({ u: i, v: j, w: 1 }); if (!(g.edges.length && twoColoring(g) && layoutGraph(g, 'columns', box))) forceLayout(g, box, 300, 5); return g; };
@@ -351,7 +500,8 @@ function algExtremal(g0, P) {
   const xk = P.x in INV_NAMES ? P.x : 'm', fo = compileExpr(P.obj || 'm');
   const plot = last.data.length ? h4(`${esc(P.obj || 'm')} against ${INV_NAMES[xk]} (n = ${last.k})`) + scatterPlot(last.data.map(d => { const v = fo(d.inv); return { a: d.a, inv: Object.assign({}, d.inv, { __obj: Number.isFinite(v) ? v : NaN }) }; }), xk, '__obj', d => d.inv.__obj === last.best).replace(/aria-label="[^"]*"/, `aria-label="objective against ${INV_NAMES[xk]}"`).replace('>undefined<', `>${esc(P.obj || 'm')}<`) + '<p class="note">Red points are the extremal graphs of the largest order; the shaded hull shows the region all graphs fill.</p>' : '';
   const invTable = (d) => table(Object.keys(INV_NAMES).filter(k => k !== 'n'), [Object.keys(INV_NAMES).filter(k => k !== 'n').map(k => fmt(d.inv[k]))], 'compact wide');
-  const summary = `<p class="exq">The ${q.replace(/of (.*?)( over graphs with )(.*?)(, connected only)?$/, (m0, o, w, c, k) => `of <code>${o}</code>${w}<code>${c}</code>${k || ''}`)}</p>` + verdict + table(head, rows, 'compact');
+  const capNote = (P.n | 0) > 8 ? `<p class="note">Exhaustive search stops at 8 vertices (12 346 graphs; 9 vertices would be 274 668). For larger n switch the method to ILP (exact, up to 9) or simulated annealing (heuristic, up to 12).</p>` : '';
+  const summary = capNote + `<p class="exq">The ${q.replace(/of (.*?)( over graphs with )(.*?)(, connected only)?$/, (m0, o, w, c, k) => `of <code>${o}</code>${w}<code>${c}</code>${k || ''}`)}</p>` + verdict + table(head, rows, 'compact');
   R.line = 1;
   if (last.best === null) { snapG(`No graph on ${last.k} vertices satisfies the condition (or the expression is not finite on them).`, toGraph(graphsOfOrder(last.k)[0], last.k), { panel: summary }, true); return { frames: R.frames, table: T }; }
   snapG(`The ${word} of ${esc(P.obj || 'm')} for n = ${T.nmin} … ${T.nmax}: ${T.rows.map(r => r.best === null ? '—' : fmt(r.best)).join(', ')}. Shown: an extremal graph on ${last.k} vertices; step on to see all of them and one per smaller order.`, toGraph(last.ext[0].a, last.k), { panel: summary + plot });

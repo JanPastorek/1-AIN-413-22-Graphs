@@ -261,6 +261,26 @@ for (const m of MODULES) { ok(m.tasks[0] && m.tasks[0].tag === 'Motivation', `${
   { const g = parseGraph('h x\nh y\nh z'); const c = CERTS.match.find(x => x.key === 'tutte').check(g, new Set()); ok(!c.ok, 'claw: U = ∅ is a valid but loose bound'); }
 }
 
+/* --- session 12: extremal search over all small graphs, and the new invariants --- */
+{
+  const adjOf = (n, E) => { const a = Array(n).fill(0); E.forEach(([u, v]) => { a[u] |= 1 << v; a[v] |= 1 << u; }); return a; };
+  const k4 = invariantsOf(adjOf(4, [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]]), 4), c5 = invariantsOf(adjOf(5, [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0]]), 5), two = invariantsOf(adjOf(5, [[0, 1], [2, 3], [3, 4]]), 5), star = invariantsOf(adjOf(5, [[0, 1], [0, 2], [0, 3], [0, 4]]), 5);
+  ok(k4.kappa === 3 && k4.gamma === 1 && k4.nu === 2 && k4.bip === 0 && k4.comp === 1, 'K₄: κ = 3, γ = 1, ν = 2, not bipartite');
+  ok(c5.kappa === 2 && c5.gamma === 2 && c5.nu === 2 && c5.bip === 0, 'C₅: κ = 2, γ = 2, ν = 2, not bipartite');
+  ok(two.comp === 2 && two.kappa === 0 && two.nu === 2 && two.bip === 1 && two.gamma === 2, 'K₂ + P₃: two components, κ = 0, ν = 2, γ = 2, bipartite');
+  ok(star.kappa === 1 && star.gamma === 1 && star.nu === 1 && star.bip === 1, 'star K₁,₄: κ = 1, γ = 1, ν = 1');
+  const vals = P => extremalTable(Object.assign({ from: 1, n: 8, scope: 'all' }, P)).rows.map(r => r.best);
+  ok(vals({ goal: 'max', obj: 'm', cond: 'tri == 0' }).join() === '0,1,2,4,6,9,12,16', 'Mantel: max edges of a triangle-free graph is ⌊n²/4⌋ for n ≤ 8');
+  { const T = extremalTable({ goal: 'max', obj: 'm', cond: 'tri == 0', from: 1, n: 8, scope: 'all', guess: 'floor(n^2/4)' }); ok(T.rows.every(r => r.match) && T.rows.every(r => r.ext.length === 1), 'Mantel guess matches and K⌊n/2⌋,⌈n/2⌉ is the unique extremal graph'); }
+  ok(vals({ goal: 'max', obj: 'm', cond: 'girth >= 5' }).join() === '0,1,2,3,5,6,8,10', 'no C₃ or C₄: OEIS A006855 for n ≤ 8');
+  ok(vals({ goal: 'min', obj: 'alpha', cond: 'tri == 0' }).join() === '1,1,2,2,2,3,3,3', 'triangle-free graphs on 6 vertices have α ≥ 3: R(3, 3) = 6');
+  ok(vals({ goal: 'max', obj: 'gamma', cond: 'dmin >= 1', from: 2 }).every((v, i) => v === Math.floor((i + 2) / 2)), 'Ore: without isolated vertices γ ≤ ⌊n/2⌋, attained');
+  { const T = extremalTable({ goal: 'min', obj: 'm', cond: 'conn', from: 1, n: 7, scope: 'all' }); ok(T.rows.every(r => r.best === r.k - 1 && r.ext.every(d => d.inv.m === r.k - 1 && d.inv.conn)), 'fewest edges of a connected graph: n − 1, attained only by trees'); ok(T.rows[6].ext.length === 11, '11 trees on 7 vertices'); }
+  { const T = extremalTable({ goal: 'max', obj: 'm', cond: 'tri == 0', from: 3, n: 6, scope: 'all', guess: 'n^2/4' }); ok(T.rows.find(r => r.match === false).k === 3, 'a wrong guess is caught at the first order where it fails'); }
+  { const r = algExtremal(null, { goal: 'max', obj: 'm', cond: 'tri == 0', from: 1, n: 6, scope: 'all', guess: 'floor(n^2/4)', x: 'alpha' }); ok(r.frames.length >= 3 && r.frames[0].panel.includes('cert yes') && r.frames[0].panel.includes('<svg class="mini scatter"'), 'extremal search: summary with verdict and scatter, then the extremal graphs'); }
+  { const r = algExtremal(null, { goal: 'max', obj: 'm', cond: 'm > 100', from: 1, n: 5, scope: 'all', guess: '', x: 'n' }); ok(r.frames.length === 1 && /No graph/.test(r.frames[0].msg), 'an impossible condition is reported, not crashed on'); }
+}
+
 /* --- the assembled page compiles: no clashing top-level names between source files --- */
 { const order = ORDER.concat(['app']); let err = null; try { new vm.Script(order.map(f => fs.readFileSync(path.join(SRC, f + '.js'), 'utf8')).join('\n')); } catch (e) { err = e.message; } ok(!err, 'all sources compile together' + (err ? ': ' + err : '')); }
 

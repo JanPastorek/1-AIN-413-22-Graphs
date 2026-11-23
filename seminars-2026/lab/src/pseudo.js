@@ -39,7 +39,7 @@ const PSEUDO = {
   'dom.greedy': ['D ← ∅', 'while some vertex is undominated', '  v ← vertex whose closed neighbourhood covers most undominated vertices', '  D ← D ∪ {v}', 'return D        ▹ at most (1 + ln(Δ+1))·γ'],
   'dom.exact': ['u ← first undominated vertex', '  some vertex of N[u] must be in D: branch on each', '  prune when |D| + ⌈undominated / (Δ+1)⌉ ≥ best'],
   'cagt.conj': ['generate all graphs on n vertices up to isomorphism', 'for each graph G: compute the invariants', '  if the statement is false for G: record a counterexample'],
-  'cagt.ext': ['for each order k from n₀ to n', '  for each graph G on k vertices (up to isomorphism) with the condition', '    compute the expression;  keep the best value and the graphs attaining it', '  report f*(k) and compare with the guess f(k)', 'look for the common structure of the extremal graphs'],
+  'cagt.ext': ['for each order k from n₀ to n', '  exhaustive: for each graph G on k vertices (up to isomorphism) with the condition', '    compute the expression;  keep the best value and the graphs attaining it', '  report f*(k) and compare with the guess f(k)', 'look for the common structure of the extremal graphs', 'annealing: toggle a random pair uv;  score = objective − λ·[condition fails]', '  keep it if the score does not drop, else with probability e^(−drop/T);  cool T', 'ILP: x_uv ∈ {0,1} per pair;  max/min Σ x_uv;  one linear constraint per forbidden subgraph', '  branch on x_uv = 1 / 0;  cut a branch if a constraint fails or the bound cannot beat the best'],
   'cagt.gen': ['for each graph G′ on n − 1 vertices', '  for each subset S of V(G′)', '    G ← G′ plus a new vertex joined to S', '    if G ≅ a kept graph: discard;  else keep G'],
   'cagt.sa': ['G ← empty graph;  T ← T₀', 'repeat', '  toggle a random pair uv;  ΔE ← change in (−edges + λ·violations)', '  accept if ΔE ≤ 0, else with probability e^(−ΔE/T)', '  T ← T · cooling', 'return the best graph with no violations'],
 };
@@ -86,7 +86,7 @@ const IDEAS = {
   'dom.greedy': 'Repeatedly add the vertex that dominates the most vertices not yet dominated. Idea: like greedy set cover, it is never worse than about ln(Δ + 1) times the optimum.',
   'dom.exact': 'Pick an undominated vertex u; some vertex of its closed neighbourhood must be in the set, so branch on each, and prune branches that cannot beat the best set found. Idea: every vertex dominates at most Δ + 1 vertices, so the remaining undominated vertices give a lower bound for pruning.',
   'cagt.conj': 'Check the statement on every graph of the chosen order, one isomorphism class at a time, and plot the invariants. Idea: an exhaustive search finds a counterexample of that order whenever one exists; finding none is evidence for the statement, not a proof.',
-  'cagt.ext': 'For every order, run through all graphs that satisfy the condition and record the largest (or smallest) value of the expression, together with every graph attaining it. Idea: on small orders an exhaustive search gives the exact extremal values, a sequence to guess a formula from, and the extremal graphs that suggest the construction to prove it.',
+  'cagt.ext': 'Three methods. Exhaustive: for every order, run through all graphs that satisfy the condition and record the largest (or smallest) value of the expression, together with every graph attaining it. Idea: on small orders an exhaustive search gives the exact extremal values, a sequence to guess a formula from, and the extremal graphs that suggest the construction to prove it. ILP: write the question as an integer program (one 0/1 variable per vertex pair, one linear constraint per forbidden subgraph) and let branch and bound prove the optimum without listing every graph. Simulated annealing: a randomised local search that reaches larger n but proves only what it finds, a bound. In short: exact methods give theorems for small n; the heuristic gives constructions beyond them.',
   'cagt.gen': 'Build the graphs on n vertices by adding a new vertex to each graph on n − 1 vertices in every possible way, and keep one copy of each isomorphism class. Idea: every graph arises this way (delete any vertex), so nothing is missed, and isomorphism tests remove duplicates.',
   'cagt.sa': 'Flip random pairs between edge and non-edge, always accepting improvements and sometimes accepting worse graphs, less often as the temperature drops. Idea: occasional uphill moves let the search escape local optima on its way to an extremal graph.',
 };
@@ -147,7 +147,54 @@ function pythonSnippet(modKey, algoKey, g, P) {
     case 'random.real': return head + `G = nx.read_edgelist("data/openflights/openflights_usa.edges.gz")  # from the course repo\nn, m = G.number_of_nodes(), G.number_of_edges()\nR = nx.gnm_random_graph(n, m, seed=1)\nfor name, H in [("airports", G), ("G(n, m)", R)]:\n    print(name, nx.transitivity(H), max(d for _, d in H.degree()))`;
     case 'dom.greedy': case 'dom.exact': return head + G + `print("a dominating set (not necessarily minimum):", nx.dominating_set(G))\n\n# exact: the domination ILP with SciPy's MILP solver (SciPy >= 1.9)\nimport numpy as np\nfrom scipy.optimize import milp, LinearConstraint, Bounds\nV = list(G); idx = {v: i for i, v in enumerate(V)}\nA = np.zeros((len(V), len(V)))\nfor v in V:\n    A[idx[v], idx[v]] = 1          # x(v) + sum of x(u) over neighbours u >= 1\n    for u in G[v]:\n        A[idx[v], idx[u]] = 1\nfor integral in (True, False):\n    res = milp(c=np.ones(len(V)), constraints=LinearConstraint(A, lb=1), integrality=np.ones(len(V)) if integral else None, bounds=Bounds(0, 1))\n    print("ILP gamma =" if integral else "LP bound  =", round(res.fun, 3), [V[i] for i in range(len(V)) if res.x[i] > 0.5] if integral else "")`;
     case 'cagt.conj': return head + `# nx.graph_atlas_g() lists every graph on at most 7 vertices up to isomorphism\nn = ${Math.min(7, P.n)}\nbad = []\nfor G in nx.graph_atlas_g():\n    if G.number_of_nodes() != n or not nx.is_connected(G):\n        continue\n    chi = max(nx.greedy_color(G, "DSATUR").values()) + 1  # upper bound only! replace by an exact routine\n    dmax = max(d for _, d in G.degree())\n    if not chi <= dmax:\n        bad.append(nx.to_graph6_bytes(G, header=False))\nprint(len(bad), bad)`;
-    case 'cagt.ext': return `# Exhaustive extremal search with networkx's atlas (all graphs on at most 7 vertices)\nimport networkx as nx\nfrom collections import defaultdict\n\nbest = defaultdict(lambda: None)\nfor G in nx.graph_atlas_g()[1:]:\n    n, m = G.number_of_nodes(), G.number_of_edges()\n    if sum(nx.triangles(G).values()) == 0:          # condition: triangle-free (edit me)\n        value = m                                     # expression to ${P.goal === 'min' ? 'minimise' : 'maximise'} (edit me)\n        b = best[n]\n        if b is None or value ${P.goal === 'min' ? '<' : '>'} b[0]:\n            best[n] = (value, [G])\n        elif value == b[0]:\n            b[1].append(G)\nfor n in sorted(best):\n    v, Gs = best[n]\n    print(n, v, len(Gs), [nx.to_graph6_bytes(H, header=False).decode().strip() for H in Gs[:3]])`;
+    case 'cagt.ext': if (P.method === 'ilp') { const { atoms } = ilpParseCond(P.cond); const n = Math.max(2, Math.min(12, P.n | 0)); return `# Extremal ILP solved with SciPy's MILP solver (HiGHS): ${P.goal === 'min' ? 'minimise' : 'maximise'} m subject to ${(P.cond || '').replace(/`/g, '')}
+import itertools
+import numpy as np
+from scipy.optimize import milp, LinearConstraint, Bounds
+
+n = ${n}
+pairs = list(itertools.combinations(range(n), 2))
+idx = {p: i for i, p in enumerate(pairs)}
+x = lambda u, v: idx[(min(u, v), max(u, v))]
+rows, lo, hi = [], [], []
+def add(vars_, l, h):
+    r = np.zeros(len(pairs)); r[vars_] = 1; rows.append(r); lo.append(l); hi.append(h)
+${atoms.map(a => a.kind === 'clique' ? `for S in itertools.combinations(range(n), ${a.k}):            # no K${a.k}\n    add([x(u, v) for u, v in itertools.combinations(S, 2)], 0, ${a.k * (a.k - 1) / 2 - 1})` : a.kind === 'indep' ? `for S in itertools.combinations(range(n), ${a.k}):            # no independent ${a.k}-set\n    add([x(u, v) for u, v in itertools.combinations(S, 2)], 1, np.inf)` : a.kind === 'cycle' ? `for S in itertools.combinations(range(n), ${a.k}):            # no C${a.k}\n    for p in itertools.permutations(S[1:]):\n        if p[0] < p[-1]:\n            c = (S[0],) + p\n            add([x(c[i], c[(i + 1) % ${a.k}]) for i in range(${a.k})], 0, ${a.k - 1})` : a.kind === 'dmax' || a.kind === 'dmin' ? `for v in range(n):                                  # degree ${a.kind === 'dmax' ? '≤' : '≥'} ${a.k}\n    add([x(v, w) for w in range(n) if w != v], ${a.kind === 'dmax' ? 0 : a.k}, ${a.kind === 'dmax' ? a.k : 'np.inf'})` : `add(list(range(len(pairs))), ${a.op === '<=' ? 0 : a.k}, ${a.op === '>=' ? 'np.inf' : a.k})        # size`).join('\n')}
+c = np.full(len(pairs), ${P.goal === 'min' ? '1.0' : '-1.0'})                 # milp minimises
+cons = [LinearConstraint(np.array(rows), lo, hi)] if rows else []
+res = milp(c, constraints=cons, integrality=np.ones(len(pairs)), bounds=Bounds(0, 1))
+if res.status == 0:
+    E = [pairs[i] for i in range(len(pairs)) if res.x[i] > 0.5]
+    print('optimum m =', len(E)); print(E)
+else:
+    print(res.message)`; }
+      if (P.method === 'anneal') return `# Simulated annealing for an extremal question (edit feasible() and value() for your condition and expression)
+import math, random
+import networkx as nx
+
+random.seed(${P.seed || 1})
+n, steps = ${Math.max(2, Math.min(12, P.n | 0))}, ${P.steps || 3000}
+def feasible(G):                    # condition (edit me): triangle-free
+    return sum(nx.triangles(G).values()) == 0
+def value(G):                       # expression (edit me): number of edges
+    return G.number_of_edges()
+def score(G):
+    return ${P.goal === 'min' ? '-' : ''}value(G) - (0 if feasible(G) else 2 * n + 2)
+
+G = nx.empty_graph(n); cur = score(G); best = None
+for it in range(1, steps + 1):
+    T = 1.5 * (0.02 / 1.5) ** (it / steps)
+    u, v = random.sample(range(n), 2)
+    H = G.copy()
+    if H.has_edge(u, v): H.remove_edge(u, v)
+    else: H.add_edge(u, v)
+    s = score(H)
+    if s >= cur or random.random() < math.exp((s - cur) / T):
+        G, cur = H, s
+        if feasible(G) and (best is None or ${P.goal === 'min' ? 'value(G) < best[0]' : 'value(G) > best[0]'}):
+            best = (value(G), G.copy())
+print('best value found:', best[0] if best else None, '(a heuristic: only a bound)')`;
+      return `# Exhaustive extremal search with networkx's atlas (all graphs on at most 7 vertices)\nimport networkx as nx\nfrom collections import defaultdict\n\nbest = defaultdict(lambda: None)\nfor G in nx.graph_atlas_g()[1:]:\n    n, m = G.number_of_nodes(), G.number_of_edges()\n    if sum(nx.triangles(G).values()) == 0:          # condition: triangle-free (edit me)\n        value = m                                     # expression to ${P.goal === 'min' ? 'minimise' : 'maximise'} (edit me)\n        b = best[n]\n        if b is None or value ${P.goal === 'min' ? '<' : '>'} b[0]:\n            best[n] = (value, [G])\n        elif value == b[0]:\n            b[1].append(G)\nfor n in sorted(best):\n    v, Gs = best[n]\n    print(n, v, len(Gs), [nx.to_graph6_bytes(H, header=False).decode().strip() for H in Gs[:3]])`;
     case 'cagt.gen': return `# The lab's method, for small n. For real work use nauty:  geng -c ${P.n}  (connected graphs)\nimport networkx as nx\nfrom itertools import combinations\n\ndef graphs_of_order(n):\n    if n == 1:\n        return [nx.empty_graph(1)]\n    out = []\n    for H in graphs_of_order(n - 1):\n        for k in range(n):\n            for S in combinations(range(n - 1), k):\n                G = H.copy(); G.add_node(n - 1); G.add_edges_from((n - 1, s) for s in S)\n                if not any(nx.is_isomorphic(G, K) for K in out):\n                    out.append(G)\n    return out\n\nprint([len(graphs_of_order(n)) for n in range(1, ${Math.min(6, P.n + 1)})])`;
     case 'cagt.sa': return `import math, random\nimport networkx as nx\n\ndef anneal(n=${P.n}, steps=${P.iters}, lam=1.6, seed=${P.seed}):\n    rnd = random.Random(seed); G = nx.empty_graph(n); best = None\n    viol = lambda: sum(nx.triangles(G).values()) // 3   # triangle count\n    for t in range(steps):\n        T = 1.5 * (0.02) ** (t / steps)\n        u, v = rnd.sample(range(n), 2)\n        before = -G.number_of_edges() + lam * viol()\n        G.remove_edge(u, v) if G.has_edge(u, v) else G.add_edge(u, v)\n        dE = -G.number_of_edges() + lam * viol() - before\n        if dE > 0 and rnd.random() >= math.exp(-dE / T):\n            G.remove_edge(u, v) if G.has_edge(u, v) else G.add_edge(u, v)\n        if viol() == 0 and (best is None or G.number_of_edges() > best.number_of_edges()):\n            best = G.copy()\n    return best\n\nB = anneal(); print(B.number_of_edges(), "edges; Mantel bound", ${P.n} ** 2 // 4)`;
     default: return head + G + '# no export for this view';

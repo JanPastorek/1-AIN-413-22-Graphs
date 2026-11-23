@@ -2357,6 +2357,145 @@ function extremalAnneal(k, P, obj, cond, steps, rand) {
   }
   return { best, bestA, snaps };
 }
+/* ---------- extremal search, method 4: SAT (CNF encoding, a small CDCL solver, one call per target value) ---------- */
+/* Small CDCL SAT solver: two watched literals, 1-UIP learning, activity heuristic, restarts. Literals: +v / -v (v ≥ 1). */
+function satSolve(nv, clauses, limit = 2e6) {
+  const val = new Int8Array(nv + 1), lvl = new Int32Array(nv + 1), reason = new Array(nv + 1).fill(null), act = new Float64Array(nv + 1);
+  const W = new Map(); const watch = l => { let a = W.get(l); if (!a) W.set(l, a = []); return a; };
+  const trail = [], lim = []; let qh = 0, inc = 1, conflicts = 0, decisions = 0, props = 0;
+  const value = l => { const v = val[Math.abs(l)]; return v === 0 ? 0 : (l > 0 ? v : -v); };
+  const assign = (l, r) => { val[Math.abs(l)] = l > 0 ? 1 : -1; lvl[Math.abs(l)] = lim.length; reason[Math.abs(l)] = r; trail.push(l); };
+  const C = [];
+  const addC = c => { c = [...new Set(c)]; if (c.some(l => c.includes(-l))) return true; if (c.length === 0) return false; if (c.length === 1) { const v = value(c[0]); if (v === -1) return false; if (v === 0) assign(c[0], null); return true; } C.push(c); watch(-c[0]).push(c); watch(-c[1]).push(c); return true; };
+  for (const c of clauses) if (!addC(c.slice())) return { sat: false, conflicts, decisions };
+  const propagate = () => {
+    while (qh < trail.length) {
+      const l = trail[qh++]; const ws = W.get(l); if (!ws) continue; props++;
+      for (let i = 0; i < ws.length;) {
+        const c = ws[i]; if (c[0] === -l) { c[0] = c[1]; c[1] = -l; }
+        if (value(c[0]) === 1) { i++; continue; }
+        let found = false;
+        for (let k = 2; k < c.length; k++) if (value(c[k]) !== -1) { c[1] = c[k]; c[k] = -l; watch(-c[1]).push(c); ws[i] = ws[ws.length - 1]; ws.pop(); found = true; break; }
+        if (found) continue;
+        if (value(c[0]) === -1) return c;
+        if (value(c[0]) === 0) assign(c[0], c);
+        i++;
+      }
+    }
+    return null;
+  };
+  const backtrack = L => { while (trail.length > (lim[L] ?? trail.length)) { const l = trail.pop(); val[Math.abs(l)] = 0; reason[Math.abs(l)] = null; } lim.length = L; qh = trail.length; };
+  let restartAt = 100;
+  while (true) {
+    const confl = propagate();
+    if (confl) {
+      conflicts++; if (conflicts > limit) return { sat: null, conflicts, decisions };
+      if (lim.length === 0) return { sat: false, conflicts, decisions };
+      const seen = new Uint8Array(nv + 1), learnt = [0]; let cnt = 0, p = 0, c = confl, idx = trail.length - 1;
+      do {
+        for (const q of c) { if (q === p) continue; const v = Math.abs(q); if (!seen[v] && lvl[v] > 0) { seen[v] = 1; act[v] += inc; if (lvl[v] >= lim.length) cnt++; else learnt.push(q); } }
+        while (!seen[Math.abs(trail[idx])]) idx--;
+        p = trail[idx]; c = reason[Math.abs(p)] || []; seen[Math.abs(p)] = 0; cnt--; idx--;
+      } while (cnt > 0);
+      learnt[0] = -p; inc *= 1.05;
+      let bl = 0, bi = 1; for (let i = 1; i < learnt.length; i++) if (lvl[Math.abs(learnt[i])] > bl) { bl = lvl[Math.abs(learnt[i])]; bi = i; }
+      if (learnt.length > 1) [learnt[1], learnt[bi]] = [learnt[bi], learnt[1]];
+      backtrack(bl);
+      if (learnt.length === 1) assign(learnt[0], null); else { C.push(learnt); watch(-learnt[0]).push(learnt); watch(-learnt[1]).push(learnt); assign(learnt[0], learnt); }
+      if (conflicts >= restartAt) { restartAt += Math.floor(restartAt * 0.5) + 100; backtrack(0); }
+    } else {
+      let best = 0, ba = -1; for (let v = 1; v <= nv; v++) if (!val[v] && act[v] > ba) { ba = act[v]; best = v; }
+      if (!best) { const model = Array.from(val); return { sat: true, model, conflicts, decisions }; }
+      decisions++; lim.push(trail.length); assign(-best, null);
+    }
+  }
+}
+/* Sinz sequential counter: at most k of lits are true. newVar() allocates auxiliaries. */
+function atMostK(lits, k, newVar, out) {
+  const n = lits.length; if (k >= n) return; if (k < 0) { out.push([]); return; }
+  if (k === 0) { lits.forEach(l => out.push([-l])); return; }
+  const s = []; for (let i = 0; i < n - 1; i++) { s.push([]); for (let j = 0; j < k; j++) s[i].push(newVar()); }
+  out.push([-lits[0], s[0][0]]); for (let j = 1; j < k; j++) out.push([-s[0][j]]);
+  for (let i = 1; i < n - 1; i++) {
+    out.push([-lits[i], s[i][0]]); out.push([-s[i - 1][0], s[i][0]]);
+    for (let j = 1; j < k; j++) { out.push([-lits[i], -s[i - 1][j - 1], s[i][j]]); out.push([-s[i - 1][j], s[i][j]]); }
+    out.push([-lits[i], -s[i - 1][k - 1]]);
+  }
+  out.push([-lits[n - 1], -s[n - 2][k - 1]]);
+}
+const atLeastK = (lits, k, newVar, out) => atMostK(lits.map(l => -l), lits.length - k, newVar, out);
+/* CNF for "a graph on n vertices with the conditions and m ≥ t (max) or m ≤ t (min)". Variable x_uv = edge uv. */
+function satEncode(n, atoms, goal, t) {
+  const M = ilpModel(n, atoms), pairVar = i => i + 1; let nv = M.V.length;
+  const clauses = [], groups = [];
+  const newVar = () => ++nv;
+  for (const c of M.C) {
+    const lits = c.vars.map(pairVar), start = clauses.length;
+    if (c.sense === '<=' && c.rhs === lits.length - 1) clauses.push(lits.map(l => -l));            // not all edges of this subgraph
+    else if (c.sense === '>=' && c.rhs === 1) clauses.push(lits.slice());                          // at least one edge
+    else if (c.sense === '<=') atMostK(lits, c.rhs, newVar, clauses);
+    else if (c.sense === '>=') atLeastK(lits, c.rhs, newVar, clauses);
+    else { atMostK(lits, c.rhs, newVar, clauses); atLeastK(lits, c.rhs, newVar, clauses); }
+    groups.push({ tag: c.tag, from: start, to: clauses.length });
+  }
+  const start = clauses.length, all = M.V.map((_, i) => pairVar(i));
+  if (goal === 'max') atLeastK(all, t, newVar, clauses); else atMostK(all, t, newVar, clauses);
+  groups.push({ tag: goal === 'max' ? `m ≥ ${t}` : `m ≤ ${t}`, from: start, to: clauses.length, card: true });
+  return { M, nv, clauses, groups };
+}
+function satText(n, E) {
+  const name = v => v <= E.M.V.length ? `x${E.M.V[v - 1][0]}${n > 10 ? '_' : ''}${E.M.V[v - 1][1]}` : `s${v - E.M.V.length}`;
+  const lit = l => (l < 0 ? '¬' : '') + name(Math.abs(l));
+  const lines = [];
+  const seenTag = new Map();
+  for (const g of E.groups) { const k = g.card ? g.tag : g.tag.replace(/ of \d+$/, ''); seenTag.set(k, (seenTag.get(k) || []).concat([g])); }
+  for (const [tag, gs] of seenTag) {
+    const cls = gs.flatMap(g => E.clauses.slice(g.from, g.to));
+    lines.push(`— ${tag}: ${cls.length} clause${cls.length === 1 ? '' : 's'}`);
+    cls.slice(0, 3).forEach(c => { let t = '  (' + c.map(lit).join(' ∨ ') + ')'; if (t.length > 40) t = t.slice(0, 38) + '…)'; lines.push(t); });
+    if (cls.length > 3) lines.push('  …');
+  }
+  const dimacs = [`c extremal graph question as CNF: x variables 1..${E.M.V.length} are vertex pairs, the rest are counter bits`, ...E.M.V.map((p, i) => `c ${i + 1} = x${p[0]}${n > 10 ? '_' : ''}${p[1]}`), `p cnf ${E.nv} ${E.clauses.length}`, ...E.clauses.map(c => c.join(' ') + ' 0')].join('\n');
+  return { text: lines.join('\n'), dimacs };
+}
+function algExtremalSAT(P) {
+  const R = new Rec(), max = P.goal !== 'min', word = max ? 'maximum' : 'minimum';
+  const nmax = Math.max(1, Math.min(9, P.n | 0)), nmin = Math.max(2, Math.min(nmax, (P.from | 0) || 1));
+  const box = { x0: 150, x1: 650, y0: 70, y1: 450 };
+  const toGraph = (a, k) => { const g = newGraph(false); for (let i = 0; i < k; i++) addNode(g, '0|' + i, String(i)); for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) if (a[i] >> j & 1) g.edges.push({ u: i, v: j, w: 1 }); if (!(g.edges.length && twoColoring(g) && layoutGraph(g, 'columns', box))) forceLayout(g, box, 300, 5); return g; };
+  const nc = g => { const c = g.edges.length ? twoColoring(g) : null, o = {}; if (c) g.nodes.forEach((v, i) => { o[i] = 'k' + c[i]; }); return o; };
+  const why = [];
+  if ((P.obj || 'm').trim() !== 'm') why.push(`SAT answers yes/no questions; here the question is “is there a graph with m ≥ t?”, so the expression must be <code>m</code>, not <code>${esc(P.obj)}</code>`);
+  if (P.scope === 'connected') why.push('connectivity is not encoded here; choose “all” graphs or the exhaustive method');
+  const { atoms, bad } = ilpParseCond(P.cond);
+  if (bad.length) why.push(`no clause form here for <code>${bad.map(esc).join('</code>, <code>')}</code>. Supported: <code>tri == 0</code>, <code>omega &lt;= k</code>, <code>girth &gt;= g</code> (g ≤ 6), <code>alpha &lt;= k</code>, <code>dmax &lt;= k</code>, <code>dmin &gt;= k</code>, <code>m &gt;= k</code>, joined by <code>&amp;&amp;</code>`);
+  if (why.length) { R.line = 9; R.snap('This question cannot be written as the SAT formula used here.', { graph: toGraph([0, 0, 0], 3), panel: cert('info', 'Not a SAT question of this form', why.map(w => '• ' + w).join('<br>') + '<br>Switch the method to exhaustive search or simulated annealing.') }, true); return { frames: R.frames }; }
+  const t0 = max ? Math.floor(nmax * (nmax - 1) / 4) : 0, E0 = satEncode(nmax, atoms, max ? 'max' : 'min', t0), Tx = satText(nmax, E0);
+  const enc = fold('ext-sat-cnf', `The CNF for n = ${nmax} and ${max ? 'm ≥ ' : 'm ≤ '}${t0}: ${E0.nv} variables, ${E0.clauses.length} clauses`, `<pre class="ilp model">${esc(Tx.text)}</pre><p class="note">A Boolean variable x<sub>uv</sub> says “uv is an edge”. A forbidden triangle {a, b, c} is the clause (¬x<sub>ab</sub> ∨ ¬x<sub>ac</sub> ∨ ¬x<sub>bc</sub>): not all three edges. A forbidden independent set {a, b, c} is (x<sub>ab</sub> ∨ x<sub>ac</sub> ∨ x<sub>bc</sub>): at least one edge. Counting (“at least t edges”, degree bounds) needs extra counter variables s<sub>i</sub> (sequential counter of Sinz). The solver answers SAT with a graph, or UNSAT: then no such graph exists.</p><details class="lpfile"><summary>As a DIMACS file for any SAT solver</summary><p class="note">Save as <code>graph.cnf</code>; kissat, CaDiCaL, MiniSat or Glucose read it. Solvers like these proved Keller's conjecture in dimension 7 and the Boolean Pythagorean triples theorem.</p><button type="button" class="copybtn" data-copy="cnffile">Copy CNF file</button><pre class="ilp lpsrc" data-kind="cnffile">${esc(Tx.dimacs)}</pre></details>`);
+  const cap = (P.n | 0) > 9 ? '<p class="note">The browser solver stops at 9 vertices; the Python tab writes the same formula for PySAT.</p>' : '';
+  R.line = 9; R.snap(`SAT asks yes/no questions about Boolean formulas. Each vertex pair gets a variable x<sub>uv</sub> (true = edge); every condition becomes clauses; the objective becomes the question “${max ? 'is there a graph with at least t edges' : 'is there a graph with at most t edges'}?”, asked for t = ${max ? '0, 1, 2, …' : '0, 1, 2, …'} until the answer changes.`, { graph: toGraph(Array(nmax).fill(0), nmax), panel: cap + enc });
+  const T = nmax <= 8 ? extremalTable(Object.assign({}, P, { from: nmin, n: nmax, obj: 'm' })) : null;
+  const rows = [], head = ['n', `${word} m`, 'SAT calls (last two)', 'conflicts', 'exhaustive'];
+  let last = null;
+  for (let k = nmin; k <= nmax; k++) {
+    const P2 = k * (k - 1) / 2; let best = null, bestA = null, calls = [], conf = 0, unknown = false;
+    const tryT = t => { const E = satEncode(k, atoms, max ? 'max' : 'min', t), r = satSolve(E.nv, E.clauses); conf += r.conflicts; calls.push({ t, r, E }); return r; };
+    if (max) { for (let t = 0; t <= P2; t++) { const r = tryT(t); if (r.sat === null) { unknown = true; break; } if (!r.sat) break; best = t; bestA = r.model; } }
+    else { for (let t = 0; t <= P2; t++) { const r = tryT(t); if (r.sat === null) { unknown = true; break; } if (r.sat) { best = t; bestA = r.model; break; } } }
+    let adj = null; if (bestA) { adj = Array(k).fill(0); const M = ilpModel(k, []); M.V.forEach(([u, v], i) => { if (bestA[i + 1] === 1) { adj[u] |= 1 << v; adj[v] |= 1 << u; } }); if (popcountAdj(adj) !== best) { /* the formula allows more edges than t; report the real count */ best = max ? Math.max(best, popcountAdj(adj)) : popcountAdj(adj); } }
+    const ex = T ? T.rows.find(x => x.k === k) : null;
+    const lastTwo = calls.slice(-2).map(c => `${max ? 'm ≥ ' : 'm ≤ '}${c.t}: ${c.r.sat === null ? '?' : c.r.sat ? 'SAT' : 'UNSAT'}`).join(', ');
+    rows.push([k, best === null ? (unknown ? 'stopped' : 'none') : best, lastTwo, conf.toLocaleString(), ex ? (ex.best === null ? (best === null ? '— ✓' : '— ✗') : `${ex.best} ${ex.best === best ? '✓' : '✗'}`) : 'n > 8']);
+    last = { k, adj, best, calls };
+    R.line = 10;
+    const msg = best === null ? `n = ${k}: ${unknown ? 'the solver hit its conflict limit' : 'already t = 0 is UNSAT: no graph on ' + k + ' vertices satisfies the conditions'}.` : `n = ${k}: ${max ? `m ≥ ${best} is SAT (the solver returns the graph shown), m ≥ ${best + 1} is UNSAT` : `m ≤ ${best - 1} is UNSAT, m ≤ ${best} is SAT`}. So the ${word} is ${best}. The UNSAT answer is the proof: a solver can log it as a DRAT certificate for an independent checker.`;
+    R.snap(msg, adj ? { graph: toGraph(adj, k), nc: nc(toGraph(adj, k)), panel: table(head, rows.slice(), 'compact') } : { graph: toGraph(Array(k).fill(0), k), panel: table(head, rows.slice(), 'compact') });
+  }
+  const allOk = rows.every(r => /✓|n > 8/.test(r[4]) && r[1] !== 'stopped');
+  R.line = 10; R.snap(`Summary: ${word} of m under <code>${esc(P.cond || 'no condition')}</code>, decided by a sequence of SAT calls per order.`, Object.assign(last.adj ? { graph: toGraph(last.adj, last.k), nc: nc(toGraph(last.adj, last.k)) } : {}, { panel: cert(allOk ? 'yes' : 'info', allOk ? `SAT decides the ${word} for n = ${nmin} … ${nmax}` : 'Some orders are not settled', allOk ? `Each value comes with a graph (SAT) and a proof that one more is impossible (UNSAT). ${T ? 'The exhaustive search agrees on every order (✓).' : ''}` : 'A conflict limit or disagreement is marked in the table.') + table(head, rows, 'compact') + enc }), true);
+  return { frames: R.frames, rows };
+}
+function popcountAdj(adj) { return adj.reduce((s, a) => s + popcnt(a), 0) / 2; }
 function algExtremalILP(P) {
   const R = new Rec(), max = P.goal !== 'min', word = max ? 'maximum' : 'minimum';
   const nmax = Math.max(1, Math.min(9, P.n | 0)), nmin = Math.max(2, Math.min(nmax, (P.from | 0) || 1));
@@ -2418,6 +2557,7 @@ function algExtremalAnneal(P) {
 }
 function algExtremal(g0, P) {
   if (P.method === 'ilp') return algExtremalILP(P);
+  if (P.method === 'sat') return algExtremalSAT(P);
   if (P.method === 'anneal') return algExtremalAnneal(P);
   const R = new Rec(), T = extremalTable(P), last = T.rows[T.rows.length - 1], word = T.max ? 'maximum' : 'minimum';
   const box = { x0: 150, x1: 650, y0: 70, y1: 450 };
@@ -3305,7 +3445,7 @@ const MODULES = [
     key: 'cagt', num: 12, title: 'Computer-assisted graph theory', studio: 'Graphathon', anchor: 'Isomorph-free generation, counterexample search, simulated annealing', own: true,
     algos: [
       { key: 'conj', name: 'Test a conjecture on all small graphs', run: algConjecture, own: true, params: [{ id: 'expr', type: 'text', label: 'Statement', def: 'chi <= dmax' }, { id: 'n', type: 'int', label: 'order n', def: 6, min: 1, max: 8 }, { id: 'scope', type: 'select', label: 'Graphs', options: [['connected', 'connected only'], ['all', 'all']], def: 'connected' }, { id: 'x', type: 'select', label: 'Plot x', options: Object.entries(INV_NAMES), def: 'dmax' }, { id: 'y', type: 'select', label: 'Plot y', options: Object.entries(INV_NAMES), def: 'chi' }] },
-      { key: 'ext', name: 'Find extremal graphs (all small graphs)', run: algExtremal, own: true, params: [{ id: 'method', type: 'select', label: 'Method', options: [['exh', 'exhaustive: every graph (exact, n ≤ 8)'], ['ilp', 'ILP, branch and bound (exact, edges m, n ≤ 9)'], ['anneal', 'simulated annealing (heuristic, n ≤ 12)']], def: 'exh' }, { id: 'goal', type: 'select', label: 'Goal', options: [['max', 'maximise'], ['min', 'minimise']], def: 'max' }, { id: 'obj', type: 'text', label: 'Expression', def: 'm' }, { id: 'cond', type: 'text', label: 'Subject to', def: 'tri == 0' }, { id: 'from', type: 'int', label: 'from n', def: 1, min: 1, max: 8 }, { id: 'n', type: 'int', label: 'to n', def: 7, min: 1, max: 12 }, { id: 'scope', type: 'select', label: 'Graphs', options: [['all', 'all'], ['connected', 'connected only']], def: 'all' }, { id: 'steps', type: 'int', label: 'annealing steps', def: 3000, min: 200, max: 20000 }, { id: 'seed', type: 'int', label: 'annealing seed', def: 1, min: 1, max: 9999 }, { id: 'guess', type: 'text', label: 'Guess f(n)', def: '' }, { id: 'x', type: 'select', label: 'Plot x', options: Object.entries(INV_NAMES), def: 'n' }], legend: [['n', 'k0', 'side 1 (when bipartite)'], ['n', 'k1', 'side 2'], ['e', '', 'edge']] },
+      { key: 'ext', name: 'Find extremal graphs (all small graphs)', run: algExtremal, own: true, params: [{ id: 'method', type: 'select', label: 'Method', options: [['exh', 'exhaustive: every graph (exact, n ≤ 8)'], ['ilp', 'ILP, branch and bound (exact, edges m, n ≤ 9)'], ['sat', 'SAT: CNF + CDCL solver (exact, edges m, n ≤ 9)'], ['anneal', 'simulated annealing (heuristic, n ≤ 12)']], def: 'exh' }, { id: 'goal', type: 'select', label: 'Goal', options: [['max', 'maximise'], ['min', 'minimise']], def: 'max' }, { id: 'obj', type: 'text', label: 'Expression', def: 'm' }, { id: 'cond', type: 'text', label: 'Subject to', def: 'tri == 0' }, { id: 'from', type: 'int', label: 'from n', def: 1, min: 1, max: 8 }, { id: 'n', type: 'int', label: 'to n', def: 7, min: 1, max: 12 }, { id: 'scope', type: 'select', label: 'Graphs', options: [['all', 'all'], ['connected', 'connected only']], def: 'all' }, { id: 'steps', type: 'int', label: 'annealing steps', def: 3000, min: 200, max: 20000 }, { id: 'seed', type: 'int', label: 'annealing seed', def: 1, min: 1, max: 9999 }, { id: 'guess', type: 'text', label: 'Guess f(n)', def: '' }, { id: 'x', type: 'select', label: 'Plot x', options: Object.entries(INV_NAMES), def: 'n' }], legend: [['n', 'k0', 'side 1 (when bipartite)'], ['n', 'k1', 'side 2'], ['e', '', 'edge']] },
       { key: 'gen', name: 'Watch the generator', run: algGenWalk, own: true, params: [{ id: 'n', type: 'int', label: 'order n', def: 4, min: 2, max: 5 }] },
       { key: 'sa', name: 'Simulated annealing for extremal graphs', run: algAnneal, own: true, params: [{ id: 'forbid', type: 'select', label: 'Forbidden subgraph', options: [['tri', 'triangle K₃'], ['c4', '4-cycle C₄'], ['k4', 'K₄']], def: 'tri' }, { id: 'n', type: 'int', label: 'n', def: 10, min: 4, max: 20 }, { id: 'iters', type: 'int', label: 'Steps', def: 20000, min: 1000, max: 400000 }, { id: 'seed', type: 'int', label: 'Seed', def: 3, min: 1, max: 9999 }] },
     ],
@@ -3367,7 +3507,7 @@ const PSEUDO = {
   'dom.greedy': ['D ← ∅', 'while some vertex is undominated', '  v ← vertex whose closed neighbourhood covers most undominated vertices', '  D ← D ∪ {v}', 'return D        ▹ at most (1 + ln(Δ+1))·γ'],
   'dom.exact': ['u ← first undominated vertex', '  some vertex of N[u] must be in D: branch on each', '  prune when |D| + ⌈undominated / (Δ+1)⌉ ≥ best'],
   'cagt.conj': ['generate all graphs on n vertices up to isomorphism', 'for each graph G: compute the invariants', '  if the statement is false for G: record a counterexample'],
-  'cagt.ext': ['for each order k from n₀ to n', '  exhaustive: for each graph G on k vertices (up to isomorphism) with the condition', '    compute the expression;  keep the best value and the graphs attaining it', '  report f*(k) and compare with the guess f(k)', 'look for the common structure of the extremal graphs', 'annealing: toggle a random pair uv;  score = objective − λ·[condition fails]', '  keep it if the score does not drop, else with probability e^(−drop/T);  cool T', 'ILP: x_uv ∈ {0,1} per pair;  max/min Σ x_uv;  one linear constraint per forbidden subgraph', '  branch on x_uv = 1 / 0;  cut a branch if a constraint fails or the bound cannot beat the best'],
+  'cagt.ext': ['for each order k from n₀ to n', '  exhaustive: for each graph G on k vertices (up to isomorphism) with the condition', '    compute the expression;  keep the best value and the graphs attaining it', '  report f*(k) and compare with the guess f(k)', 'look for the common structure of the extremal graphs', 'annealing: toggle a random pair uv;  score = objective − λ·[condition fails]', '  keep it if the score does not drop, else with probability e^(−drop/T);  cool T', 'ILP: x_uv ∈ {0,1} per pair;  max/min Σ x_uv;  one linear constraint per forbidden subgraph', '  branch on x_uv = 1 / 0;  cut a branch if a constraint fails or the bound cannot beat the best', 'SAT: Boolean x_uv per pair;  each forbidden subgraph is a clause;  “m ≥ t” by a counter', '  ask t = 0, 1, 2, …: SAT gives a graph, the first UNSAT proves the optimum'],
   'cagt.gen': ['for each graph G′ on n − 1 vertices', '  for each subset S of V(G′)', '    G ← G′ plus a new vertex joined to S', '    if G ≅ a kept graph: discard;  else keep G'],
   'cagt.sa': ['G ← empty graph;  T ← T₀', 'repeat', '  toggle a random pair uv;  ΔE ← change in (−edges + λ·violations)', '  accept if ΔE ≤ 0, else with probability e^(−ΔE/T)', '  T ← T · cooling', 'return the best graph with no violations'],
 };
@@ -3414,7 +3554,7 @@ const IDEAS = {
   'dom.greedy': 'Repeatedly add the vertex that dominates the most vertices not yet dominated. Idea: like greedy set cover, it is never worse than about ln(Δ + 1) times the optimum.',
   'dom.exact': 'Pick an undominated vertex u; some vertex of its closed neighbourhood must be in the set, so branch on each, and prune branches that cannot beat the best set found. Idea: every vertex dominates at most Δ + 1 vertices, so the remaining undominated vertices give a lower bound for pruning.',
   'cagt.conj': 'Check the statement on every graph of the chosen order, one isomorphism class at a time, and plot the invariants. Idea: an exhaustive search finds a counterexample of that order whenever one exists; finding none is evidence for the statement, not a proof.',
-  'cagt.ext': 'Three methods. Exhaustive: for every order, run through all graphs that satisfy the condition and record the largest (or smallest) value of the expression, together with every graph attaining it. Idea: on small orders an exhaustive search gives the exact extremal values, a sequence to guess a formula from, and the extremal graphs that suggest the construction to prove it. ILP: write the question as an integer program (one 0/1 variable per vertex pair, one linear constraint per forbidden subgraph) and let branch and bound prove the optimum without listing every graph. Simulated annealing: a randomised local search that reaches larger n but proves only what it finds, a bound. In short: exact methods give theorems for small n; the heuristic gives constructions beyond them.',
+  'cagt.ext': 'Four methods. Exhaustive: for every order, run through all graphs that satisfy the condition and record the largest (or smallest) value of the expression, together with every graph attaining it. Idea: on small orders an exhaustive search gives the exact extremal values, a sequence to guess a formula from, and the extremal graphs that suggest the construction to prove it. ILP: write the question as an integer program (one 0/1 variable per vertex pair, one linear constraint per forbidden subgraph) and let branch and bound prove the optimum without listing every graph. Simulated annealing: a randomised local search that reaches larger n but proves only what it finds, a bound. SAT: the same question as clauses over Boolean edge variables; a CDCL solver answers “is there a graph with at least t edges?” and its UNSAT answer is the proof of optimality. In short: exact methods give theorems for small n; the heuristic gives constructions beyond them.',
   'cagt.gen': 'Build the graphs on n vertices by adding a new vertex to each graph on n − 1 vertices in every possible way, and keep one copy of each isomorphism class. Idea: every graph arises this way (delete any vertex), so nothing is missed, and isomorphism tests remove duplicates.',
   'cagt.sa': 'Flip random pairs between edge and non-edge, always accepting improvements and sometimes accepting worse graphs, less often as the temperature drops. Idea: occasional uphill moves let the search escape local optima on its way to an extremal graph.',
 };
@@ -3496,6 +3636,32 @@ if res.status == 0:
     print('optimum m =', len(E)); print(E)
 else:
     print(res.message)`; }
+      if (P.method === 'sat') { const { atoms } = ilpParseCond(P.cond); const n = Math.max(2, Math.min(12, P.n | 0)); const mx = P.goal !== 'min'; return `# Extremal question as SAT with PySAT (pip install python-sat): ${mx ? 'maximise' : 'minimise'} m subject to ${(P.cond || '').replace(/`/g, '')}
+import itertools
+from pysat.formula import CNF, IDPool
+from pysat.card import CardEnc, EncType
+from pysat.solvers import Glucose3
+
+n = ${n}
+pairs = list(itertools.combinations(range(n), 2))
+pool = IDPool()
+x = lambda u, v: pool.id(('x', min(u, v), max(u, v)))      # true = uv is an edge
+base = CNF()
+${atoms.map(a => a.kind === 'clique' ? `for S in itertools.combinations(range(n), ${a.k}):            # no K${a.k}: not all its edges\n    base.append([-x(u, v) for u, v in itertools.combinations(S, 2)])` : a.kind === 'indep' ? `for S in itertools.combinations(range(n), ${a.k}):            # no independent ${a.k}-set: some edge inside\n    base.append([x(u, v) for u, v in itertools.combinations(S, 2)])` : a.kind === 'cycle' ? `for S in itertools.combinations(range(n), ${a.k}):            # no C${a.k}\n    for p in itertools.permutations(S[1:]):\n        if p[0] < p[-1]:\n            c = (S[0],) + p\n            base.append([-x(c[i], c[(i + 1) % ${a.k}]) for i in range(${a.k})])` : a.kind === 'dmax' || a.kind === 'dmin' ? `for v in range(n):                                  # degree ${a.kind === 'dmax' ? '≤' : '≥'} ${a.k}\n    base.extend(CardEnc.${a.kind === 'dmax' ? 'atmost' : 'atleast'}([x(v, w) for w in range(n) if w != v], bound=${a.k}, vpool=pool, encoding=EncType.seqcounter).clauses)` : `base.extend(CardEnc.${a.op === '<=' ? 'atmost' : a.op === '>=' ? 'atleast' : 'equals'}([x(u, v) for u, v in pairs], bound=${a.k}, vpool=pool, encoding=EncType.seqcounter).clauses)  # size`).join('\n')}
+best = None
+for t in range(len(pairs) + 1):                    # ask: is there a graph with m ${mx ? '≥' : '≤'} t ?
+    cnf = CNF(from_clauses=base.clauses)
+    cnf.extend(CardEnc.${mx ? 'atleast' : 'atmost'}([x(u, v) for u, v in pairs], bound=t, vpool=pool, encoding=EncType.seqcounter).clauses)
+    with Glucose3(bootstrap_with=cnf.clauses) as s:
+        ok = s.solve()
+        model = set(l for l in s.get_model() if l > 0) if ok else None
+    print('m ${mx ? '≥' : '≤'}', t, 'SAT' if ok else 'UNSAT')
+    if ${mx ? 'not ok: break' : 'ok:'}
+    ${mx ? 'best = (t, model)' : '    best = (t, model); break'}
+if best:
+    print('${mx ? 'maximum' : 'minimum'} m =', best[0], [(u, v) for u, v in pairs if x(u, v) in best[1]])
+else:
+    print('no graph satisfies the conditions')`; }
       if (P.method === 'anneal') return `# Simulated annealing for an extremal question (edit feasible() and value() for your condition and expression)
 import math, random
 import networkx as nx

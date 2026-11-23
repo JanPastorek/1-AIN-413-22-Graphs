@@ -39,7 +39,7 @@ const PSEUDO = {
   'dom.greedy': ['D ← ∅', 'while some vertex is undominated', '  v ← vertex whose closed neighbourhood covers most undominated vertices', '  D ← D ∪ {v}', 'return D        ▹ at most (1 + ln(Δ+1))·γ'],
   'dom.exact': ['u ← first undominated vertex', '  some vertex of N[u] must be in D: branch on each', '  prune when |D| + ⌈undominated / (Δ+1)⌉ ≥ best'],
   'cagt.conj': ['generate all graphs on n vertices up to isomorphism', 'for each graph G: compute the invariants', '  if the statement is false for G: record a counterexample'],
-  'cagt.ext': ['for each order k from n₀ to n', '  exhaustive: for each graph G on k vertices (up to isomorphism) with the condition', '    compute the expression;  keep the best value and the graphs attaining it', '  report f*(k) and compare with the guess f(k)', 'look for the common structure of the extremal graphs', 'annealing: toggle a random pair uv;  score = objective − λ·[condition fails]', '  keep it if the score does not drop, else with probability e^(−drop/T);  cool T', 'ILP: x_uv ∈ {0,1} per pair;  max/min Σ x_uv;  one linear constraint per forbidden subgraph', '  branch on x_uv = 1 / 0;  cut a branch if a constraint fails or the bound cannot beat the best'],
+  'cagt.ext': ['for each order k from n₀ to n', '  exhaustive: for each graph G on k vertices (up to isomorphism) with the condition', '    compute the expression;  keep the best value and the graphs attaining it', '  report f*(k) and compare with the guess f(k)', 'look for the common structure of the extremal graphs', 'annealing: toggle a random pair uv;  score = objective − λ·[condition fails]', '  keep it if the score does not drop, else with probability e^(−drop/T);  cool T', 'ILP: x_uv ∈ {0,1} per pair;  max/min Σ x_uv;  one linear constraint per forbidden subgraph', '  branch on x_uv = 1 / 0;  cut a branch if a constraint fails or the bound cannot beat the best', 'SAT: Boolean x_uv per pair;  each forbidden subgraph is a clause;  “m ≥ t” by a counter', '  ask t = 0, 1, 2, …: SAT gives a graph, the first UNSAT proves the optimum'],
   'cagt.gen': ['for each graph G′ on n − 1 vertices', '  for each subset S of V(G′)', '    G ← G′ plus a new vertex joined to S', '    if G ≅ a kept graph: discard;  else keep G'],
   'cagt.sa': ['G ← empty graph;  T ← T₀', 'repeat', '  toggle a random pair uv;  ΔE ← change in (−edges + λ·violations)', '  accept if ΔE ≤ 0, else with probability e^(−ΔE/T)', '  T ← T · cooling', 'return the best graph with no violations'],
 };
@@ -86,7 +86,7 @@ const IDEAS = {
   'dom.greedy': 'Repeatedly add the vertex that dominates the most vertices not yet dominated. Idea: like greedy set cover, it is never worse than about ln(Δ + 1) times the optimum.',
   'dom.exact': 'Pick an undominated vertex u; some vertex of its closed neighbourhood must be in the set, so branch on each, and prune branches that cannot beat the best set found. Idea: every vertex dominates at most Δ + 1 vertices, so the remaining undominated vertices give a lower bound for pruning.',
   'cagt.conj': 'Check the statement on every graph of the chosen order, one isomorphism class at a time, and plot the invariants. Idea: an exhaustive search finds a counterexample of that order whenever one exists; finding none is evidence for the statement, not a proof.',
-  'cagt.ext': 'Three methods. Exhaustive: for every order, run through all graphs that satisfy the condition and record the largest (or smallest) value of the expression, together with every graph attaining it. Idea: on small orders an exhaustive search gives the exact extremal values, a sequence to guess a formula from, and the extremal graphs that suggest the construction to prove it. ILP: write the question as an integer program (one 0/1 variable per vertex pair, one linear constraint per forbidden subgraph) and let branch and bound prove the optimum without listing every graph. Simulated annealing: a randomised local search that reaches larger n but proves only what it finds, a bound. In short: exact methods give theorems for small n; the heuristic gives constructions beyond them.',
+  'cagt.ext': 'Four methods. Exhaustive: for every order, run through all graphs that satisfy the condition and record the largest (or smallest) value of the expression, together with every graph attaining it. Idea: on small orders an exhaustive search gives the exact extremal values, a sequence to guess a formula from, and the extremal graphs that suggest the construction to prove it. ILP: write the question as an integer program (one 0/1 variable per vertex pair, one linear constraint per forbidden subgraph) and let branch and bound prove the optimum without listing every graph. Simulated annealing: a randomised local search that reaches larger n but proves only what it finds, a bound. SAT: the same question as clauses over Boolean edge variables; a CDCL solver answers “is there a graph with at least t edges?” and its UNSAT answer is the proof of optimality. In short: exact methods give theorems for small n; the heuristic gives constructions beyond them.',
   'cagt.gen': 'Build the graphs on n vertices by adding a new vertex to each graph on n − 1 vertices in every possible way, and keep one copy of each isomorphism class. Idea: every graph arises this way (delete any vertex), so nothing is missed, and isomorphism tests remove duplicates.',
   'cagt.sa': 'Flip random pairs between edge and non-edge, always accepting improvements and sometimes accepting worse graphs, less often as the temperature drops. Idea: occasional uphill moves let the search escape local optima on its way to an extremal graph.',
 };
@@ -168,6 +168,32 @@ if res.status == 0:
     print('optimum m =', len(E)); print(E)
 else:
     print(res.message)`; }
+      if (P.method === 'sat') { const { atoms } = ilpParseCond(P.cond); const n = Math.max(2, Math.min(12, P.n | 0)); const mx = P.goal !== 'min'; return `# Extremal question as SAT with PySAT (pip install python-sat): ${mx ? 'maximise' : 'minimise'} m subject to ${(P.cond || '').replace(/`/g, '')}
+import itertools
+from pysat.formula import CNF, IDPool
+from pysat.card import CardEnc, EncType
+from pysat.solvers import Glucose3
+
+n = ${n}
+pairs = list(itertools.combinations(range(n), 2))
+pool = IDPool()
+x = lambda u, v: pool.id(('x', min(u, v), max(u, v)))      # true = uv is an edge
+base = CNF()
+${atoms.map(a => a.kind === 'clique' ? `for S in itertools.combinations(range(n), ${a.k}):            # no K${a.k}: not all its edges\n    base.append([-x(u, v) for u, v in itertools.combinations(S, 2)])` : a.kind === 'indep' ? `for S in itertools.combinations(range(n), ${a.k}):            # no independent ${a.k}-set: some edge inside\n    base.append([x(u, v) for u, v in itertools.combinations(S, 2)])` : a.kind === 'cycle' ? `for S in itertools.combinations(range(n), ${a.k}):            # no C${a.k}\n    for p in itertools.permutations(S[1:]):\n        if p[0] < p[-1]:\n            c = (S[0],) + p\n            base.append([-x(c[i], c[(i + 1) % ${a.k}]) for i in range(${a.k})])` : a.kind === 'dmax' || a.kind === 'dmin' ? `for v in range(n):                                  # degree ${a.kind === 'dmax' ? '≤' : '≥'} ${a.k}\n    base.extend(CardEnc.${a.kind === 'dmax' ? 'atmost' : 'atleast'}([x(v, w) for w in range(n) if w != v], bound=${a.k}, vpool=pool, encoding=EncType.seqcounter).clauses)` : `base.extend(CardEnc.${a.op === '<=' ? 'atmost' : a.op === '>=' ? 'atleast' : 'equals'}([x(u, v) for u, v in pairs], bound=${a.k}, vpool=pool, encoding=EncType.seqcounter).clauses)  # size`).join('\n')}
+best = None
+for t in range(len(pairs) + 1):                    # ask: is there a graph with m ${mx ? '≥' : '≤'} t ?
+    cnf = CNF(from_clauses=base.clauses)
+    cnf.extend(CardEnc.${mx ? 'atleast' : 'atmost'}([x(u, v) for u, v in pairs], bound=t, vpool=pool, encoding=EncType.seqcounter).clauses)
+    with Glucose3(bootstrap_with=cnf.clauses) as s:
+        ok = s.solve()
+        model = set(l for l in s.get_model() if l > 0) if ok else None
+    print('m ${mx ? '≥' : '≤'}', t, 'SAT' if ok else 'UNSAT')
+    if ${mx ? 'not ok: break' : 'ok:'}
+    ${mx ? 'best = (t, model)' : '    best = (t, model); break'}
+if best:
+    print('${mx ? 'maximum' : 'minimum'} m =', best[0], [(u, v) for u, v in pairs if x(u, v) in best[1]])
+else:
+    print('no graph satisfies the conditions')`; }
       if (P.method === 'anneal') return `# Simulated annealing for an extremal question (edit feasible() and value() for your condition and expression)
 import math, random
 import networkx as nx

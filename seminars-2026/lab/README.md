@@ -36,7 +36,7 @@ Companion exercises: [Lab and database explorations](../practice/lab-and-databas
 | 9 Planarity, duality, colouring | Planarity test (Demoucron–Malgrange–Pertuiset) with plane drawing, faces, Euler’s formula, dual graph or Kuratowski subgraph; greedy, DSatur, exact χ | PS 9 |
 | 10 Random graphs | Erdős–Rényi process with giant-component theory; US airports vs G(n, m) | PS 10 |
 | 11 Domination | Greedy; exact branch and bound; counting bound; ILP and LP relaxation | PS 11 |
-| 12 Computer-assisted graph theory | Conjecture tester over all graphs up to 8 vertices with a PHOEG-style scatter and hull; extremal search (maximise or minimise any invariant expression under any condition, order by order, with a guess checker and every extremal graph) by three methods: exhaustive, an ILP solved by branch and bound, or simulated annealing; the vertex-augmentation generator step by step; simulated annealing for extremal graphs | PS 2 P1 |
+| 12 Computer-assisted graph theory | Conjecture tester over all graphs up to 8 vertices with a PHOEG-style scatter and hull; extremal search (maximise or minimise any invariant expression under any condition, order by order, with a guess checker and every extremal graph) by four methods: exhaustive, an ILP solved by branch and bound, SAT (the CNF shown and exported as DIMACS, solved by a small CDCL solver), or simulated annealing; the vertex-augmentation generator step by step; simulated annealing for extremal graphs | PS 2 P1 |
 
 ## Data from this repository
 
@@ -44,11 +44,11 @@ The problem-set links and the instances transcribed from the sheets’ figures a
 
 ## Checks behind the page
 
-`node tests/run-tests.js` runs 3 802 checks without dependencies, among them:
+`node tests/run-tests.js` runs 3 813 checks without dependencies, among them:
 
 - graph counts 1, 2, 4, 11, 34, 156, 1044 from the generator (12 346 for n = 8 in the browser);
 - the planarity test agrees with the known numbers of planar graphs (33, 142, 822 for n = 5, 6, 7), Euler’s formula holds on every embedding, and every 2-connected planar graph on up to 7 vertices is drawn without crossings;
-- Hungarian results against brute force on 40 random matrices, Hopcroft–Karp against the simple algorithm on 30 random graphs, Edmonds’ blossom against brute force on 250 random general graphs, each run ending in a tight Tutte–Berge set; the extremal search reproduces Mantel’s ⌊n²/4⌋, OEIS A006855, R(3, 3) = 6, Ore’s γ ≤ ⌊n/2⌋ and the 11 trees on 7 vertices, and its ILP method agrees with the exhaustive table on seven extremal questions;
+- Hungarian results against brute force on 40 random matrices, Hopcroft–Karp against the simple algorithm on 30 random graphs, Edmonds’ blossom against brute force on 250 random general graphs, each run ending in a tight Tutte–Berge set; the extremal search reproduces Mantel’s ⌊n²/4⌋, OEIS A006855, R(3, 3) = 6, Ore’s γ ≤ ⌊n/2⌋ and the 11 trees on 7 vertices, and its ILP and SAT methods agree with the exhaustive table on seven extremal questions; the CDCL solver is checked against brute force on 200 random 3-CNFs;
 - every pseudocode line reference, prediction question, certificate verifier, exit ticket and definition animation is consistent;
 - every problem-set link points at a PDF in the repository, every problem-set button loads an existing graph and runs, and the transcribed instances have the counts read off the drawings (for example, the three PS 2 graphs are cubic on 10 vertices, and the maximum flows and spanning-tree weights agree with networkx).
 

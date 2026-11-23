@@ -423,6 +423,145 @@ function extremalAnneal(k, P, obj, cond, steps, rand) {
   }
   return { best, bestA, snaps };
 }
+/* ---------- extremal search, method 4: SAT (CNF encoding, a small CDCL solver, one call per target value) ---------- */
+/* Small CDCL SAT solver: two watched literals, 1-UIP learning, activity heuristic, restarts. Literals: +v / -v (v ≥ 1). */
+function satSolve(nv, clauses, limit = 2e6) {
+  const val = new Int8Array(nv + 1), lvl = new Int32Array(nv + 1), reason = new Array(nv + 1).fill(null), act = new Float64Array(nv + 1);
+  const W = new Map(); const watch = l => { let a = W.get(l); if (!a) W.set(l, a = []); return a; };
+  const trail = [], lim = []; let qh = 0, inc = 1, conflicts = 0, decisions = 0, props = 0;
+  const value = l => { const v = val[Math.abs(l)]; return v === 0 ? 0 : (l > 0 ? v : -v); };
+  const assign = (l, r) => { val[Math.abs(l)] = l > 0 ? 1 : -1; lvl[Math.abs(l)] = lim.length; reason[Math.abs(l)] = r; trail.push(l); };
+  const C = [];
+  const addC = c => { c = [...new Set(c)]; if (c.some(l => c.includes(-l))) return true; if (c.length === 0) return false; if (c.length === 1) { const v = value(c[0]); if (v === -1) return false; if (v === 0) assign(c[0], null); return true; } C.push(c); watch(-c[0]).push(c); watch(-c[1]).push(c); return true; };
+  for (const c of clauses) if (!addC(c.slice())) return { sat: false, conflicts, decisions };
+  const propagate = () => {
+    while (qh < trail.length) {
+      const l = trail[qh++]; const ws = W.get(l); if (!ws) continue; props++;
+      for (let i = 0; i < ws.length;) {
+        const c = ws[i]; if (c[0] === -l) { c[0] = c[1]; c[1] = -l; }
+        if (value(c[0]) === 1) { i++; continue; }
+        let found = false;
+        for (let k = 2; k < c.length; k++) if (value(c[k]) !== -1) { c[1] = c[k]; c[k] = -l; watch(-c[1]).push(c); ws[i] = ws[ws.length - 1]; ws.pop(); found = true; break; }
+        if (found) continue;
+        if (value(c[0]) === -1) return c;
+        if (value(c[0]) === 0) assign(c[0], c);
+        i++;
+      }
+    }
+    return null;
+  };
+  const backtrack = L => { while (trail.length > (lim[L] ?? trail.length)) { const l = trail.pop(); val[Math.abs(l)] = 0; reason[Math.abs(l)] = null; } lim.length = L; qh = trail.length; };
+  let restartAt = 100;
+  while (true) {
+    const confl = propagate();
+    if (confl) {
+      conflicts++; if (conflicts > limit) return { sat: null, conflicts, decisions };
+      if (lim.length === 0) return { sat: false, conflicts, decisions };
+      const seen = new Uint8Array(nv + 1), learnt = [0]; let cnt = 0, p = 0, c = confl, idx = trail.length - 1;
+      do {
+        for (const q of c) { if (q === p) continue; const v = Math.abs(q); if (!seen[v] && lvl[v] > 0) { seen[v] = 1; act[v] += inc; if (lvl[v] >= lim.length) cnt++; else learnt.push(q); } }
+        while (!seen[Math.abs(trail[idx])]) idx--;
+        p = trail[idx]; c = reason[Math.abs(p)] || []; seen[Math.abs(p)] = 0; cnt--; idx--;
+      } while (cnt > 0);
+      learnt[0] = -p; inc *= 1.05;
+      let bl = 0, bi = 1; for (let i = 1; i < learnt.length; i++) if (lvl[Math.abs(learnt[i])] > bl) { bl = lvl[Math.abs(learnt[i])]; bi = i; }
+      if (learnt.length > 1) [learnt[1], learnt[bi]] = [learnt[bi], learnt[1]];
+      backtrack(bl);
+      if (learnt.length === 1) assign(learnt[0], null); else { C.push(learnt); watch(-learnt[0]).push(learnt); watch(-learnt[1]).push(learnt); assign(learnt[0], learnt); }
+      if (conflicts >= restartAt) { restartAt += Math.floor(restartAt * 0.5) + 100; backtrack(0); }
+    } else {
+      let best = 0, ba = -1; for (let v = 1; v <= nv; v++) if (!val[v] && act[v] > ba) { ba = act[v]; best = v; }
+      if (!best) { const model = Array.from(val); return { sat: true, model, conflicts, decisions }; }
+      decisions++; lim.push(trail.length); assign(-best, null);
+    }
+  }
+}
+/* Sinz sequential counter: at most k of lits are true. newVar() allocates auxiliaries. */
+function atMostK(lits, k, newVar, out) {
+  const n = lits.length; if (k >= n) return; if (k < 0) { out.push([]); return; }
+  if (k === 0) { lits.forEach(l => out.push([-l])); return; }
+  const s = []; for (let i = 0; i < n - 1; i++) { s.push([]); for (let j = 0; j < k; j++) s[i].push(newVar()); }
+  out.push([-lits[0], s[0][0]]); for (let j = 1; j < k; j++) out.push([-s[0][j]]);
+  for (let i = 1; i < n - 1; i++) {
+    out.push([-lits[i], s[i][0]]); out.push([-s[i - 1][0], s[i][0]]);
+    for (let j = 1; j < k; j++) { out.push([-lits[i], -s[i - 1][j - 1], s[i][j]]); out.push([-s[i - 1][j], s[i][j]]); }
+    out.push([-lits[i], -s[i - 1][k - 1]]);
+  }
+  out.push([-lits[n - 1], -s[n - 2][k - 1]]);
+}
+const atLeastK = (lits, k, newVar, out) => atMostK(lits.map(l => -l), lits.length - k, newVar, out);
+/* CNF for "a graph on n vertices with the conditions and m ≥ t (max) or m ≤ t (min)". Variable x_uv = edge uv. */
+function satEncode(n, atoms, goal, t) {
+  const M = ilpModel(n, atoms), pairVar = i => i + 1; let nv = M.V.length;
+  const clauses = [], groups = [];
+  const newVar = () => ++nv;
+  for (const c of M.C) {
+    const lits = c.vars.map(pairVar), start = clauses.length;
+    if (c.sense === '<=' && c.rhs === lits.length - 1) clauses.push(lits.map(l => -l));            // not all edges of this subgraph
+    else if (c.sense === '>=' && c.rhs === 1) clauses.push(lits.slice());                          // at least one edge
+    else if (c.sense === '<=') atMostK(lits, c.rhs, newVar, clauses);
+    else if (c.sense === '>=') atLeastK(lits, c.rhs, newVar, clauses);
+    else { atMostK(lits, c.rhs, newVar, clauses); atLeastK(lits, c.rhs, newVar, clauses); }
+    groups.push({ tag: c.tag, from: start, to: clauses.length });
+  }
+  const start = clauses.length, all = M.V.map((_, i) => pairVar(i));
+  if (goal === 'max') atLeastK(all, t, newVar, clauses); else atMostK(all, t, newVar, clauses);
+  groups.push({ tag: goal === 'max' ? `m ≥ ${t}` : `m ≤ ${t}`, from: start, to: clauses.length, card: true });
+  return { M, nv, clauses, groups };
+}
+function satText(n, E) {
+  const name = v => v <= E.M.V.length ? `x${E.M.V[v - 1][0]}${n > 10 ? '_' : ''}${E.M.V[v - 1][1]}` : `s${v - E.M.V.length}`;
+  const lit = l => (l < 0 ? '¬' : '') + name(Math.abs(l));
+  const lines = [];
+  const seenTag = new Map();
+  for (const g of E.groups) { const k = g.card ? g.tag : g.tag.replace(/ of \d+$/, ''); seenTag.set(k, (seenTag.get(k) || []).concat([g])); }
+  for (const [tag, gs] of seenTag) {
+    const cls = gs.flatMap(g => E.clauses.slice(g.from, g.to));
+    lines.push(`— ${tag}: ${cls.length} clause${cls.length === 1 ? '' : 's'}`);
+    cls.slice(0, 3).forEach(c => { let t = '  (' + c.map(lit).join(' ∨ ') + ')'; if (t.length > 40) t = t.slice(0, 38) + '…)'; lines.push(t); });
+    if (cls.length > 3) lines.push('  …');
+  }
+  const dimacs = [`c extremal graph question as CNF: x variables 1..${E.M.V.length} are vertex pairs, the rest are counter bits`, ...E.M.V.map((p, i) => `c ${i + 1} = x${p[0]}${n > 10 ? '_' : ''}${p[1]}`), `p cnf ${E.nv} ${E.clauses.length}`, ...E.clauses.map(c => c.join(' ') + ' 0')].join('\n');
+  return { text: lines.join('\n'), dimacs };
+}
+function algExtremalSAT(P) {
+  const R = new Rec(), max = P.goal !== 'min', word = max ? 'maximum' : 'minimum';
+  const nmax = Math.max(1, Math.min(9, P.n | 0)), nmin = Math.max(2, Math.min(nmax, (P.from | 0) || 1));
+  const box = { x0: 150, x1: 650, y0: 70, y1: 450 };
+  const toGraph = (a, k) => { const g = newGraph(false); for (let i = 0; i < k; i++) addNode(g, '0|' + i, String(i)); for (let i = 0; i < k; i++) for (let j = i + 1; j < k; j++) if (a[i] >> j & 1) g.edges.push({ u: i, v: j, w: 1 }); if (!(g.edges.length && twoColoring(g) && layoutGraph(g, 'columns', box))) forceLayout(g, box, 300, 5); return g; };
+  const nc = g => { const c = g.edges.length ? twoColoring(g) : null, o = {}; if (c) g.nodes.forEach((v, i) => { o[i] = 'k' + c[i]; }); return o; };
+  const why = [];
+  if ((P.obj || 'm').trim() !== 'm') why.push(`SAT answers yes/no questions; here the question is “is there a graph with m ≥ t?”, so the expression must be <code>m</code>, not <code>${esc(P.obj)}</code>`);
+  if (P.scope === 'connected') why.push('connectivity is not encoded here; choose “all” graphs or the exhaustive method');
+  const { atoms, bad } = ilpParseCond(P.cond);
+  if (bad.length) why.push(`no clause form here for <code>${bad.map(esc).join('</code>, <code>')}</code>. Supported: <code>tri == 0</code>, <code>omega &lt;= k</code>, <code>girth &gt;= g</code> (g ≤ 6), <code>alpha &lt;= k</code>, <code>dmax &lt;= k</code>, <code>dmin &gt;= k</code>, <code>m &gt;= k</code>, joined by <code>&amp;&amp;</code>`);
+  if (why.length) { R.line = 9; R.snap('This question cannot be written as the SAT formula used here.', { graph: toGraph([0, 0, 0], 3), panel: cert('info', 'Not a SAT question of this form', why.map(w => '• ' + w).join('<br>') + '<br>Switch the method to exhaustive search or simulated annealing.') }, true); return { frames: R.frames }; }
+  const t0 = max ? Math.floor(nmax * (nmax - 1) / 4) : 0, E0 = satEncode(nmax, atoms, max ? 'max' : 'min', t0), Tx = satText(nmax, E0);
+  const enc = fold('ext-sat-cnf', `The CNF for n = ${nmax} and ${max ? 'm ≥ ' : 'm ≤ '}${t0}: ${E0.nv} variables, ${E0.clauses.length} clauses`, `<pre class="ilp model">${esc(Tx.text)}</pre><p class="note">A Boolean variable x<sub>uv</sub> says “uv is an edge”. A forbidden triangle {a, b, c} is the clause (¬x<sub>ab</sub> ∨ ¬x<sub>ac</sub> ∨ ¬x<sub>bc</sub>): not all three edges. A forbidden independent set {a, b, c} is (x<sub>ab</sub> ∨ x<sub>ac</sub> ∨ x<sub>bc</sub>): at least one edge. Counting (“at least t edges”, degree bounds) needs extra counter variables s<sub>i</sub> (sequential counter of Sinz). The solver answers SAT with a graph, or UNSAT: then no such graph exists.</p><details class="lpfile"><summary>As a DIMACS file for any SAT solver</summary><p class="note">Save as <code>graph.cnf</code>; kissat, CaDiCaL, MiniSat or Glucose read it. Solvers like these proved Keller's conjecture in dimension 7 and the Boolean Pythagorean triples theorem.</p><button type="button" class="copybtn" data-copy="cnffile">Copy CNF file</button><pre class="ilp lpsrc" data-kind="cnffile">${esc(Tx.dimacs)}</pre></details>`);
+  const cap = (P.n | 0) > 9 ? '<p class="note">The browser solver stops at 9 vertices; the Python tab writes the same formula for PySAT.</p>' : '';
+  R.line = 9; R.snap(`SAT asks yes/no questions about Boolean formulas. Each vertex pair gets a variable x<sub>uv</sub> (true = edge); every condition becomes clauses; the objective becomes the question “${max ? 'is there a graph with at least t edges' : 'is there a graph with at most t edges'}?”, asked for t = ${max ? '0, 1, 2, …' : '0, 1, 2, …'} until the answer changes.`, { graph: toGraph(Array(nmax).fill(0), nmax), panel: cap + enc });
+  const T = nmax <= 8 ? extremalTable(Object.assign({}, P, { from: nmin, n: nmax, obj: 'm' })) : null;
+  const rows = [], head = ['n', `${word} m`, 'SAT calls (last two)', 'conflicts', 'exhaustive'];
+  let last = null;
+  for (let k = nmin; k <= nmax; k++) {
+    const P2 = k * (k - 1) / 2; let best = null, bestA = null, calls = [], conf = 0, unknown = false;
+    const tryT = t => { const E = satEncode(k, atoms, max ? 'max' : 'min', t), r = satSolve(E.nv, E.clauses); conf += r.conflicts; calls.push({ t, r, E }); return r; };
+    if (max) { for (let t = 0; t <= P2; t++) { const r = tryT(t); if (r.sat === null) { unknown = true; break; } if (!r.sat) break; best = t; bestA = r.model; } }
+    else { for (let t = 0; t <= P2; t++) { const r = tryT(t); if (r.sat === null) { unknown = true; break; } if (r.sat) { best = t; bestA = r.model; break; } } }
+    let adj = null; if (bestA) { adj = Array(k).fill(0); const M = ilpModel(k, []); M.V.forEach(([u, v], i) => { if (bestA[i + 1] === 1) { adj[u] |= 1 << v; adj[v] |= 1 << u; } }); if (popcountAdj(adj) !== best) { /* the formula allows more edges than t; report the real count */ best = max ? Math.max(best, popcountAdj(adj)) : popcountAdj(adj); } }
+    const ex = T ? T.rows.find(x => x.k === k) : null;
+    const lastTwo = calls.slice(-2).map(c => `${max ? 'm ≥ ' : 'm ≤ '}${c.t}: ${c.r.sat === null ? '?' : c.r.sat ? 'SAT' : 'UNSAT'}`).join(', ');
+    rows.push([k, best === null ? (unknown ? 'stopped' : 'none') : best, lastTwo, conf.toLocaleString(), ex ? (ex.best === null ? (best === null ? '— ✓' : '— ✗') : `${ex.best} ${ex.best === best ? '✓' : '✗'}`) : 'n > 8']);
+    last = { k, adj, best, calls };
+    R.line = 10;
+    const msg = best === null ? `n = ${k}: ${unknown ? 'the solver hit its conflict limit' : 'already t = 0 is UNSAT: no graph on ' + k + ' vertices satisfies the conditions'}.` : `n = ${k}: ${max ? `m ≥ ${best} is SAT (the solver returns the graph shown), m ≥ ${best + 1} is UNSAT` : `m ≤ ${best - 1} is UNSAT, m ≤ ${best} is SAT`}. So the ${word} is ${best}. The UNSAT answer is the proof: a solver can log it as a DRAT certificate for an independent checker.`;
+    R.snap(msg, adj ? { graph: toGraph(adj, k), nc: nc(toGraph(adj, k)), panel: table(head, rows.slice(), 'compact') } : { graph: toGraph(Array(k).fill(0), k), panel: table(head, rows.slice(), 'compact') });
+  }
+  const allOk = rows.every(r => /✓|n > 8/.test(r[4]) && r[1] !== 'stopped');
+  R.line = 10; R.snap(`Summary: ${word} of m under <code>${esc(P.cond || 'no condition')}</code>, decided by a sequence of SAT calls per order.`, Object.assign(last.adj ? { graph: toGraph(last.adj, last.k), nc: nc(toGraph(last.adj, last.k)) } : {}, { panel: cert(allOk ? 'yes' : 'info', allOk ? `SAT decides the ${word} for n = ${nmin} … ${nmax}` : 'Some orders are not settled', allOk ? `Each value comes with a graph (SAT) and a proof that one more is impossible (UNSAT). ${T ? 'The exhaustive search agrees on every order (✓).' : ''}` : 'A conflict limit or disagreement is marked in the table.') + table(head, rows, 'compact') + enc }), true);
+  return { frames: R.frames, rows };
+}
+function popcountAdj(adj) { return adj.reduce((s, a) => s + popcnt(a), 0) / 2; }
 function algExtremalILP(P) {
   const R = new Rec(), max = P.goal !== 'min', word = max ? 'maximum' : 'minimum';
   const nmax = Math.max(1, Math.min(9, P.n | 0)), nmin = Math.max(2, Math.min(nmax, (P.from | 0) || 1));
@@ -484,6 +623,7 @@ function algExtremalAnneal(P) {
 }
 function algExtremal(g0, P) {
   if (P.method === 'ilp') return algExtremalILP(P);
+  if (P.method === 'sat') return algExtremalSAT(P);
   if (P.method === 'anneal') return algExtremalAnneal(P);
   const R = new Rec(), T = extremalTable(P), last = T.rows[T.rows.length - 1], word = T.max ? 'maximum' : 'minimum';
   const box = { x0: 150, x1: 650, y0: 70, y1: 450 };
